@@ -1,0 +1,55 @@
+{
+  "wave": 1,
+  "methods": [
+    {
+      "method": "resonant_breathing",
+      "label": "Resonant breathing at 5.5-6 breaths/min",
+      "duration_minutes": [5, 15],
+      "day_windows": ["morning", "evening"],
+      "prior_level": "strong",
+      "prior_mean": 0.6,
+      "prior_sd": 0.15,
+      "prior_source": "Lehrer & Gevirtz 2014 (Front Psychol): resonance-frequency HRV biofeedback, robust baroreflex effects"
+    },
+    {
+      "method": "woop",
+      "label": "Implementation intentions, WOOP",
+      "duration_minutes": [5, 15],
+      "day_windows": ["morning", "evening"],
+      "prior_level": "strong",
+      "prior_mean": 0.6,
+      "prior_sd": 0.15,
+      "prior_source": "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol): meta-analysis of 94 studies, d ~ 0.65"
+    },
+    {
+      "method": "mental_rehearsal",
+      "label": "Mental rehearsal, first person",
+      "duration_minutes": [5, 15],
+      "day_windows": ["morning", "evening"],
+      "prior_level": "medium",
+      "prior_mean": 0.5,
+      "prior_sd": 0.15,
+      "prior_source": "Driskell, Copper & Moran 1994 (J Appl Psychol): mental practice meta-analysis, moderate effect, decays without physical practice"
+    },
+    {
+      "method": "focusing_family",
+      "label": "Focusing, yoga nidra, self-hypnosis",
+      "duration_minutes": [5, 15],
+      "day_windows": ["morning", "evening"],
+      "prior_level": "medium_weak",
+      "prior_mean": 0.45,
+      "prior_sd": 0.18,
+      "prior_source": "Flammer & Bongartz 2003 (Contemp Hypn) and Hendricks 2002 (Focusing review): small-N studies, mixed quality"
+    },
+    {
+      "method": "binaural_tones",
+      "label": "Binaural and isochronic tones",
+      "duration_minutes": [5, 15],
+      "day_windows": ["morning", "evening"],
+      "prior_level": "weak_wide",
+      "prior_mean": 0.4,
+      "prior_sd": 0.25,
+      "prior_source": "Garcia-Argibay et al. 2019 (Psychol Res): binaural beats meta-analysis, small and unreliable effects"
+    }
+  ]
+}
