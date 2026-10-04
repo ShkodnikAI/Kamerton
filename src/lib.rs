@@ -8,4 +8,5 @@
 
 pub mod arms;
 pub mod bandit;
+pub mod context;
 pub mod store;

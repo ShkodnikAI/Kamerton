@@ -4,6 +4,32 @@
 //! any SQLite client can read them directly (invariant 6). Date math uses
 //! Howard Hinnant's `civil_from_days` / `days_from_civil` algorithms.
 
+/// Unix seconds from an ISO 8601 UTC string (`YYYY-MM-DDTHH:MM:SSZ`).
+/// Strict parser: accepts exactly the format the store writes.
+pub fn unix_from_iso(s: &str) -> Option<i64> {
+    let b = s.as_bytes();
+    let shape = b.len() == 20
+        && b[4] == b'-'
+        && b[7] == b'-'
+        && b[10] == b'T'
+        && b[13] == b':'
+        && b[16] == b':'
+        && b[19] == b'Z';
+    if !shape {
+        return None;
+    }
+    let y: i64 = s[0..4].parse().ok()?;
+    let m: u32 = s[5..7].parse().ok()?;
+    let d: u32 = s[8..10].parse().ok()?;
+    let hh: i64 = s[11..13].parse().ok()?;
+    let mm: i64 = s[14..16].parse().ok()?;
+    let ss: i64 = s[17..19].parse().ok()?;
+    if m == 0 || m > 12 || d == 0 || d > 31 {
+        return None;
+    }
+    Some(days_from_civil(y, m, d) * 86_400 + hh * 3600 + mm * 60 + ss)
+}
+
 /// Current UTC time as ISO 8601.
 pub fn now_iso() -> String {
     let secs = std::time::SystemTime::now()
@@ -80,5 +106,16 @@ mod tests {
         assert_eq!(iso_from_unix(86_399), "1970-01-01T23:59:59Z");
         assert_eq!(iso_from_unix(1_759_564_800), "2025-10-04T08:00:00Z");
         assert_eq!(iso_from_unix(-1), "1969-12-31T23:59:59Z");
+    }
+
+    #[test]
+    fn iso_parse_round_trip() {
+        for secs in [0i64, 86_399, 1_759_564_800, -1, 4_102_444_800] {
+            let iso = iso_from_unix(secs);
+            assert_eq!(unix_from_iso(&iso), Some(secs));
+        }
+        assert_eq!(unix_from_iso("2026-10-04 12:00:00"), None, "no space form");
+        assert_eq!(unix_from_iso("2026-13-01T00:00:00Z"), None, "bad month");
+        assert_eq!(unix_from_iso("short"), None);
     }
 }
