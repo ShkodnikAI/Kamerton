@@ -7,4 +7,5 @@
 //! `bandit`, `context`, `honesty`, `report`, `telegram`.
 
 pub mod arms;
+pub mod bandit;
 pub mod store;
