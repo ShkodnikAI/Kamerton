@@ -1,0 +1,22 @@
+[Unit]
+Description=Kamerton — personal n-of-1 tuning system
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/data/kamerton
+# Secrets live in a root-readable env file, never in code (AGENTS.md):
+#   /data/kamerton/env contains KAMERTON_TG_TOKEN=...
+EnvironmentFile=/data/kamerton/env
+ExecStart=/usr/local/bin/mlog serve /data/kamerton/app.mlog
+Restart=on-failure
+RestartSec=5
+# The data must survive code: the database lives under /data, outside
+# the WSL filesystem, on the mounted data drive.
+StateDirectory=kamerton
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
