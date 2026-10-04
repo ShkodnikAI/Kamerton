@@ -1,0 +1,9 @@
+[package]
+name = "kamerton"
+version = "0.1.0"
+edition = "2021"
+description = "Personal n-of-1 tuning system: the deterministic engine decides on numbers, the model only translates."
+
+[dependencies]
+
+[dev-dependencies]
