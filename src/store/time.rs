@@ -4,6 +4,15 @@
 //! any SQLite client can read them directly (invariant 6). Date math uses
 //! Howard Hinnant's `civil_from_days` / `days_from_civil` algorithms.
 
+/// Current UTC time as ISO 8601.
+pub fn now_iso() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock before 1970")
+        .as_secs() as i64;
+    iso_from_unix(secs)
+}
+
 /// ISO 8601 UTC string from Unix seconds (negative seconds supported).
 pub fn iso_from_unix(secs: i64) -> String {
     let days = secs.div_euclid(86_400);

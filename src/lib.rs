@@ -6,4 +6,5 @@
 //! (AGENTS.md invariant 1). Modules grow wave by wave: `store`, `arms`,
 //! `bandit`, `context`, `honesty`, `report`, `telegram`.
 
+pub mod arms;
 pub mod store;
