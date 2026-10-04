@@ -1,13 +1,19 @@
 [Unit]
-Description=Kamerton — personal n-of-1 tuning system
+Description=Kamerton app (mlog serve: routes + cron ticks, Н1-06)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 WorkingDirectory=/data/kamerton
-# Secrets live in a root-readable env file, never in code (AGENTS.md):
-#   /data/kamerton/env contains KAMERTON_TG_TOKEN=...
+# Secrets and gates live in a root-readable env file, never in code (AGENTS.md):
+#   KAMERTON_TG_TOKEN=...            — the bot token
+#   KAMERTON_CHAT_ID=...             — the owner's chat
+#   KAMERTON_DB=/data/kamerton/kamerton.db
+#   KAMERTON_TZ_OFFSET=3             — hours east of UTC
+#   METALOGOS_ALLOW_EXEC=1           — the ticks exec the engine binary;
+#   METALOGOS_SERVE_ALLOW_EXEC=1     — both gates are printed loudly in
+#                                      the serve banner (acceptance check)
 EnvironmentFile=/data/kamerton/env
 ExecStart=/usr/local/bin/mlog serve /data/kamerton/app.mlog
 Restart=on-failure

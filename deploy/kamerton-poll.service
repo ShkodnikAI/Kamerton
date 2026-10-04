@@ -1,0 +1,20 @@
+[Unit]
+Description=Kamerton poll (Telegram long polling, Н1-06)
+After=network-online.target kamerton.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/data/kamerton
+# Same env file as the serve unit; the token never appears in code.
+EnvironmentFile=/data/kamerton/env
+ExecStart=/usr/local/bin/kamerton poll
+Restart=on-failure
+RestartSec=5
+# The getUpdates offset lives next to the database (survives restarts —
+# a network outage loses no messages and replays none).
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
