@@ -499,3 +499,87 @@ pub fn token_from_env(var: &str) -> Result<String, TgError> {
         ))),
     }
 }
+
+// --- reply parsing: the conversational surface of the closed loop ----
+
+/// What the owner's chat reply means for the engine. The parser is
+/// deliberately narrow: anything it does not understand is `Unknown` and
+/// answers with the help text — the model formulates around it, the
+/// engine only consumes well-formed numbers.
+#[derive(Debug, PartialEq)]
+pub enum Reply {
+    /// "п: текст" — the morning prediction, recorded before the trial.
+    Prediction(String),
+    /// "с: 1..5" — last night's sleep quality for the blind context.
+    Sleep(u8),
+    /// A bare number in [0, 1] (comma or dot) — the immediate response.
+    Score(f64),
+    /// Anything else: help is sent, nothing is recorded.
+    Unknown,
+}
+
+/// Parses one chat reply. The prefix forms are ASCII+colon on purpose:
+/// they survive any keyboard layout a tired owner can produce at 21:30.
+pub fn parse_reply(raw: &str) -> Reply {
+    let text = raw.trim();
+    let lower = text.to_lowercase();
+    if let Some(rest) = lower.strip_prefix("п:") {
+        let value = text[text.len() - rest.len()..].trim();
+        if value.is_empty() {
+            return Reply::Unknown;
+        }
+        return Reply::Prediction(value.to_string());
+    }
+    if let Some(rest) = lower.strip_prefix("с:") {
+        let value = text[text.len() - rest.len()..].trim();
+        if let Ok(q) = value.parse::<u8>() {
+            if (1..=5).contains(&q) {
+                return Reply::Sleep(q);
+            }
+        }
+        return Reply::Unknown;
+    }
+    let normalized = text.replace(',', ".");
+    if let Ok(score) = normalized.parse::<f64>() {
+        if (0.0..=1.0).contains(&score) && text.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            return Reply::Score(score);
+        }
+    }
+    Reply::Unknown
+}
+
+#[cfg(test)]
+mod reply_tests {
+    use super::*;
+
+    #[test]
+    fn prediction_prefix_is_parsed() {
+        assert_eq!(
+            parse_reply("п: буду спокоен после дыхания"),
+            Reply::Prediction("буду спокоен после дыхания".into())
+        );
+        assert_eq!(
+            parse_reply("П: короткий ответ"),
+            Reply::Prediction("короткий ответ".into())
+        );
+        assert_eq!(parse_reply("п:   "), Reply::Unknown);
+    }
+
+    #[test]
+    fn sleep_prefix_is_parsed_and_bounded() {
+        assert_eq!(parse_reply("с: 4"), Reply::Sleep(4));
+        assert_eq!(parse_reply("С:1"), Reply::Sleep(1));
+        assert_eq!(parse_reply("с: 0"), Reply::Unknown);
+        assert_eq!(parse_reply("с: 6"), Reply::Unknown);
+    }
+
+    #[test]
+    fn bare_scores_accept_comma_and_dot_only_in_range() {
+        assert_eq!(parse_reply("0.3"), Reply::Score(0.3));
+        assert_eq!(parse_reply("0,75"), Reply::Score(0.75));
+        assert_eq!(parse_reply("1"), Reply::Score(1.0));
+        assert_eq!(parse_reply("1.5"), Reply::Unknown);
+        assert_eq!(parse_reply("-0.2"), Reply::Unknown);
+        assert_eq!(parse_reply("спокойно"), Reply::Unknown);
+    }
+}

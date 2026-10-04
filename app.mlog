@@ -1,0 +1,59 @@
+// Kamerton app — the schedule surface of the closed loop (Н1-06).
+//
+// Architecture (concept v2): routes, cron ticks and model calls live in
+// one .mlog; the deterministic engine stays in Rust. The two cron ticks
+// exec the kamerton binary — Metalogos orchestrates, it never decides.
+//
+// The registration follows the №423 serve-seed canon: an init route
+// adds the jobs, and the №418 window-dedup makes repeated init calls
+// (every service restart) safe.
+//
+// Run: mlog serve app.mlog
+// Required env (set by the systemd unit, see deploy/kamerton.service):
+//   METALOGOS_ALLOW_EXEC=1 and METALOGOS_SERVE_ALLOW_EXEC=1 — the ticks
+//   exec the engine binary; both gates are printed loudly in the serve
+//   banner (the Н1-02 acceptance criterion).
+
+pattern TickMorning(payload: String) -> String {
+  return exec("/usr/local/bin/kamerton tick-morning")
+}
+
+pattern TickEvening(payload: String) -> String {
+  return exec("/usr/local/bin/kamerton tick-evening")
+}
+
+pattern TicksInit(_x: String) -> String {
+  // The owner's schedule: offer at 07:00, response collection at 21:30
+  // (concept v2: «Тик 7:00, отклик 21:30», the owner's timezone).
+  let m = cron_add("0 7 * * *", "TickMorning", "Europe/Moscow", "skip", "morning")
+  let e = cron_add("30 21 * * *", "TickEvening", "Europe/Moscow", "skip", "evening")
+  mem_set("morning_id", m.id)
+  mem_set("evening_id", e.id)
+  return "scheduled"
+}
+
+pattern TicksForce(payload: String) -> String {
+  // Diagnostics only: force-fire both jobs outside their windows.
+  let a = cron_run(mem_get("morning_id"))
+  let b = cron_run(mem_get("evening_id"))
+  return "forced " + to_string(a.status) + "/" + to_string(b.status)
+}
+
+mlogserver {
+  port: 8090
+  host: "127.0.0.1"
+  middleware: [security_headers, rate_limit]
+  rate_limit: 100
+  route "/health" method=GET {
+    respond("200 kamerton app up")
+  }
+  route "/init" method=GET {
+    respond("200 " + TicksInit("boot"))
+  }
+  route "/force" method=GET {
+    respond("200 " + TicksForce("probe"))
+  }
+  route "/cron" method=GET {
+    respond("200 " + to_string(cron_list()))
+  }
+}
