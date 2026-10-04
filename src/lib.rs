@@ -12,3 +12,4 @@ pub mod context;
 pub mod honesty;
 pub mod report;
 pub mod store;
+pub mod telegram;
