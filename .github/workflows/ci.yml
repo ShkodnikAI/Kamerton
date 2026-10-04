@@ -34,3 +34,64 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-features
+
+  # Naryad Н1-01: blocking mlog jobs over the Metalogos toolchain.
+  # The mlog version is pinned to a release asset and verified by its
+  # published SHA256; bumping the pin is a deliberate commit.
+  mlog-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned mlog (v0.28.0, SHA256-verified)
+        run: |
+          MLOG_TAG="v0.28.0"
+          MLOG_SHA="58eb1ebd0d326f071cf923acba869c4fec6c732b9458b676f158a4d743ec2260"
+          base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
+          curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
+          echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
+          chmod +x /tmp/mlog
+          sudo install -m 0755 /tmp/mlog /usr/local/bin/mlog
+          mlog --version
+      - name: mlog check on every .mlog file
+        run: |
+          mapfile -t files < <(git ls-files '*.mlog')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no .mlog files yet — green on the empty project (Н1-01)"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "::group::mlog check ${f}"
+            mlog check "${f}" || status=1
+            echo "::endgroup::"
+          done
+          exit ${status}
+
+  mlog-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned mlog (v0.28.0, SHA256-verified)
+        run: |
+          MLOG_TAG="v0.28.0"
+          MLOG_SHA="58eb1ebd0d326f071cf923acba869c4fec6c732b9458b676f158a4d743ec2260"
+          base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
+          curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
+          echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
+          chmod +x /tmp/mlog
+          sudo install -m 0755 /tmp/mlog /usr/local/bin/mlog
+          mlog --version
+      - name: mlog audit on every .mlog file (no category-A errors)
+        run: |
+          mapfile -t files < <(git ls-files '*.mlog')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no .mlog files yet — green on the empty project (Н1-01)"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "::group::mlog audit ${f}"
+            mlog audit "${f}" || status=1
+            echo "::endgroup::"
+          done
+          exit ${status}
