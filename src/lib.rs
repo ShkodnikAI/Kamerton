@@ -5,3 +5,5 @@
 //! formulates and translates; it never decides whether a protocol works
 //! (AGENTS.md invariant 1). Modules grow wave by wave: `store`, `arms`,
 //! `bandit`, `context`, `honesty`, `report`, `telegram`.
+
+pub mod store;
