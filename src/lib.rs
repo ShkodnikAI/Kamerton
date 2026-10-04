@@ -9,4 +9,6 @@
 pub mod arms;
 pub mod bandit;
 pub mod context;
+pub mod honesty;
+pub mod report;
 pub mod store;
