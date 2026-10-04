@@ -5,5 +5,6 @@ edition = "2021"
 description = "Personal n-of-1 tuning system: the deterministic engine decides on numbers, the model only translates."
 
 [dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [dev-dependencies]
