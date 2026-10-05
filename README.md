@@ -73,6 +73,7 @@ JavaScript. Третьего языка в проекте нет.
 | `docs/volna-1-issues.md` | Наряды волны 1 |
 | `docs/metalogos-volna-30.md` | Наряды в язык, блокирующие волну 1 |
 | `docs/worklog.md` | Append-only журнал |
+| `docs/adr/0001-reward-construction.md` | ADR-0001: инвариант 3 — флаги присутствия, нормированная награда, два источника |
 
 ## Дисциплина
 
