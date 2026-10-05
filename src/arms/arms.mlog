@@ -1,0 +1,147 @@
+// Kamerton arm library seed (naryad Н1-04): wave-1 hands = 5 methodologies
+// x 2 day windows at a fixed 10-minute duration — 10 arms total, each with
+// a literature prior and its source.
+//
+// Prior mapping (continuity with the previous iteration's seed):
+//   strong      -> mean 0.6, sd 0.15
+//   medium      -> mean 0.5, sd 0.15
+//   medium-weak -> mean 0.45, sd 0.20
+// Both windows of a methodology share the literature prior: the window is
+// a variable of the experiment, not a separately documented effect.
+//
+// NOT in the seed, deliberately: self-hypnosis (reserve), binaural and
+// isochronic tones, 432/528 Hz carrier tones (sound arrives in M3) —
+// the wave-1 canon keeps the hand space at 5 methodologies x 2 windows.
+//
+// The machine SSOT is the kamerton_arms list below; seeds/arms.json is
+// the human/ops mirror and is pinned to it by the lockstep test
+// (json_encode of the list must equal the file byte-for-byte).
+// The arm table declaration here is byte-identical to the one in
+// src/store/store.mlog (naryad Н1-03) — both programs replay the same
+// additive DDL; the columns are pinned by a test.
+
+entity db_raw: String = env_or("KAMERTON_DB", ":memory:")
+entity db_url: String = "sqlite:" + db_raw
+
+db { url: db_url }
+
+schema kamerton {
+  table arm {
+    id: Int primary_key auto_increment,
+    name: String,
+    group_name: String,
+    day_window: String,
+    duration_min: Int default("10"),
+    prior_mean: Float default("0.0"),
+    prior_std: Float default("1.0"),
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+}
+
+entity kamerton_arms: List = [
+  {name: "breath-resonance-morning", group_name: "Резонансное дыхание", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
+  {name: "breath-resonance-evening", group_name: "Резонансное дыхание", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
+  {name: "woop-morning", group_name: "Имплементационные намерения", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol 38): meta-analysis of 94 studies, d ~ 0.65"},
+  {name: "woop-evening", group_name: "Имплементационные намерения", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol 38): meta-analysis of 94 studies, d ~ 0.65"},
+  {name: "mental-rehearsal-morning", group_name: "Ментальная репетиция", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15, source: "Driskell, Copper & Moran 1994 (J Appl Psychol 79(4)): mental practice meta-analysis, moderate effect, decays without physical practice"},
+  {name: "mental-rehearsal-evening", group_name: "Ментальная репетиция", day_window: "evening", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15, source: "Driskell, Copper & Moran 1994 (J Appl Psychol 79(4)): mental practice meta-analysis, moderate effect, decays without physical practice"},
+  {name: "focusing-morning", group_name: "Фокусинг", day_window: "morning", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Hendricks 2002 (The Focusing-oriented client): experiential review, small-N studies, mixed quality — wide prior"},
+  {name: "focusing-evening", group_name: "Фокусинг", day_window: "evening", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Hendricks 2002 (The Focusing-oriented client): experiential review, small-N studies, mixed quality — wide prior"},
+  {name: "yoga-nidra-morning", group_name: "Йога-нидра", day_window: "morning", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Moszeik, von Oertzen & Günther 2022 (Current Psychology): Yoga Nidra effects on stress, sleep, well-being — moderate, wide prior"},
+  {name: "yoga-nidra-evening", group_name: "Йога-нидра", day_window: "evening", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Moszeik, von Oertzen & Günther 2022 (Current Psychology): Yoga Nidra effects on stress, sleep, well-being — moderate, wide prior"}
+]
+
+// Seed the arm library. Idempotent by construction: a UNIQUE index on
+// name plus INSERT OR IGNORE — a repeated run changes nothing.
+//
+// WHY UNROLLED STATEMENTS (§2, declared loudly): the mlog v0.28.1
+// interpreter executes exactly ONE iteration of a loop placed inside a
+// pattern body (each and while alike; inline loops in test bodies are
+// unaffected — minimal repro in the naryad PR and worklog). A
+// loop-driven seed would silently insert only the first arm, so the
+// seed is unrolled into sequential statements and pinned to the
+// kamerton_arms entity list by a per-arm verification test; the JSON
+// mirror is pinned to the same list. Divergence of any copy is a loud
+// test failure.
+
+pattern seed_arms() -> Float {
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_arm_name_unique ON arm(name)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('breath-resonance-morning', 'Резонансное дыхание', 'morning', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('breath-resonance-evening', 'Резонансное дыхание', 'evening', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('woop-morning', 'Имплементационные намерения', 'morning', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('woop-evening', 'Имплементационные намерения', 'evening', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('mental-rehearsal-morning', 'Ментальная репетиция', 'morning', 10, 0.5, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('mental-rehearsal-evening', 'Ментальная репетиция', 'evening', 10, 0.5, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-morning', 'Фокусинг', 'morning', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-evening', 'Фокусинг', 'evening', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-morning', 'Йога-нидра', 'morning', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-evening', 'Йога-нидра', 'evening', 10, 0.45, 0.2)")
+  let rows = query("SELECT count(*) AS n FROM arm", [])
+  return rows[0].n
+}
+
+test "seed inserts ten arms and a repeat breeds no duplicates" {
+  let first = seed_arms()
+  assert_eq(first, 10.0)
+  let second = seed_arms()
+  assert_eq(second, 10.0)
+  assert_eq(second, first)
+}
+
+test "five methodologies across two windows" {
+  seed_arms()
+  let groups = query("SELECT count(*) AS n FROM (SELECT group_name FROM arm GROUP BY group_name HAVING count(DISTINCT day_window) = 2)", [])
+  assert_eq(groups[0].n, 5.0)
+  let windows = query("SELECT count(DISTINCT day_window) AS n FROM arm", [])
+  assert_eq(windows[0].n, 2.0)
+  let durations = query("SELECT count(*) AS n FROM arm WHERE duration_min != 10", [])
+  assert_eq(durations[0].n, 0.0)
+}
+
+test "no self-hypnosis and no sound groups in the wave-1 seed" {
+  each a in kamerton_arms {
+    assert_eq(contains(a.group_name, "Самогипноз"), false)
+    assert_eq(contains(a.group_name, "тона"), false)
+  }
+  seed_arms()
+  let rows = query("SELECT count(*) AS n FROM arm WHERE group_name LIKE '%тона%' OR group_name = 'Самогипноз'", [])
+  assert_eq(rows[0].n, 0.0)
+}
+
+test "every arm carries a non-empty literature source" {
+  each a in kamerton_arms {
+    assert_eq(len(a.source) > 0.0, true)
+  }
+}
+
+test "priors are literature-seeded, not zeros" {
+  seed_arms()
+  let rows = query("SELECT count(*) AS n FROM arm WHERE prior_mean > 0 AND prior_std > 0", [])
+  assert_eq(rows[0].n, 10.0)
+}
+
+test "arm table declaration matches the store's (column pin)" {
+  seed_arms()
+  let rows = query("SELECT sql AS s FROM sqlite_master WHERE name = 'arm'", [])
+  assert_contains(rows[0].s, "prior_mean REAL DEFAULT '0.0'")
+  assert_contains(rows[0].s, "prior_std REAL DEFAULT '1.0'")
+  assert_contains(rows[0].s, "duration_min INTEGER DEFAULT '10'")
+}
+
+test "seeds/arms.json is in lockstep with the machine seed" {
+  assert_eq(json_encode(kamerton_arms), read_file("seeds/arms.json"))
+}
+
+test "unrolled seed matches the kamerton_arms list per arm" {
+  seed_arms()
+  each a in kamerton_arms {
+    let row = query("SELECT group_name AS g, day_window AS w, duration_min AS d, prior_mean AS m, prior_std AS s FROM arm WHERE name = ?", [a.name])
+    assert_eq(len(row), 1.0)
+    assert_eq(row[0].g, a.group_name)
+    assert_eq(row[0].w, a.day_window)
+    assert_eq(row[0].d, a.duration_min)
+    assert_eq(row[0].m, a.prior_mean)
+    assert_eq(row[0].s, a.prior_std)
+  }
+}
