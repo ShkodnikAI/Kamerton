@@ -1,0 +1,18 @@
+[Unit]
+Description=Kamerton n-of-1 app — mlog serve (wave 1, naryad Н1-02)
+Documentation=https://github.com/ShkodnikAI/Kamerton
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/data/kamerton
+EnvironmentFile=/data/kamerton/env
+ExecStart=/usr/local/bin/mlog serve /data/kamerton/app.mlog
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

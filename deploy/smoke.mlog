@@ -1,0 +1,19 @@
+// Kamerton deployment smoke program (naryad Н1-02).
+//
+// Placeholder served until the real app.mlog from Н1-06 is installed:
+// install.sh deploys this file as /data/kamerton/app.mlog only when the
+// repository has no app.mlog yet. It exists so the systemd unit, the
+// serve banner (exec/env gate states) and the /health probe can be
+// acceptance-tested on the home server before the Telegram cycle lands.
+//
+// The allowlist from deploy/env.allowlist is deliberately NOT exercised
+// here: the smoke route reads no environment and execs nothing — the
+// banner must show both route gates denied.
+
+mlogserver {
+  port: 8080
+  middleware: [rate_limit, security_headers]
+  route "/health" method=GET {
+    respond("200 OK")
+  }
+}

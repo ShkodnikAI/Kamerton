@@ -1,0 +1,7 @@
+[Unit]
+Description=Kamerton weekly SQLite backup (wave 1, naryad Н1-02)
+
+[Service]
+Type=oneshot
+ExecStart=/data/kamerton/backup.sh
+NoNewPrivileges=true
