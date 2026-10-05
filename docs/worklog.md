@@ -18,3 +18,4 @@ YYYY-MM-DD · <наряд> · <что сделано> · <чем провере�
 структуры · ok
 
 2026-10-05 · — · стартовые файлы разложены по целевым путям (docs/, .github/ISSUE_TEMPLATE/, .gitignore, CLAUDE.md) · сверка git blob sha1 локально и на origin · ok
+2026-10-05 · — · концепция v2 возвращена в docs/concept-v2.md (побитово = архив b1eea905) · git hash-object сверка · ok
