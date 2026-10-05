@@ -1,0 +1,469 @@
+// Kamerton store (naryad Н1-03): six tables, indexes, foreign keys,
+// CSV export, M0 import. Consumers: Н1-04 (arms), Н1-05 (bandit),
+// Н1-06 (cycle), Н1-07 (blind context).
+//
+// Schema evolution is ADDITIVE-ONLY by ADR-0183 (naryad №593, variant
+// B): the language replays `CREATE TABLE IF NOT EXISTS` and nothing
+// else; the rollback path is backup restore owned by the operating
+// environment (deploy/backup.sh). There is deliberately no
+// down-migration surface here. The operator-side mirror
+// migrations/0001_init.sql must stay schema-identical to the language
+// replay — verified in the naryad worklog by comparing .schema dumps.
+//
+// Reward fields follow ADR-0001 (invariant 3, revision 2): every
+// component is written with a presence flag, the reward is the
+// normalized weighted sum of the PRESENT components (moment 0.2,
+// next_day 0.3, action 0.5), the "moment" source is fixed per trial
+// ('subjective' in wave 1, 'spectral' from M2), a miss is stored as a
+// status STRING — never as a missing row — and the prediction is
+// stored before the trial (depth + confidence 0..1).
+//
+// Environment: KAMERTON_DB carries the plain database path (the deploy
+// contract of Н1-02). Default is the in-memory database so that tests
+// never touch a live store.
+
+entity db_raw: String = env_or("KAMERTON_DB", ":memory:")
+entity db_url: String = "sqlite:" + db_raw
+
+db { url: db_url }
+
+schema kamerton {
+
+  table arm {
+    id: Int primary_key auto_increment,
+    name: String,
+    group_name: String,
+    day_window: String,
+    duration_min: Int default("10"),
+    prior_mean: Float default("0.0"),
+    prior_std: Float default("1.0"),
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table note {
+    id: Int primary_key auto_increment,
+    body: String,
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table trial {
+    id: Int primary_key auto_increment,
+    trial_date: String,
+    day_window: String,
+    arm_id: Int references(arm.id),
+    note_id: Int references(note.id),
+    status: String default("proposed"),
+    prediction_depth: Float default("0.0"),
+    prediction_confidence: Float default("0.0"),
+    moment_value: Float default("0.0"),
+    moment_present: Int default("0"),
+    moment_source: String default(""),
+    next_day_value: Float default("0.0"),
+    next_day_present: Int default("0"),
+    action_value: Float default("0.0"),
+    action_present: Int default("0"),
+    reward: Float default("0.0"),
+    free_note: String default(""),
+    closed_at: String default(""),
+    created_at: String default(now())
+  }
+
+  table response {
+    id: Int primary_key auto_increment,
+    trial_id: Int references(trial.id),
+    kind: String,
+    depth: Float default("0.0"),
+    details: String default(""),
+    created_at: String default(now())
+  }
+
+  table context {
+    id: Int primary_key auto_increment,
+    trial_id: Int references(trial.id),
+    moon_phase: String default(""),
+    weather: String default(""),
+    sound_mode: String default(""),
+    sleep_quality: Float default("0.0"),
+    logged_at: String default(now())
+  }
+
+  table candidate {
+    id: Int primary_key auto_increment,
+    name: String,
+    kind: String default("non_periodic"),
+    status: String default("candidate"),
+    stat_value: Float default("0.0"),
+    threshold: Float default("0.0"),
+    tested_at: String default(""),
+    note: String default("")
+  }
+}
+
+// ── Indexes ─────────────────────────────────────────────────────────────
+// The schema-as-code surface has no index syntax (ADR-0060), so indexes
+// are created by additive idempotent DDL literals — the same statements
+// the operator mirror migrations/0001_init.sql carries. CREATE INDEX
+// IF NOT EXISTS is outside the irreversible class (DROP TABLE / DELETE
+// FROM / TRUNCATE / ALTER TABLE per №325) and needs no grant.
+
+pattern ensure_indexes() -> Unit {
+  db_execute("CREATE INDEX IF NOT EXISTS idx_trial_date ON trial(trial_date)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_trial_arm ON trial(arm_id)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_trial_status ON trial(status)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_response_trial ON response(trial_id)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_context_trial ON context(trial_id)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_candidate_name ON candidate(name)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_arm_active ON arm(active)")
+}
+
+// ── Arm library (Н1-04 seeds rows through here) ────────────────────────
+
+pattern insert_arm(name: String, group_name: String, day_window: String,
+                   duration_min: Float, prior_mean: Float, prior_std: Float) -> Float {
+  let row = {name: name, group_name: group_name, day_window: day_window,
+             duration_min: duration_min, prior_mean: prior_mean, prior_std: prior_std}
+  return db_insert("arm", row)
+}
+
+pattern active_arms() -> List {
+  return query("SELECT id, name, group_name, day_window, duration_min, prior_mean, prior_std FROM arm WHERE active = 1", [])
+}
+
+// ── Note ────────────────────────────────────────────────────────────────
+
+pattern insert_note(body: String) -> Float {
+  let row = {body: body}
+  return db_insert("note", row)
+}
+
+pattern active_note() -> List {
+  return query("SELECT id, body FROM note WHERE active = 1 ORDER BY id DESC LIMIT 1", [])
+}
+
+// ── Trial lifecycle ─────────────────────────────────────────────────────
+// The prediction (depth + confidence) is written BEFORE the trial
+// happens (ADR-0001); a miss is the status STRING 'missed' on the same
+// row — silence is not lost; the acceptance window closes at 02:00.
+
+pattern insert_trial(trial_date: String, day_window: String, arm_id: Float,
+                     note_id: Float, prediction_depth: Float,
+                     prediction_confidence: Float) -> Float {
+  let row = {trial_date: trial_date, day_window: day_window, arm_id: arm_id,
+             note_id: note_id, prediction_depth: prediction_depth,
+             prediction_confidence: prediction_confidence}
+  return db_insert("trial", row)
+}
+
+pattern mark_missed(trial_id: Float) -> Unit {
+  db_execute("UPDATE trial SET status = 'missed', closed_at = datetime('now') WHERE id = ?", [trial_id])
+}
+
+pattern mark_completed(trial_id: Float) -> Unit {
+  db_execute("UPDATE trial SET status = 'completed' WHERE id = ?", [trial_id])
+}
+
+pattern trial_by_id(trial_id: Float) -> List {
+  return query("SELECT id, trial_date, day_window, arm_id, status, prediction_depth, prediction_confidence, moment_value, moment_present, moment_source, next_day_value, next_day_present, action_value, action_present, reward FROM trial WHERE id = ?", [trial_id])
+}
+
+// ── Responses ───────────────────────────────────────────────────────────
+// kind: 'moment' (субъективные шкалы сразу после пробы), 'next_day'
+// (сдвиг через сутки), 'action' (действие в сторону ноты за 72 часа).
+// For kind='moment' the source is fixed on the trial: wave 1 writes
+// 'subjective'; from M2 the projection writes 'spectral' (priority per
+// ADR-0001). The honesty valve (Н1-08) refuses silent mixing.
+
+pattern add_response(trial_id: Float, kind: String, depth: Float,
+                     details: String, source: String) -> Float {
+  let row = {trial_id: trial_id, kind: kind, depth: depth, details: details}
+  let resp_id = db_insert("response", row)
+  if kind == "moment" {
+    db_execute("UPDATE trial SET moment_value = ?, moment_present = 1, moment_source = ? WHERE id = ?", [depth, source, trial_id])
+  }
+  if kind == "next_day" {
+    db_execute("UPDATE trial SET next_day_value = ?, next_day_present = 1 WHERE id = ?", [depth, trial_id])
+  }
+  if kind == "action" {
+    db_execute("UPDATE trial SET action_value = ?, action_present = 1 WHERE id = ?", [depth, trial_id])
+  }
+  return resp_id
+}
+
+// ── Reward (ADR-0001, invariant 3 rev. 2) ──────────────────────────────
+// reward = sum(weight_i * value_i for present i) / sum(weight_i for
+// present i). Weights: moment 0.2, next_day 0.3, action 0.5. The
+// formula is closed for adapt — only the inputs change. With no
+// present component the reward is not written (0.0 returned, the
+// trial keeps its default) — silence produces no fabricated signal.
+
+pattern compute_reward(trial_id: Float) -> Float {
+  let rows = query("SELECT moment_value, moment_present, next_day_value, next_day_present, action_value, action_present FROM trial WHERE id = ?", [trial_id])
+  if len(rows) == 0.0 {
+    return 0.0
+  }
+  let r = rows[0]
+  let mut acc = 0.0
+  let mut wsum = 0.0
+  if r.moment_present == 1.0 {
+    acc = acc + 0.2 * r.moment_value
+    wsum = wsum + 0.2
+  }
+  if r.next_day_present == 1.0 {
+    acc = acc + 0.3 * r.next_day_value
+    wsum = wsum + 0.3
+  }
+  if r.action_present == 1.0 {
+    acc = acc + 0.5 * r.action_value
+    wsum = wsum + 0.5
+  }
+  if wsum == 0.0 {
+    return 0.0
+  }
+  let reward = acc / wsum
+  db_execute("UPDATE trial SET reward = ? WHERE id = ?", [reward, trial_id])
+  return reward
+}
+
+// ── CSV export (invariant 6: the data outlives the code) ───────────────
+// export_csv(dir) writes six files: arm.csv, note.csv, trial.csv,
+// response.csv, context.csv, candidate.csv. The directory must already
+// exist — the file sandbox refuses to create directories. NULL columns
+// export as -1 (COALESCE on the SQL side), floats export without a
+// forced ".0".
+
+pattern csv_escape(s: String) -> String {
+  if contains(s, "\"") {
+    return "\"" + replace(s, "\"", "\"\"") + "\""
+  }
+  if contains(s, ",") {
+    return "\"" + s + "\""
+  }
+  return s
+}
+
+pattern export_csv(dir: String) -> Unit {
+  let arms = query("SELECT id, name, group_name, day_window, duration_min, prior_mean, prior_std, active, created_at FROM arm", [])
+  let mut content = "id,name,group_name,day_window,duration_min,prior_mean,prior_std,active,created_at\n"
+  each a in arms {
+    content = content + to_string(a.id) + "," + csv_escape(a.name) + "," + csv_escape(a.group_name) + "," + a.day_window + "," + to_string(a.duration_min) + "," + to_string(a.prior_mean) + "," + to_string(a.prior_std) + "," + to_string(a.active) + "," + a.created_at + "\n"
+  }
+  write_file(dir + "/arm.csv", content)
+
+  let notes = query("SELECT id, body, active, created_at FROM note", [])
+  content = "id,body,active,created_at\n"
+  each n in notes {
+    content = content + to_string(n.id) + "," + csv_escape(n.body) + "," + to_string(n.active) + "," + n.created_at + "\n"
+  }
+  write_file(dir + "/note.csv", content)
+
+  let trials = query("SELECT id, trial_date, day_window, COALESCE(arm_id, -1) AS arm_id, COALESCE(note_id, -1) AS note_id, status, prediction_depth, prediction_confidence, moment_value, moment_present, moment_source, next_day_value, next_day_present, action_value, action_present, reward, free_note, closed_at, created_at FROM trial", [])
+  content = "id,trial_date,day_window,arm_id,note_id,status,prediction_depth,prediction_confidence,moment_value,moment_present,moment_source,next_day_value,next_day_present,action_value,action_present,reward,free_note,closed_at,created_at\n"
+  each t in trials {
+    content = content + to_string(t.id) + "," + t.trial_date + "," + t.day_window + "," + to_string(t.arm_id) + "," + to_string(t.note_id) + "," + t.status + "," + to_string(t.prediction_depth) + "," + to_string(t.prediction_confidence) + "," + to_string(t.moment_value) + "," + to_string(t.moment_present) + "," + t.moment_source + "," + to_string(t.next_day_value) + "," + to_string(t.next_day_present) + "," + to_string(t.action_value) + "," + to_string(t.action_present) + "," + to_string(t.reward) + "," + csv_escape(t.free_note) + "," + t.closed_at + "," + t.created_at + "\n"
+  }
+  write_file(dir + "/trial.csv", content)
+
+  let responses = query("SELECT id, trial_id, kind, depth, details, created_at FROM response", [])
+  content = "id,trial_id,kind,depth,details,created_at\n"
+  each r in responses {
+    content = content + to_string(r.id) + "," + to_string(r.trial_id) + "," + r.kind + "," + to_string(r.depth) + "," + csv_escape(r.details) + "," + r.created_at + "\n"
+  }
+  write_file(dir + "/response.csv", content)
+
+  let contexts = query("SELECT id, trial_id, moon_phase, weather, sound_mode, sleep_quality, logged_at FROM context", [])
+  content = "id,trial_id,moon_phase,weather,sound_mode,sleep_quality,logged_at\n"
+  each c in contexts {
+    content = content + to_string(c.id) + "," + to_string(c.trial_id) + "," + c.moon_phase + "," + c.weather + "," + c.sound_mode + "," + to_string(c.sleep_quality) + "," + c.logged_at + "\n"
+  }
+  write_file(dir + "/context.csv", content)
+
+  let candidates = query("SELECT id, name, kind, status, stat_value, threshold, tested_at, note FROM candidate", [])
+  content = "id,name,kind,status,stat_value,threshold,tested_at,note\n"
+  each k in candidates {
+    content = content + to_string(k.id) + "," + csv_escape(k.name) + "," + k.kind + "," + k.status + "," + to_string(k.stat_value) + "," + to_string(k.threshold) + "," + k.tested_at + "," + csv_escape(k.note) + "\n"
+  }
+  write_file(dir + "/candidate.csv", content)
+}
+
+// ── M0 import (the fixed CSV structure of the manual baseline) ─────────
+// Format: date,window,depth,sleep_quality,free_note — one row per
+// проба, a header line first. The free note is the LAST column and may
+// contain commas. An imported trial carries status 'imported' and no
+// arm/note reference (the baseline predates the system); the depth
+// lands as a 'moment' response with the 'subjective' source, the sleep
+// quality lands in context. Returns the number of imported trials.
+//
+// Trust boundary (№322/№391): read_file marks the CSV 'untrusted';
+// m0_row carries the <public, trusted> param annotation and owns the
+// validation — blank lines are skipped, numerics go through to_float
+// (loud on garbage), the row shape is checked before any write.
+
+pattern m0_row(ln: String<public, trusted>) -> Float {
+  let line = trim(ln)
+  if line == "" {
+    return 0.0
+  }
+  let cols = split(line, ",")
+  if len(cols) < 5.0 {
+    return -1.0
+  }
+  let depth = to_float(trim(cols[2]))
+  let sleep_quality = to_float(trim(cols[3]))
+  let free_note = trim(join(slice(cols, 4, len(cols)), ","))
+  let trow = {trial_date: trim(cols[0]), day_window: trim(cols[1]), status: "imported", free_note: free_note}
+  let tid = db_insert("trial", trow)
+  let rrow = {trial_id: tid, kind: "moment", depth: depth, details: "M0 import"}
+  db_insert("response", rrow)
+  db_execute("UPDATE trial SET moment_value = ?, moment_present = 1, moment_source = 'subjective' WHERE id = ?", [depth, tid])
+  let crow = {trial_id: tid, sleep_quality: sleep_quality}
+  db_insert("context", crow)
+  return 1.0
+}
+
+pattern import_m0(path: String) -> Float {
+  let content = read_file(path)
+  let lines = split(trim(content), "\n")
+  let body = slice(lines, 1, len(lines))
+  let mut n = 0.0
+  each ln in body {
+    n = n + m0_row(ln)
+  }
+  return n
+}
+
+// ── Context (blind until the response is logged, Н1-07) ────────────────
+
+pattern log_context(trial_id: Float, moon_phase: String, weather: String,
+                    sound_mode: String, sleep_quality: Float) -> Float {
+  let row = {trial_id: trial_id, moon_phase: moon_phase, weather: weather,
+             sound_mode: sound_mode, sleep_quality: sleep_quality}
+  return db_insert("context", row)
+}
+
+// ── Candidates (features stay candidates until an ADR promotes them) ───
+
+pattern insert_candidate(name: String, kind: String) -> Float {
+  let row = {name: name, kind: kind}
+  return db_insert("candidate", row)
+}
+
+pattern set_candidate_status(name: String, status: String, stat_value: Float,
+                             threshold: Float) -> Unit {
+  db_execute("UPDATE candidate SET status = ?, stat_value = ?, threshold = ?, tested_at = datetime('now') WHERE name = ?", [status, stat_value, threshold, name])
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────
+// Float comparisons of the reward use the percent scale (round(100x)):
+// binary floats make 0.2/0.3/0.5 arithmetic inexact against literals.
+
+test "six tables exist after replay" {
+  let rows = query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('note','trial','arm','response','context','candidate')", [])
+  assert_eq(rows[0].n, 6.0)
+}
+
+test "indexes are additive and idempotent" {
+  ensure_indexes()
+  ensure_indexes()
+  let rows = query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'", [])
+  assert_eq(rows[0].n, 7.0)
+}
+
+test "foreign keys: the operator mirror carries them (language defect v0.28.1)" {
+  // The schema-as-code replay in v0.28.1 silently DROPS the
+  // references(t.f) modifier (the parser keeps 't.f' as one token);
+  // declared loudly per §2 — the language naryad must fix the parse.
+  // The operator mirror (applied by sqlite3, the recovery path of
+  // ADR-0183) carries the real FK constraints and is verified here.
+  let mirror = read_file("migrations/0001_init.sql")
+  assert_contains(mirror, "REFERENCES arm(id)")
+  assert_contains(mirror, "REFERENCES note(id)")
+  assert_contains(mirror, "REFERENCES trial(id)")
+}
+
+test "prediction stored before the fact; miss stored as a string" {
+  let aid = insert_arm("breath-morning", "resonance breathing", "morning", 10.0, 0.6, 0.25)
+  let nid = insert_note("test note")
+  let tid = insert_trial("2026-10-06", "morning", aid, nid, 0.7, 0.5)
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].status, "proposed")
+  assert_eq(rows[0].prediction_depth, 0.7)
+  assert_eq(rows[0].prediction_confidence, 0.5)
+  mark_missed(tid)
+  let rows2 = trial_by_id(tid)
+  assert_eq(rows2[0].status, "missed")
+}
+
+test "reward is the normalized weighted sum of present components" {
+  let aid = insert_arm("breath-evening", "resonance breathing", "evening", 10.0, 0.6, 0.25)
+  let nid = insert_note("reward note")
+  let t1 = insert_trial("2026-10-07", "morning", aid, nid, 0.0, 0.0)
+  add_response(t1, "moment", 0.8, "scales", "subjective")
+  assert_eq(round(compute_reward(t1) * 100.0), 80.0)
+  let t2 = insert_trial("2026-10-07", "evening", aid, nid, 0.0, 0.0)
+  add_response(t2, "moment", 0.6, "scales", "subjective")
+  add_response(t2, "next_day", 0.4, "", "")
+  assert_eq(round(compute_reward(t2) * 100.0), 48.0)
+  let t3 = insert_trial("2026-10-08", "morning", aid, nid, 0.0, 0.0)
+  add_response(t3, "moment", 1.0, "scales", "subjective")
+  add_response(t3, "next_day", 1.0, "", "")
+  add_response(t3, "action", 1.0, "", "")
+  assert_eq(round(compute_reward(t3) * 100.0), 100.0)
+  let t4 = insert_trial("2026-10-08", "evening", aid, nid, 0.0, 0.0)
+  mark_missed(t4)
+  assert_eq(compute_reward(t4), 0.0)
+}
+
+test "moment source is fixed on the trial, not silently mixed" {
+  let aid = insert_arm("woop-morning", "implementation intentions", "morning", 10.0, 0.6, 0.25)
+  let nid = insert_note("source note")
+  let tid = insert_trial("2026-10-09", "morning", aid, nid, 0.0, 0.0)
+  add_response(tid, "moment", 0.9, "scales", "subjective")
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].moment_source, "subjective")
+}
+
+test "candidate status is a string, promotion updates it" {
+  let cid = insert_candidate("moon_phase", "periodic")
+  set_candidate_status("moon_phase", "promoted", 12.5, 10.0)
+  let rows = query("SELECT status, stat_value, threshold FROM candidate WHERE id = ?", [cid])
+  assert_eq(rows[0].status, "promoted")
+  assert_eq(rows[0].stat_value, 12.5)
+  assert_eq(rows[0].threshold, 10.0)
+}
+
+test "export produces six readable CSV files" {
+  export_csv(".")
+  assert_contains(read_file("arm.csv"), "id,name,group_name,day_window")
+  assert_contains(read_file("note.csv"), "id,body,active,created_at")
+  assert_contains(read_file("trial.csv"), "id,trial_date,day_window,arm_id,note_id,status")
+  assert_contains(read_file("response.csv"), "id,trial_id,kind,depth,details,created_at")
+  assert_contains(read_file("context.csv"), "id,trial_id,moon_phase,weather,sound_mode")
+  assert_contains(read_file("candidate.csv"), "id,name,kind,status,stat_value")
+}
+
+test "M0 import gives the same rows as direct input" {
+  write_file("m0_test.csv", "date,window,depth,sleep_quality,free_note\n2026-10-01,morning,0.6,4.0,calm baseline, quiet")
+  let n = import_m0("m0_test.csv")
+  assert_eq(n, 1.0)
+
+  let aid = insert_arm("focusing-morning", "focusing", "morning", 10.0, 0.4, 0.3)
+  let nid = insert_note("equivalence note")
+  let did = insert_trial("2026-10-01", "morning", aid, nid, 0.0, 0.0)
+  add_response(did, "moment", 0.6, "M0 import", "subjective")
+  log_context(did, "", "", "", 4.0)
+  db_execute("UPDATE trial SET free_note = ? WHERE id = ?", ["calm baseline, quiet", did])
+
+  let imported = query("SELECT trial_date, day_window, moment_value, free_note, moment_source, status FROM trial WHERE status = 'imported' ORDER BY id LIMIT 1", [])
+  let direct = query("SELECT trial_date, day_window, moment_value, free_note, moment_source, status FROM trial WHERE id = ?", [did])
+  assert_eq(imported[0].trial_date, direct[0].trial_date)
+  assert_eq(imported[0].day_window, direct[0].day_window)
+  assert_eq(imported[0].moment_value, direct[0].moment_value)
+  assert_eq(imported[0].moment_source, direct[0].moment_source)
+  assert_eq(imported[0].free_note, direct[0].free_note)
+  assert_eq(imported[0].free_note, "calm baseline, quiet")
+  let ic = query("SELECT sleep_quality FROM context WHERE trial_id = (SELECT min(id) FROM trial WHERE status = 'imported')", [])
+  let dc = query("SELECT sleep_quality FROM context WHERE trial_id = ?", [did])
+  assert_eq(ic[0].sleep_quality, dc[0].sleep_quality)
+}
