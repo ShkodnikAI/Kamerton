@@ -1,0 +1,60 @@
+name: Наряд Ш1
+description: Один наряд = один issue = один PR
+title: "Н0-00 · "
+labels: ["наряд"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Форма Ш1. Размытые формулировки не принимаются.
+        Заглушки запрещены. Критерий приёмки должен быть проверяемым.
+        Язык реализации — Metalogos. Упёрлись в отсутствующую возможность —
+        протокол затыка из AGENTS.md §2: остановиться и заявить громко.
+
+  - type: textarea
+    id: step0
+    attributes:
+      label: Шаг 0
+      description: Что проверить ДО начала работы, чтобы снять актуальный статус
+    validations:
+      required: true
+
+  - type: textarea
+    id: fact
+    attributes:
+      label: Факт
+      description: Реальность по рекогносцировке, а не догадки
+    validations:
+      required: true
+
+  - type: textarea
+    id: task
+    attributes:
+      label: Задача
+      description: Что именно делается
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Сделано когда
+      description: Проверяемый критерий приёмки, включая второй независимый метод
+    validations:
+      required: true
+
+  - type: textarea
+    id: bounds
+    attributes:
+      label: Границы
+      description: Файлы и модули, трогать которые разрешено. Всё прочее — запрещено
+    validations:
+      required: true
+
+  - type: textarea
+    id: links
+    attributes:
+      label: Связь
+      description: Соседние наряды, блокирующие наряды языка, прошлые волны
+    validations:
+      required: true

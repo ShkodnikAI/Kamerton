@@ -1,0 +1,23 @@
+# Данные владельца — никогда в репозиторий
+/data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.csv
+
+# Секреты
+.env
+.env.*
+*.pem
+*.key
+
+# Сборка и артефакты
+/target/
+/bin/
+node_modules/
+*.log
+
+# Системное
+.DS_Store
+Thumbs.db
