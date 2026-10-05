@@ -1,0 +1,105 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Н1-01: blocking mlog jobs over the Metalogos toolchain.
+  # The mlog version is pinned to a release asset and verified by its
+  # published SHA256; bumping the pin is a deliberate commit (Н1-01 Шаг 0).
+  mlog-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned mlog (v0.28.1, SHA256-verified)
+        run: |
+          MLOG_TAG="v0.28.1"
+          MLOG_SHA="c4a0bcd892ec84ef0bd46b50659e5e75f226f2dc006316a1547e1a347a80f063"
+          base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
+          curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
+          echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
+          chmod +x /tmp/mlog
+          sudo install -m 0755 /tmp/mlog /usr/local/bin/mlog
+          mlog --version
+      - name: mlog check on every tracked .mlog file
+        run: |
+          mapfile -t files < <(git ls-files '*.mlog')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no .mlog files yet — green on the empty project (Н1-01)"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "::group::mlog check ${f}"
+            mlog check "${f}" || status=1
+            echo "::endgroup::"
+          done
+          exit ${status}
+
+  mlog-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned mlog (v0.28.1, SHA256-verified)
+        run: |
+          MLOG_TAG="v0.28.1"
+          MLOG_SHA="c4a0bcd892ec84ef0bd46b50659e5e75f226f2dc006316a1547e1a347a80f063"
+          base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
+          curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
+          echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
+          chmod +x /tmp/mlog
+          sudo install -m 0755 /tmp/mlog /usr/local/bin/mlog
+          mlog --version
+      - name: mlog audit on every tracked .mlog file
+        run: |
+          mapfile -t files < <(git ls-files '*.mlog')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no .mlog files yet — green on the empty project (Н1-01)"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "::group::mlog audit ${f}"
+            mlog audit "${f}" || status=1
+            echo "::endgroup::"
+          done
+          exit ${status}
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned mlog (v0.28.1, SHA256-verified)
+        run: |
+          MLOG_TAG="v0.28.1"
+          MLOG_SHA="c4a0bcd892ec84ef0bd46b50659e5e75f226f2dc006316a1547e1a347a80f063"
+          base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
+          curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
+          echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
+          chmod +x /tmp/mlog
+          sudo install -m 0755 /tmp/mlog /usr/local/bin/mlog
+          mlog --version
+      - name: mlog test on every tracked .mlog file
+        run: |
+          mapfile -t files < <(git ls-files '*.mlog')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no .mlog files yet — green on the empty project (Н1-01)"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "::group::mlog test ${f}"
+            mlog test "${f}" || status=1
+            echo "::endgroup::"
+          done
+          exit ${status}

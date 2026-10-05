@@ -17,6 +17,7 @@
 /bin/
 node_modules/
 *.log
+*.mbc
 
 # Системное
 .DS_Store
