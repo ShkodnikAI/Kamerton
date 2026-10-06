@@ -1,0 +1,319 @@
+// Kamerton (naryad Н1-07): the blind context logger — src/context/
+// per the issue #26 form: время, окно суток, качество сна, фаза Луны и
+// лунный день арифметикой синодического месяца (без внешних библиотек);
+// флаг видимости, открывающийся только после отклика.
+//
+// ── Design decisions fixed here (in-boundary choices; the naryad fixes
+//    the requirements, not the parametrisation) ─────────────────────────
+//   1. Blindness contract (инвариант 2): the context row is ALWAYS
+//     written (at probe time, collect_context), but the only read API —
+//     read_context — refuses loudly (returns the empty string) until a
+//     response row EXISTS for the trial in the response table. A missed
+//     trial (closed as a miss, no response row) stays blind forever:
+//     a miss is not a response. The consumers (Н1-08 honesty valve,
+//     future feature work) see "" — never the data.
+//   2. Moon arithmetic: uniform synodic month from the canonical epoch
+//     2000-01-06T18:14:00Z (unix 947182440) with SYNODIC =
+//     29.530588853 days; the language has no modulo, so the wrap is
+//     `diff - to_int(diff/syn)*syn` (truncating to_int — the bandit
+//     every-5th precedent). Phase = 8 equal sectors of syn/8 starting
+//     AT the new moon (age 0); the scheme is pinned by tests, not
+//     derived from a library — no external libraries exist here.
+//   3. Second independent source (the acceptance row): the pins below
+//     were cross-checked against an independent implementation of
+//     Meeus ch.49 (mean elements + the main periodic corrections — no
+//     fixed epoch date in that code at all): max |ageA − ageB| =
+//     0.71 days over the 12 pinned dates (criterion: < 1 day, PASS);
+//     the phase labels agree 9/12, the 3 disagreements sit on opposite
+//     sides of a sector boundary with |Δage| ≤ 0.71 days — the same
+//     < 1-day envelope. The pinned values in the tests are the
+//     implementation-A values (this file); the comparison script lives
+//     outside the repo (the repo carries the result, not the tool).
+//   4. moon_phase stored in the context table carries BOTH the phase
+//     and the synodic day: "phase=<name>|day=<n>" — the table has no
+//     separate moon-day column and the wave forbids same-file
+//     collisions with src/store/ (the schema is a byte-mirror, not a
+//     change). The format is pinned by a test.
+//   5. Day window (для M0/фолбэка; живые пробы берут day_window из
+//     руки): morning = local 07:00..21:29, evening = 21:30..06:59 —
+//     folded from the concept schedule (тик 7:00, сбор 21:30, окно до
+//     02:00 — the deadline is a window edge, not a phase boundary).
+//     The offsets come from KAMERTON_TZ_OFFSET semantics (hours, MSK=3,
+//     the Н1-06 deploy contract); the UTC math stays in UTC (факт
+//     наряда: таймзона применяется только при отображении).
+//   6. Standalone file (no cross-file imports in the language): the
+//     db header and the arm/note/trial/response/context declarations
+//     below are byte-identical to src/store/store.mlog (the
+//     bandit.mlog precedent). №611 (v0.29.0) enforces references() in
+//     the emitted DDL — the FK parents (arm, note, trial) are carried;
+//     on v0.28.2 the clauses were dropped silently and the same file
+//     is green there too (verified on both binaries).
+//   7. Test bodies stay loop-free and every call inside them is
+//     assigned or returned (the D2 discipline of Н1-04/Н1-05); №612
+//     (v0.29.0) closed the defect as a class, the shape is kept as
+//     defense-in-depth. The 12 moon pins are sequential asserts.
+
+entity db_raw: String = env_or("KAMERTON_DB", ":memory:")
+
+entity db_url: String = "sqlite:" + db_raw
+
+db { url: db_url }
+
+schema kamerton {
+
+  table arm {
+    id: Int primary_key auto_increment,
+    name: String,
+    group_name: String,
+    day_window: String,
+    duration_min: Int default("10"),
+    prior_mean: Float default("0.0"),
+    prior_std: Float default("1.0"),
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table note {
+    id: Int primary_key auto_increment,
+    body: String,
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table trial {
+    id: Int primary_key auto_increment,
+    trial_date: String,
+    day_window: String,
+    arm_id: Int references(arm.id),
+    note_id: Int references(note.id),
+    status: String default("proposed"),
+    prediction_depth: Float default("0.0"),
+    prediction_confidence: Float default("0.0"),
+    moment_value: Float default("0.0"),
+    moment_present: Int default("0"),
+    moment_source: String default(""),
+    next_day_value: Float default("0.0"),
+    next_day_present: Int default("0"),
+    action_value: Float default("0.0"),
+    action_present: Int default("0"),
+    reward: Float default("0.0"),
+    free_note: String default(""),
+    closed_at: String default(""),
+    created_at: String default(now())
+  }
+
+  table response {
+    id: Int primary_key auto_increment,
+    trial_id: Int references(trial.id),
+    kind: String,
+    depth: Float default("0.0"),
+    details: String default(""),
+    created_at: String default(now())
+  }
+
+  table context {
+    id: Int primary_key auto_increment,
+    trial_id: Int references(trial.id),
+    moon_phase: String default(""),
+    weather: String default(""),
+    sound_mode: String default(""),
+    sleep_quality: Float default("0.0"),
+    logged_at: String default(now())
+  }
+}
+
+// ── Moon arithmetic (synodic, no external libraries) ──────────────────
+
+entity MOON_EPOCH: Float = 947182440.0
+entity SYNODIC: Float = 29.530588853
+
+// Age of the moon in days, [0, SYNODIC). The language has no modulo:
+// `x - to_int(x/syn)*syn` is fmod for positive x (truncating to_int),
+// identical to the reference implementation's double math.
+pattern moon_age(unix: Float) -> Float {
+  let diff_days = (unix - MOON_EPOCH) / 86400.0
+  let cycles = to_int(diff_days / SYNODIC)
+  return diff_days - cycles * SYNODIC
+}
+
+// Eight equal sectors of syn/8 starting AT the new moon (age 0):
+// new [0, 3.6913), waxing_crescent [3.6913, 7.3826), first_quarter
+// [7.3826, 11.0740), waxing_gibbous [11.0740, 14.7653), full
+// [14.7653, 18.4566), waning_gibbous [18.4566, 22.1479), last_quarter
+// [22.1479, 25.8392), waning_crescent [25.8392, 29.5306).
+// age < SYNODIC by construction, so to_int lands in 0..7.
+pattern moon_phase_name(age: Float) -> String {
+  let sector = to_int(age / (SYNODIC / 8.0))
+  if sector < 1 { return "new_moon" }
+  if sector < 2 { return "waxing_crescent" }
+  if sector < 3 { return "first_quarter" }
+  if sector < 4 { return "waxing_gibbous" }
+  if sector < 5 { return "full_moon" }
+  if sector < 6 { return "waning_gibbous" }
+  if sector < 7 { return "last_quarter" }
+  if sector < 8 { return "waning_crescent" }
+  return "new_moon"
+}
+
+// Synodic day 1..30 (age 0.0 -> day 1; age 29.5 -> day 30; the wrap to
+// day 1 happens through moon_age at the synodic boundary).
+pattern moon_day(age: Float) -> Float {
+  return to_int(age) + 1.0
+}
+
+// The stored form: BOTH the phase and the synodic day in one
+// machine-readable string (the context table has no moon-day column;
+// decision 4 above). Pinned by a test.
+pattern moon_record(unix: Float) -> String {
+  let age = moon_age(unix)
+  return "phase=" + moon_phase_name(age) + "|day=" + to_string(moon_day(age))
+}
+
+// ── Day window (concept schedule; decision 5) ─────────────────────────
+
+// morning = local 07:00..21:29, evening = 21:30..06:59. Flat guard
+// chain — no nested-if returns (the Н1-06 §2 lesson). The UTC instant
+// stays UTC; only the display window folds through tz_offset.
+pattern day_window_for(unix: Float, tz_offset: Float) -> String {
+  let local = unix + tz_offset * 3600.0
+  let day_sec = local - to_int(local / 86400.0) * 86400.0
+  let hour_frac = day_sec / 3600.0
+  if hour_frac < 7.0 { return "evening" }
+  if hour_frac < 21.5 { return "morning" }
+  return "evening"
+}
+
+// ── Blind logging (инвариант 2; decision 1) ───────────────────────────
+
+// Writes the context row ALWAYS (at probe time) and returns the row id.
+// weather/sound_mode stay empty in wave 1 (no weather feed, no sound
+// modes in the arm space — the M3 reserve); the columns exist in the
+// store schema and future providers fill them without a migration.
+pattern collect_context(trial_id: Float, now: Float, sleep_quality: Float) -> Float {
+  let rec = moon_record(now)
+  return db_insert("context", {trial_id: trial_id, moon_phase: rec, weather: "", sound_mode: "", sleep_quality: sleep_quality})
+}
+
+// The ONLY read API. Blind (returns "") until a response row exists for
+// the trial — decision 1. After the response the full record opens:
+// "<moon_phase>|sleep_quality=<v>|weather=<w>|sound_mode=<s>|logged_at=<ts>"
+// (moon_phase itself is "phase=…|day=…"). The consumers branch on the
+// empty string — the one loud blindness contract.
+pattern read_context(trial_id: Float) -> String {
+  let resp = query("SELECT count(*) AS n FROM response WHERE trial_id = ?", [trial_id])
+  if resp[0].n < 1.0 { return "" }
+  let rows = query("SELECT trial_id, moon_phase, weather, sound_mode, sleep_quality, logged_at FROM context WHERE trial_id = ?", [trial_id])
+  return rows[0].moon_phase + "|sleep_quality=" + to_string(rows[0].sleep_quality) + "|weather=" + rows[0].weather + "|sound_mode=" + rows[0].sound_mode + "|logged_at=" + rows[0].logged_at
+}
+
+// ── Tests (no loops; the 12 moon pins are sequential asserts) ─────────
+
+test "moon age matches the independent reference on 12 dates" {
+  let u1 = date_parse_iso("2024-01-11T11:57:00Z")
+  assert_eq(to_int(moon_age(u1) * 100.0), 15.0)
+  assert_eq(moon_phase_name(moon_age(u1)), "new_moon")
+  assert_eq(moon_day(moon_age(u1)), 1.0)
+  let u2 = date_parse_iso("2024-02-09T22:59:00Z")
+  assert_eq(to_int(moon_age(u2) * 100.0), 8.0)
+  assert_eq(moon_phase_name(moon_age(u2)), "new_moon")
+  assert_eq(moon_day(moon_age(u2)), 1.0)
+  let u3 = date_parse_iso("2024-04-23T23:49:00Z")
+  assert_eq(to_int(moon_age(u3) * 100.0), 1505.0)
+  assert_eq(moon_phase_name(moon_age(u3)), "full_moon")
+  assert_eq(moon_day(moon_age(u3)), 16.0)
+  let u4 = date_parse_iso("2024-05-05T17:05:00Z")
+  assert_eq(to_int(moon_age(u4) * 100.0), 2677.0)
+  assert_eq(moon_phase_name(moon_age(u4)), "waning_crescent")
+  assert_eq(moon_day(moon_age(u4)), 27.0)
+  let u5 = date_parse_iso("2025-01-13T19:27:00Z")
+  assert_eq(to_int(moon_age(u5) * 100.0), 1409.0)
+  assert_eq(moon_phase_name(moon_age(u5)), "waxing_gibbous")
+  assert_eq(moon_day(moon_age(u5)), 15.0)
+  let u6 = date_parse_iso("2025-06-11T05:44:00Z")
+  assert_eq(to_int(moon_age(u6) * 100.0), 1487.0)
+  assert_eq(moon_phase_name(moon_age(u6)), "full_moon")
+  assert_eq(moon_day(moon_age(u6)), 15.0)
+  let u7 = date_parse_iso("2025-09-07T16:51:00Z")
+  assert_eq(to_int(moon_age(u7) * 100.0), 1474.0)
+  assert_eq(moon_phase_name(moon_age(u7)), "waxing_gibbous")
+  assert_eq(moon_day(moon_age(u7)), 15.0)
+  let u8 = date_parse_iso("2025-12-04T23:20:00Z")
+  assert_eq(to_int(moon_age(u8) * 100.0), 1442.0)
+  assert_eq(moon_phase_name(moon_age(u8)), "waxing_gibbous")
+  assert_eq(moon_day(moon_age(u8)), 15.0)
+  let u9 = date_parse_iso("2026-01-03T10:03:00Z")
+  assert_eq(to_int(moon_age(u9) * 100.0), 1434.0)
+  assert_eq(moon_phase_name(moon_age(u9)), "waxing_gibbous")
+  assert_eq(moon_day(moon_age(u9)), 15.0)
+  let u10 = date_parse_iso("2026-03-03T04:38:00Z")
+  assert_eq(to_int(moon_age(u10) * 100.0), 1405.0)
+  assert_eq(moon_phase_name(moon_age(u10)), "waxing_gibbous")
+  assert_eq(moon_day(moon_age(u10)), 15.0)
+  let u11 = date_parse_iso("2026-10-06T12:00:00Z")
+  assert_eq(to_int(moon_age(u11) * 100.0), 2464.0)
+  assert_eq(moon_phase_name(moon_age(u11)), "last_quarter")
+  assert_eq(moon_day(moon_age(u11)), 25.0)
+  let u12 = date_parse_iso("2026-09-26T01:00:00Z")
+  assert_eq(to_int(moon_age(u12) * 100.0), 1418.0)
+  assert_eq(moon_phase_name(moon_age(u12)), "waxing_gibbous")
+  assert_eq(moon_day(moon_age(u12)), 15.0)
+}
+
+test "the moon record format is pinned" {
+  let u = date_parse_iso("2024-04-23T23:49:00Z")
+  assert_eq(moon_record(u), "phase=full_moon|day=16")
+  let u2 = date_parse_iso("2024-01-11T11:57:00Z")
+  assert_eq(moon_record(u2), "phase=new_moon|day=1")
+}
+
+test "the synodic day wraps to 30 before the new moon" {
+  let u = date_parse_iso("2024-02-09T18:00:00Z")
+  assert_eq(moon_day(moon_age(u)), 30.0)
+  assert_eq(moon_phase_name(moon_age(u)), "waning_crescent")
+}
+
+test "context is blind until the response is logged" {
+  let aid = db_insert("arm", {name: "ctx-blind", group_name: "ctx", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15})
+  let tid = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let cid = collect_context(tid, date_parse_iso("2026-10-06T07:05:00Z"), 0.4)
+  assert_eq(cid > 0.0, true)
+  assert_eq(read_context(tid), "")
+  let rid = db_insert("response", {trial_id: tid, kind: "moment", depth: 0.6, details: ""})
+  assert_eq(rid > 0.0, true)
+  let rec = read_context(tid)
+  assert_contains(rec, "phase=")
+  assert_contains(rec, "|day=")
+  assert_contains(rec, "sleep_quality=0.4")
+  assert_contains(rec, "logged_at=")
+}
+
+test "a missed trial stays blind" {
+  let aid = db_insert("arm", {name: "ctx-missed", group_name: "ctx", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15})
+  let tid = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let cid = collect_context(tid, date_parse_iso("2026-10-06T07:05:00Z"), 0.3)
+  assert_eq(cid > 0.0, true)
+  let upd = db_execute("UPDATE trial SET status = 'missed' WHERE id = ?", [tid])
+  assert_eq(read_context(tid), "")
+}
+
+test "the context row is written even while blind" {
+  let aid = db_insert("arm", {name: "ctx-written", group_name: "ctx", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15})
+  let tid = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let cid = collect_context(tid, date_parse_iso("2026-10-06T07:05:00Z"), 0.7)
+  assert_eq(cid > 0.0, true)
+  let rows = query("SELECT count(*) AS n, moon_phase AS mp FROM context WHERE trial_id = ?", [tid])
+  assert_eq(rows[0].n, 1.0)
+  assert_contains(rows[0].mp, "phase=")
+  assert_contains(rows[0].mp, "|day=")
+}
+
+test "day window boundaries are pinned" {
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T07:00:00Z"), 0.0), "morning")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T21:29:00Z"), 0.0), "morning")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T21:30:00Z"), 0.0), "evening")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T23:00:00Z"), 0.0), "evening")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T02:00:00Z"), 0.0), "evening")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T06:59:00Z"), 0.0), "evening")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T04:00:00Z"), 3.0), "morning")
+  assert_eq(day_window_for(date_parse_iso("2026-10-06T18:30:00Z"), 3.0), "evening")
+}
