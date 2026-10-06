@@ -70,6 +70,17 @@ schema kamerton {
     created_at: String default(now())
   }
 
+  // №611 (v0.29.0): references(note.id) is no longer dropped silently —
+  // the FK is enforced at insert, so the parent table MUST be declared
+  // in this file's own schema block (CI runs per-file; the block is a
+  // verbatim mirror of store.mlog's `note`, idempotent IF NOT EXISTS).
+  table note {
+    id: Int primary_key auto_increment,
+    body: String,
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
   table trial {
     id: Int primary_key auto_increment,
     trial_date: String,
