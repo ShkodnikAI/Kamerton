@@ -1,0 +1,109 @@
+// №594 parity sample (naryad Н1-05 acceptance: "результат в cron-тике и
+// в маршруте идентичен").
+//
+// The SAME seeded pure chain — five normal draws over the shared PRNG,
+// an exponential decay weight and a comparison — is computed on both
+// execution lanes of `mlog serve`:
+//   - the CRON-TICK lane: the scheduler dispatches the zero-arg pattern
+//     `parity_tick_target` through the program context (the TW
+//     interpreter, ADR-0175 §4); the pattern writes its value to
+//     tick-out.txt;
+//   - the ROUTE lane: GET /parity recomputes the chain in the VM route
+//     (ADR-0171) and answers with the value.
+// The two outputs are compared byte-for-byte. Both lanes reseed with the
+// fixed seed 42 first, so the value is a function of the program, not of
+// the wall clock — any divergence between the lanes is the defect №594
+// guards against ("the system decides one thing and reports another").
+//
+// CI runs check/audit per tracked file, so this sample must stay clean;
+// it carries no test blocks (the verification is the serve run recorded
+// in the naryad worklog). The cron expression "* * * * *" makes the
+// scheduler re-fire every minute — the same value every time, which is
+// itself the determinism observation.
+
+// The pure chain under parity test. Seeded, effect-free apart from the
+// shared PRNG stream the seed resets.
+pattern parity_value() -> String {
+  random_seed(42.0)
+  let mut i = 0.0
+  let mut acc = 0.0
+  while i < 5.0 {
+    acc = acc + normal_sample(0.0, 1.0) * exp((0.0 - i) / 60.0)
+    i = i + 1.0
+  }
+  let w = exp((0.0 - 30.0) / 60.0)
+  return to_string(round(acc * w * 1000000.0))
+}
+
+// The cron-tick target: zero-arg (no payload), writes the tick lane's
+// value where the verification script can read it. In serve context the
+// file sandbox (№475) resolves writes under the data directory
+// (METALOGOS_DATA_DIR, default ./data) — the path must spell that out.
+pattern parity_tick_target() -> Unit {
+  let v = parity_value()
+  write_file("data/tick-out.txt", v)
+}
+
+// The sanctioned trust boundary (№391/№322, the m0_row precedent): the
+// request-supplied job id crosses into the trusted lane here. Inside a
+// <public, trusted> parameter the value is sanctioned, so this pattern
+// owns the conservative shape gate AND the cron_run sink call. The
+// taint tracker summarises ANY pattern fed from query_param as
+// untrusted at the call site, so the route must not echo, branch on or
+// otherwise consume this return — it responds with a literal and the
+// verification observes the OUTCOME (the tick file) instead. A
+// well-shaped id for a non-existent job is a no-op at the job store.
+pattern fire_job(raw: String<public, trusted>) -> String {
+  let id = trim(raw)
+  if len(id) == 0.0 {
+    return "rejected"
+  }
+  if len(id) > 64.0 {
+    return "rejected"
+  }
+  if contains(id, " ") {
+    return "rejected"
+  }
+  if contains(id, "\t") {
+    return "rejected"
+  }
+  if contains(id, "\n") {
+    return "rejected"
+  }
+  if contains(id, "\"") {
+    return "rejected"
+  }
+  if contains(id, "'") {
+    return "rejected"
+  }
+  if contains(id, ";") {
+    return "rejected"
+  }
+  let fired = cron_run(id)
+  if fired < 0.0 {
+    return "rejected"
+  }
+  return "ok"
+}
+
+mlogserver {
+  port: 8399
+  middleware: [rate_limit, security_headers]
+  route "/parity" method=GET {
+    respond("200 " + parity_value())
+  }
+  route "/cron-arm" method=GET {
+    let job = cron_add("* * * * *", "parity_tick_target")
+    respond("200 " + job.id)
+  }
+  // Trust boundary (№391/№322): query_param hands over 'public,
+  // untrusted'; fire_job owns the shape gate and the cron_run sink.
+  // The taint summary of any query_param-fed call is untrusted, so the
+  // route neither branches on nor echoes the result — the literal
+  // response is an acknowledgement, the tick file is the observable.
+  route "/cron-fire" method=GET {
+    let raw = query_param("id")
+    let status = fire_job(raw)
+    respond("200 accepted")
+  }
+}

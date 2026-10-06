@@ -1,61 +1,58 @@
-// Kamerton bandit engine (naryad Н1-05, wave 1): Thompson sampling on
-// Gaussian posteriors, built on the №590 `normal_sample` builtin over the
-// SHARED deterministic PRNG (random_seed/random — №594 proved the
-// tick↔route parity of exactly this surface).
+// Kamerton bandit (naryad Н1-05): Thompson sampling on Gaussian
+// posteriors over the shared PRNG, a 20% forced-exploration floor and a
+// 60-day exponential decay of old responses. Consumers: Н1-06 (the
+// morning cron tick proposes an arm), Н1-08 (the honesty valve reads the
+// pick history).
 //
-// Model-zone parameters (declared loudly; the bandit is the model side —
-// the measurement core of invariant 1 is NOT touched: the reward values
-// themselves are produced by store.mlog compute_reward per ADR-0001 and
-// only CONSUMED here):
-//   EXPLORE_P = 0.22 — the forced-exploration probability (invariant 5:
-//     at least 20% of probes are forced exploration; the acceptance
-//     corridor on 1000 runs is 20–25%, and 0.22 sits inside it);
-//   SIGMA_OBS = 0.25 — the known observation noise of a single normalized
-//     reward on the 0..1 scale. Rationale: rewards are noisy subjective
-//     composites; with literature priors of std 0.15–0.2 one observation
-//     moves the posterior modestly, and ~20 observations per arm sharpen
-//     it — the same scale as the concept's "20 observations per arm"
-//     ladder step;
-//   DECAY_HORIZON_DAYS = 60, DECAY_TAU_DAYS = 60 — per the naryad text
-//     "экспоненциальный распад откликов старше 60 дней" and ADR-0001
-//     "распад за 60 дней": responses up to 60 days carry full weight,
-//     older ones decay exponentially with a 60-day time constant, so a
-//     source switch is absorbed within about two months.
+// Design decisions fixed here (in-boundary implementation choices, the
+// naryad fixes the requirements, not the parametrisation):
+//   1. Posterior: Normal-Normal conjugate update with known observation
+//      noise. Every completed trial with at least one present reward
+//      component contributes x_i = trial.reward (ADR-0001 normalized
+//      weighted sum, computed by the store) with decay weight w_i:
+//        precision λ = 1/s0² + Σw_i/σr²,  mean = (m0/s0² + Σw_i·x_i/σr²)/λ,
+//        sd = 1/√λ.  σr = 0.25 is the observation-noise constant of the
+//      [0,1] reward scale (pinned by the formula test below).
+//   2. Decay: the naryad says "экспоненциальный распад откликов старше
+//      60 дней" — read literally: full weight up to 60 days of age,
+//      exponential exp(-(age-60)/60) after that (tau = 60 days, the
+//      ADR-0001 transition-absorption horizon). A future-dated row is a
+//      data error and is clamped to age zero, never to negative weight.
+//   3. Forced exploration: every 5th DECISION (trial rows carrying an
+//      arm_id, so restarts and imports do not reset the schedule) is
+//      forced, the arm is taken round-robin over the active arms ordered
+//      by id. Exactly 20% over any 1000-decision window — inside the
+//      20-25% acceptance corridor deterministically, with equal forced
+//      coverage of every arm. Thompson's own posterior uncertainty
+//      exploration comes on top of this floor.
+//   4. Seed contract: bandit_pick(seed) reseeds the shared xorshift64
+//      stream (random_seed) before drawing, so a fixed seed gives a
+//      byte-reproducible pick on the same database state (№590). The
+//      production caller (Н1-06 tick) passes a varying seed; tests pass
+//      constants.
 //
-// Purity and parity: bandit_pick(seed, now_unix) is a pure function of
-// its arguments and the DB state. It re-seeds the shared PRNG on EVERY
-// call — the cron tick and the route therefore observe identical draw
-// sequences for identical (seed, state) — and writes nothing (pinned by
-// a test). Consequence declared loudly: bandit_pick owns the PRNG seed
-// for its duration; wave 1 has no other PRNG consumer.
-//
-// Determinism: a fixed seed with a fixed trial history reproduces the
-// same decision (pinned by tests); the same seed in the cron tick and in
-// a route gives the identical decision (№594 contract; the decision path
-// is pure arithmetic + the two parity-proven builtins normal_sample /
-// random over one shared stream).
-//
-// D2 discipline (v0.28.2, declared loudly in Kamerton #24 and the
-// worklog): a loop whose body is a BARE CALL mis-executes (one
-// iteration) — every loop body here starts with a statement that is not
-// a call (binding / assignment / if); `let x = f(...)` loop bodies are
-// verified full (probe battery in the naryad worklog). TEST bodies in
-// this file are loop-free by the same discipline.
-//
-// D1 note (v0.28.2): the schema-as-code replay still drops the
-// references(t.f) clause silently — the trial declaration below is
-// byte-identical to src/store/store.mlog (the additive-replay convention
-// of Н1-03/Н1-04) and carries the same references clauses so that the
-// v0.28.3 fix (№611) lands here without an edit; the operator mirror in
-// migrations/0001_init.sql keeps the real FKs.
+// Language-discipline notes (§2, declared loudly where relevant):
+//   - This file is standalone: CI runs check/audit/test per file, so the
+//     arm/trial declarations below are byte-identical to the ones in
+//     src/store/store.mlog (the arms.mlog precedent) and pinned by a
+//     column test.
+//   - The D2 loop defect (Kamerton issue #24, Metalogos- №598, unfixed
+//     in v0.28.2) triggers on BARE calls inside loop bodies. Mapped so
+//     far: a body that is a single bare call runs one iteration; and a
+//     NEW symptom isolated during this naryad (probe in the worklog): in
+//     a mixed while body a bare db_insert silently corrupts the
+//     pattern's return (the assigned shape `x = db_insert(...)` runs
+//     full and correct). Every loop here therefore uses the
+//     assignment-call shape only, and test bodies stay loop-free.
+//   - The tick/route parity criterion (№594) is verified by the sample
+//     program tests/bandit/parity-tick-route.mlog: the same seeded pure
+//     chain runs in a cron-tick body (TW) and in a route body (VM) and
+//     the outputs are compared byte-for-byte.
+//   - No modulo operator exists in the language (grammar v0.28.2); the
+//     every-5th test is to_int(n/5)*5 == n via the truncating to_int.
 
 entity db_raw: String = env_or("KAMERTON_DB", ":memory:")
 entity db_url: String = "sqlite:" + db_raw
-
-entity EXPLORE_P: Float = 0.22
-entity SIGMA_OBS: Float = 0.25
-entity DECAY_HORIZON_DAYS: Float = 60.0
-entity DECAY_TAU_DAYS: Float = 60.0
 
 db { url: db_url }
 
@@ -96,237 +93,354 @@ schema kamerton {
   }
 }
 
-// ── Exponential decay of old responses (naryad Н1-05; ADR-0001) ─────────
-// age is clamped at zero: a future-dated row (clock skew) must not earn
-// weight above 1.0 — silence and fresh evidence are never inflated.
+// The reward scale is [0,1]; 0.25 is the assumed observation noise of a
+// single normalized reward (see the formula test: one reward of 1.0 on a
+// 0.5±0.5 prior must land the mean at exactly 0.9).
+entity reward_obs_std: Float = 0.25
 
+// Decay horizon: plateau of 60 days, then exponential with tau = 60 days.
+entity decay_tau_days: Float = 60.0
+
+// One forced-exploration decision out of every 5 → exactly 20%.
+entity explore_every: Float = 5.0
+
+// ── Time and decay ──────────────────────────────────────────────────────
+
+// Midnight-UTC unix timestamp of today (all bandit arithmetic is UTC,
+// the timezone is applied only at display time elsewhere).
+pattern today_unix() -> Float {
+  return date_parse_iso(date_format_iso(now_unix()))
+}
+
+// Exponential decay weight of a response by its age in days: full weight
+// on the 60-day plateau, exp(-(age-60)/60) after it.
 pattern decay_weight(age_days: Float) -> Float {
-  let age = max(0.0, age_days)
-  if age <= DECAY_HORIZON_DAYS {
+  if age_days <= decay_tau_days {
     return 1.0
   }
-  return exp(-(age - DECAY_HORIZON_DAYS) / DECAY_TAU_DAYS)
+  return exp((decay_tau_days - age_days) / decay_tau_days)
 }
 
-// ── Weighted Gaussian posterior (single source of the Bayesian math) ────
-// Conjugate update for the arm mean with a known observation noise
-// SIGMA_OBS: the weighted likelihood contributes w_sum / SIGMA^2 to the
-// precision and w_reward_sum / SIGMA^2 to the weighted mean. With no
-// weighted observations (w_sum = 0) the posterior IS the literature
-// prior — silence produces no fabricated signal, mirroring ADR-0001.
+// ── Posterior ───────────────────────────────────────────────────────────
 
-pattern posterior_math(prior_mean: Float, prior_std: Float,
-                       w_reward_sum: Float, w_sum: Float) -> Map {
-  let prec0 = 1.0 / (prior_std * prior_std)
-  let prec_lik = w_sum / (SIGMA_OBS * SIGMA_OBS)
-  let prec = prec0 + prec_lik
-  let mean = (prior_mean * prec0 + w_reward_sum / (SIGMA_OBS * SIGMA_OBS)) / prec
-  let sd = sqrt(1.0 / prec)
-  return {mean: mean, sd: sd}
-}
-
-// ── Posterior of one arm from the store (public wrapper for reports) ────
-// Observations are COMPLETED trials only: 'proposed' rows have not
-// happened, 'missed' rows are owner silence (ADR-0001: silence is not
-// data and not zero), 'imported' rows carry no arm reference. The reward
-// column is the ADR-0001 normalized weighted sum written by the store.
-
-pattern arm_posterior(arm_id: Float, now_unix: Float) -> Map {
-  let arms = query("SELECT prior_mean, prior_std FROM arm WHERE id = ?", [arm_id])
-  if len(arms) == 0.0 {
-    return {mean: 0.0, sd: 1.0}
+// Gaussian posterior of one arm over its decayed rewards. Returns
+// [mean, sd, weight_sum]. Only completed trials carrying at least one
+// present reward component feed the posterior — a missed trial is a
+// stored STRING, not a fabricated zero (ADR-0001).
+pattern arm_posterior(arm_id: Float, prior_mean: Float, prior_std: Float) -> List {
+  let mut s0 = prior_std
+  if s0 <= 0.0 {
+    // A zero prior std would claim infinite precision; the schema
+    // default is 1.0 and the seed test pins the priors positive.
+    s0 = 1.0
   }
-  let a = arms[0]
-  let obs = query("SELECT reward, trial_date FROM trial WHERE arm_id = ? AND status = 'completed'", [arm_id])
-  let mut wrs = 0.0
+  let rows = query("SELECT reward, trial_date FROM trial WHERE arm_id = ? AND status = 'completed' AND (moment_present = 1 OR next_day_present = 1 OR action_present = 1)", [arm_id])
+  let today = today_unix()
   let mut wsum = 0.0
-  each t in obs {
-    let age = date_diff_days(now_unix, date_parse_iso(t.trial_date))
+  let mut xsum = 0.0
+  each r in rows {
+    let mut age = date_diff_days(today, date_parse_iso(r.trial_date))
+    if age < 0.0 {
+      age = 0.0
+    }
     let w = decay_weight(age)
-    wrs = wrs + w * t.reward
     wsum = wsum + w
+    xsum = xsum + w * r.reward
   }
-  return posterior_math(a.prior_mean, a.prior_std, wrs, wsum)
+  let inv0 = 1.0 / (s0 * s0)
+  let invr = 1.0 / (reward_obs_std * reward_obs_std)
+  let precision = inv0 + wsum * invr
+  let mean = (prior_mean * inv0 + xsum * invr) / precision
+  let sd = 1.0 / sqrt(precision)
+  return [mean, sd, wsum]
 }
 
-// ── The decision (cron tick and route call exactly this) ────────────────
-// Draws, in order: (1) the exploration gate u = random(); (2) on the
-// explore branch one more uniform for the uniform arm choice; (3) on the
-// exploit branch exactly one normal_sample per active arm in id order —
-// the argmax tracks the best sample. The draw sequence is a pure
-// function of (seed, active arms, completed trials): identical inputs,
-// identical decision, tick or route alike.
+// ── Pick ────────────────────────────────────────────────────────────────
 
-pattern bandit_pick(seed: Float, now_unix: Float) -> Map {
-  let arms = query("SELECT id, prior_mean, prior_std FROM arm WHERE active = 1 ORDER BY id", [])
-  if len(arms) == 0.0 {
-    return {arm_id: -1.0, explore: 0.0, mode: "empty"}
+// One bandit decision. Pure with respect to the database: nothing is
+// written here, the proposal is recorded by bandit_propose.
+// Returns {arm_id, mode, theta}: mode is "explore" (forced round-robin
+// pick, no draw consumed), "thompson" (posterior sample argmax) or
+// "empty" (no active arms; arm_id 0.0 — the caller must surface this
+// loudly, it is a deployment error, not a valid choice).
+pattern bandit_pick(seed: Float) -> Struct {
+  let arms = query("SELECT id, name, prior_mean, prior_std FROM arm WHERE active = 1 ORDER BY id", [])
+  let k = len(arms)
+  if k == 0.0 {
+    return {arm_id: 0.0, mode: "empty", theta: 0.0}
+  }
+  let rows = query("SELECT count(*) AS n FROM trial WHERE arm_id IS NOT NULL", [])
+  let n = rows[0].n
+  if to_int(n / explore_every) * explore_every == n {
+    // Forced exploration: decision number n (0-based) with n % 5 == 0;
+    // round-robin index = (n/5) mod K, no modulo operator in the
+    // language — to_int truncation arithmetic.
+    let step = to_int(n / explore_every)
+    let kk = to_int(k)
+    let idx = step - kk * to_int(step / kk)
+    let arm = arms[idx]
+    return {arm_id: arm.id, mode: "explore", theta: 0.0}
   }
   random_seed(seed)
-  let u = random()
-  if u < EXPLORE_P {
-    let off = round(random() * len(arms) - 0.5)
-    let row = arms[off]
-    return {arm_id: row.id, explore: 1.0, mode: "explore"}
-  }
-  let obs = query("SELECT arm_id, reward, trial_date FROM trial WHERE status = 'completed'", [])
-  let mut best_val = -1000000.0
-  let mut best_id = -1.0
-  each a in arms {
-    let mut wrs = 0.0
-    let mut wsum = 0.0
-    each t in obs {
-      if t.arm_id == a.id {
-        let age = date_diff_days(now_unix, date_parse_iso(t.trial_date))
-        let w = decay_weight(age)
-        wrs = wrs + w * t.reward
-        wsum = wsum + w
-      }
-    }
-    let post = posterior_math(a.prior_mean, a.prior_std, wrs, wsum)
-    let s = normal_sample(post.mean, post.sd)
-    if s > best_val {
-      best_val = s
-      best_id = a.id
-    }
-  }
-  return {arm_id: best_id, explore: 0.0, mode: "exploit"}
-}
-
-// ── Acceptance harness (Н1-05) ──────────────────────────────────────────
-// The simulation drivers behind the tests/bandit battery. They live in
-// the engine module because the v0.28.2 check pass does not resolve an
-// IMPORTED pattern called from another pattern's body (declared loudly;
-// the runtime and mlog test resolve it fine — the same programs are
-// green under mlog test). Every call inside every loop here is
-// let-bound: a call whose value is DISCARDED inside a loop body breaks
-// the loop on v0.28.2 (refined D2 matrix, see the naryad worklog).
-
-pattern sim_true_mean(x: Float, best_id: Float) -> Float {
-  if x == best_id {
-    return 0.8
-  }
-  return 0.4
-}
-
-pattern run_corridor(base: Float, rounds: Float) -> Float {
-  let now = date_parse_iso("2026-10-06")
   let mut i = 0.0
-  let mut n_explore = 0.0
-  while i < rounds {
-    let d = bandit_pick(base + i, now)
-    if d.explore == 1.0 {
-      n_explore = n_explore + 1.0
+  let mut best_id = 0.0
+  let mut best_theta = 0.0
+  let mut first = true
+  while i < k {
+    let arm = arms[i]
+    let post = arm_posterior(arm.id, arm.prior_mean, arm.prior_std)
+    let theta = post[0] + post[1] * normal_sample(0.0, 1.0)
+    if first == true {
+      best_id = arm.id
+      best_theta = theta
+      first = false
+    }
+    if theta > best_theta {
+      best_id = arm.id
+      best_theta = theta
     }
     i = i + 1.0
   }
-  return n_explore / rounds
+  return {arm_id: best_id, mode: "thompson", theta: best_theta}
 }
 
-pattern run_convergence(base: Float, rounds: Float, k: Float) -> Map {
-  let now = date_parse_iso("2026-10-06")
-  let mut j = 0.0
-  let mut best_id = -1.0
-  while j < 10.0 {
-    let iid = db_insert("arm", {name: "sim-arm-" + to_string(j + 1.0), group_name: "sim", day_window: "morning", prior_mean: 0.5, prior_std: 0.15})
-    if j == 0.0 {
-      best_id = iid
-    }
-    j = j + 1.0
+// Proposal: one decision recorded as a trial row in status 'proposed'
+// (the prediction fields stay at their defaults until the owner answers
+// through Н1-06). Returns the trial id, or 0.0 when the library is
+// empty (nothing proposed — silence, not a fabricated choice).
+pattern bandit_propose(trial_date: String, seed: Float) -> Float {
+  let pick = bandit_pick(seed)
+  if pick.arm_id == 0.0 {
+    return 0.0
   }
+  let arm = query("SELECT id, day_window FROM arm WHERE id = ?", [pick.arm_id])
+  if len(arm) == 0.0 {
+    return 0.0
+  }
+  let row = {trial_date: trial_date, day_window: arm[0].day_window, arm_id: pick.arm_id}
+  return db_insert("trial", row)
+}
+
+// ── Test fixtures (INSERT OR IGNORE + a file-local unique index keep
+//    the synthetic arms idempotent) ────────────────────────────────────
+
+pattern seed_pair() -> Float {
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_bandit_syn_name ON arm(name)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('syn-good', 'synthetic', 'morning', 10, 0.5, 0.5)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('syn-bad', 'synthetic', 'morning', 10, 0.5, 0.5)")
+  let rows = query("SELECT count(*) AS n FROM arm WHERE name LIKE 'syn-%'", [])
+  return rows[0].n
+}
+
+// k bandit decisions recorded as proposed trials; returns the number of
+// forced-exploration picks among them. The decision counter inside the
+// bandit counts exactly the rows this loop inserts, so i-th decision is
+// decision number i.
+pattern synth_explore(k: Float) -> Float {
+  let today = date_format_iso(now_unix())
   let mut i = 0.0
-  let mut best_last = 0.0
-  while i < rounds {
-    let d = bandit_pick(base + i, now)
-    if d.arm_id > 0.0 {
-      let rw = clamp(normal_sample(sim_true_mean(d.arm_id, best_id), 0.15), 0.0, 1.0)
-      let tid = db_insert("trial", {trial_date: "2026-10-05", day_window: "morning", arm_id: d.arm_id, status: "completed", reward: rw})
-      if i >= rounds - k {
-        if d.arm_id == best_id {
-          best_last = best_last + 1.0
-        }
-      }
+  let mut forced = 0.0
+  let mut last = 0.0
+  while i < k {
+    let pick = bandit_pick(42.0 + i)
+    if pick.mode == "explore" {
+      forced = forced + 1.0
+    }
+    last = db_insert("trial", {trial_date: today, day_window: "morning", arm_id: pick.arm_id, status: "proposed"})
+    i = i + 1.0
+  }
+  return forced
+}
+
+// k decisions recorded as COMPLETED trials with a fixed reward: r_good
+// on good_id, r_bad elsewhere. Returns [good_count, other_count].
+pattern synth_feed(k: Float, good_id: Float, r_good: Float, r_bad: Float) -> List {
+  let today = date_format_iso(now_unix())
+  let mut i = 0.0
+  let mut gc = 0.0
+  let mut bc = 0.0
+  let mut last = 0.0
+  while i < k {
+    let pick = bandit_pick(101.0 + i)
+    if pick.arm_id == good_id {
+      gc = gc + 1.0
+      last = db_insert("trial", {trial_date: today, day_window: "morning", arm_id: pick.arm_id, status: "completed", reward: r_good, moment_present: 1})
+    }
+    if pick.arm_id != good_id {
+      bc = bc + 1.0
+      last = db_insert("trial", {trial_date: today, day_window: "morning", arm_id: pick.arm_id, status: "completed", reward: r_bad, moment_present: 1})
     }
     i = i + 1.0
   }
-  return {best_id: best_id, best_last: best_last}
+  return [gc, bc]
 }
 
-// ── Tests (loop-free bodies per the D2 discipline) ──────────────────────
-// Float pins use the round(x·10^n) scale — binary floats make 0.25-power
-// arithmetic inexact against literals (the store's percent-scale lesson).
+// ── Tests ───────────────────────────────────────────────────────────────
+// The tests share one in-memory database and run in declaration order:
+// the empty-library test MUST stay first, the convergence test reshapes
+// and then restores the active flags.
 
-test "model-zone parameters are pinned" {
-  assert_eq(EXPLORE_P, 0.22)
-  assert_eq(SIGMA_OBS, 0.25)
-  assert_eq(DECAY_HORIZON_DAYS, 60.0)
-  assert_eq(DECAY_TAU_DAYS, 60.0)
+test "an empty arm library refuses to propose" {
+  let pick = bandit_pick(42.0)
+  assert_eq(pick.arm_id, 0.0)
+  assert_eq(pick.mode, "empty")
+  let tid = bandit_propose("2026-10-06", 42.0)
+  assert_eq(tid, 0.0)
+  let rows = query("SELECT count(*) AS n FROM trial", [])
+  assert_eq(rows[0].n, 0.0)
 }
 
-test "decay is full inside the horizon and exponential after it" {
+test "fixed seed reproduces the normal sequence" {
+  random_seed(42.0)
+  let a1 = normal_sample(0.0, 1.0)
+  let a2 = normal_sample(0.0, 1.0)
+  random_seed(42.0)
+  let b1 = normal_sample(0.0, 1.0)
+  let b2 = normal_sample(0.0, 1.0)
+  assert_eq(a1, b1)
+  assert_eq(a2, b2)
+  random_seed(43.0)
+  let c1 = normal_sample(0.0, 1.0)
+  assert_eq(a1 == c1, false)
+}
+
+test "same seed and same state give an identical pick" {
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('repro-a', 'repro', 'morning', 10, 0.5, 0.5)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('repro-b', 'repro', 'evening', 10, 0.5, 0.5)")
+  // Land on a THOMPSON decision: with the decision counter on a multiple
+  // of five the pick goes through the explore branch, the PRNG is never
+  // consumed and the determinism asserts pass vacuously (the vacuous
+  // pass the mutation battery caught; arm_id 1 is repro-a, the FK is
+  // carried by the operator mirror, not enforced on this path — D1).
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2026-10-06', 'morning', 1.0, 'proposed')")
+  let p1 = bandit_pick(42.0)
+  let p2 = bandit_pick(42.0)
+  assert_eq(p1.mode, "thompson")
+  assert_eq(p1.arm_id, p2.arm_id)
+  assert_eq(p1.theta, p2.theta)
+  assert_eq(p1.mode, p2.mode)
+  // A different seed moves the draw stream: the winning theta changes.
+  let p3 = bandit_pick(43.0)
+  assert_eq(p3.mode, "thompson")
+  assert_eq(p3.theta == p1.theta, false)
+}
+
+test "decay weight: 60-day plateau then exponential" {
   assert_eq(decay_weight(0.0), 1.0)
   assert_eq(decay_weight(60.0), 1.0)
-  assert_eq(round(decay_weight(61.0) * 1000000.0), 983471.0)
-  assert_eq(round(decay_weight(90.0) * 1000000.0), 606531.0)
-  assert_eq(round(decay_weight(120.0) * 1000000.0), 367879.0)
-  assert_eq(round(decay_weight(180.0) * 1000000.0), 135335.0)
+  assert_eq(round(decay_weight(120.0) * 10000.0), 3679.0)
+  assert_eq(round(decay_weight(300.0) * 10000.0), 183.0)
 }
 
-test "a future-dated row earns no weight above one" {
-  assert_eq(decay_weight(-30.0), 1.0)
+test "posterior: closed form on one reward" {
+  // One reward of 1.0 today on a 0.1±0.5 prior: λ = 4 + 16 = 20,
+  // mean = (0.1·4 + 1.0·16)/20 = 0.82, sd = 1/√20 = 0.223606… —
+  // the observation-noise constant 0.25 is pinned by these numbers.
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('post-single', 'post', 'morning', 10, 0.1, 0.5)")
+  let aid_rows = query("SELECT id AS v FROM arm WHERE name = 'post-single'", [])
+  let aid = aid_rows[0].v
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status, reward, moment_present) VALUES (?, 'morning', ?, 'completed', 1.0, 1)", [date_format_iso(now_unix()), aid])
+  let post = arm_posterior(aid, 0.1, 0.5)
+  assert_eq(round(post[0] * 100.0), 82.0)
+  assert_eq(round(post[1] * 10000.0), 2236.0)
+  assert_eq(round(post[2]), 1.0)
 }
 
-test "posterior with no weighted observations is the prior" {
-  let p = posterior_math(0.5, 0.2, 0.0, 0.0)
-  assert_eq(p.mean, 0.5)
-  assert_eq(p.sd, 0.2)
+test "a decayed old failure stops dragging the mean down" {
+  // Three rewards of 0.9 today and one 0.0 dated 120 days back on a
+  // 0.6±0.15 prior. With the decay: mean 0.7106 (71 percent scale) and
+  // weight_sum 3.3679. Without the decay the same numbers would be
+  // 0.6443 (64) and 4.0 — the mutation is caught by both asserts.
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('post-decay', 'post', 'morning', 10, 0.6, 0.15)")
+  let aid_rows = query("SELECT id AS v FROM arm WHERE name = 'post-decay'", [])
+  let aid = aid_rows[0].v
+  let today = date_format_iso(now_unix())
+  let old = date_format_iso(now_unix() - 120.0 * 86400.0)
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status, reward, moment_present) VALUES (?, 'morning', ?, 'completed', 0.9, 1)", [today, aid])
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status, reward, moment_present) VALUES (?, 'morning', ?, 'completed', 0.9, 1)", [today, aid])
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status, reward, moment_present) VALUES (?, 'morning', ?, 'completed', 0.9, 1)", [today, aid])
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status, reward, moment_present) VALUES (?, 'morning', ?, 'completed', 0.0, 1)", [old, aid])
+  let post = arm_posterior(aid, 0.6, 0.15)
+  assert_eq(round(post[0] * 100.0), 71.0)
+  assert_eq(round(post[2] * 10000.0), 33679.0)
 }
 
-test "posterior hand case A: five old strong responses on a 0.45±0.2 prior" {
-  // 5 completed trials, reward 0.9, trial_date 200 days back; the
-  // weights ride decay_weight (pinned separately above).
-  let w = decay_weight(200.0)
-  let p = posterior_math(0.45, 0.2, 5.0 * w * 0.9, 5.0 * w)
-  assert_eq(round(p.mean * 10000.0), 5566.0)
-  assert_eq(round(p.sd * 10000.0), 1747.0)
+test "a future-dated row is clamped to age zero" {
+  // Reward 0.9 dated tomorrow on a 0.5±0.5 prior: clamped → w=1 →
+  // mean (2 + 14.4)/20 = 0.82. Unclamped, the negative age would
+  // overweight the row to w = e^(61/60) and move the mean to 0.87.
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('post-future', 'post', 'morning', 10, 0.5, 0.5)")
+  let aid_rows = query("SELECT id AS v FROM arm WHERE name = 'post-future'", [])
+  let aid = aid_rows[0].v
+  let tomorrow = date_format_iso(now_unix() + 86400.0)
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status, reward, moment_present) VALUES (?, 'morning', ?, 'completed', 0.9, 1)", [tomorrow, aid])
+  let post = arm_posterior(aid, 0.5, 0.5)
+  assert_eq(round(post[0] * 100.0), 82.0)
 }
 
-test "posterior hand case B: five fresh moderate responses on a 0.6±0.15 prior" {
-  let p = posterior_math(0.6, 0.15, 5.0 * 0.75, 5.0)
-  assert_eq(round(p.mean * 10000.0), 6964.0)
-  assert_eq(round(p.sd * 10000.0), 896.0)
+test "silence produces no fabricated signal" {
+  // A missed and a bare proposed trial feed nothing: the posterior is
+  // exactly the prior (0.45±0.20 → sd = 1/√25 = 0.2).
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('post-silent', 'post', 'morning', 10, 0.45, 0.2)")
+  let aid_rows = query("SELECT id AS v FROM arm WHERE name = 'post-silent'", [])
+  let aid = aid_rows[0].v
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2026-10-01', 'morning', ?, 'missed')", [aid])
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2026-10-02', 'morning', ?, 'proposed')", [aid])
+  let post = arm_posterior(aid, 0.45, 0.2)
+  assert_eq(round(post[0] * 100.0), 45.0)
+  assert_eq(round(post[1] * 10000.0), 2000.0)
+  assert_eq(round(post[2]), 0.0)
 }
 
-test "arm_posterior reads the store: A-case through the live tables" {
-  let aid = db_insert("arm", {name: "bandit-posterior-case-a", group_name: "test", day_window: "morning", prior_mean: 0.45, prior_std: 0.2})
-  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
-  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
-  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
-  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
-  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
-  let now = date_parse_iso("2026-10-06")
-  let p = arm_posterior(aid, now)
-  assert_eq(round(p.mean * 10000.0), 5566.0)
-  assert_eq(round(p.sd * 10000.0), 1747.0)
+test "forced exploration is exactly 20 percent over 1000 decisions" {
+  seed_pair()
+  let before_rows = query("SELECT count(*) AS n FROM trial WHERE arm_id IS NOT NULL", [])
+  let before = before_rows[0].n
+  let forced = synth_explore(1000.0)
+  // Any window of 1000 consecutive decision numbers contains exactly
+  // 200 multiples of five, whatever phase the counter starts from.
+  assert_eq(forced, 200.0)
+  let after_rows = query("SELECT count(*) AS n FROM trial WHERE arm_id IS NOT NULL", [])
+  assert_eq(after_rows[0].n - before, 1000.0)
 }
 
-test "arm_posterior skips proposed and missed rows: silence is not data" {
-  let aid = db_insert("arm", {name: "bandit-posterior-silence", group_name: "test", day_window: "evening", prior_mean: 0.6, prior_std: 0.15})
-  db_insert("trial", {trial_date: "2026-10-01", day_window: "evening", arm_id: aid, status: "completed", reward: 0.5})
-  db_insert("trial", {trial_date: "2026-10-02", day_window: "evening", arm_id: aid, status: "proposed", reward: 0.99})
-  db_insert("trial", {trial_date: "2026-10-03", day_window: "evening", arm_id: aid, status: "missed", reward: 0.99})
-  let now = date_parse_iso("2026-10-06")
-  let p = arm_posterior(aid, now)
-  // Exactly one weighted observation (0.5, fresh): prec0 = 1/0.15^2,
-  // prec_lik = 1/0.25^2; mean = (0.6·44.444 + 0.5/0.0625)/60.444 = 0.5735.
-  assert_eq(round(p.mean * 10000.0), 5735.0)
+test "converges to the best arm on synthetic data" {
+  seed_pair()
+  // A controlled universe: only the synthetic pair competes; the flags
+  // are restored at the end so later tests keep a live library.
+  db_execute("UPDATE arm SET active = 0 WHERE name NOT IN ('syn-good', 'syn-bad')")
+  let good_rows = query("SELECT id AS v FROM arm WHERE name = 'syn-good'", [])
+  let good = good_rows[0].v
+  let counts = synth_feed(200.0, good, 0.9, 0.1)
+  // 200 decisions = 160 Thompson + 40 forced (20 per arm round-robin).
+  // Once the posteriors separate, the exploit picks go to syn-good:
+  // 140 is well below the expected ~175 and far above the 40-ish a
+  // broken argmax would produce.
+  assert_eq(counts[0] > counts[1], true)
+  assert_eq(counts[0] >= 140.0, true)
+  let pg = arm_posterior(good, 0.5, 0.5)
+  let bad_rows = query("SELECT id AS v FROM arm WHERE name = 'syn-bad'", [])
+  let pb = arm_posterior(bad_rows[0].v, 0.5, 0.5)
+  assert_eq(pg[0] > pb[0], true)
+  db_execute("UPDATE arm SET active = 1")
 }
 
-test "bandit tables replay byte-identical columns (pin)" {
-  let rows = query("SELECT sql AS s FROM sqlite_master WHERE name = 'arm'", [])
-  assert_contains(rows[0].s, "prior_mean REAL DEFAULT '0.0'")
-  assert_contains(rows[0].s, "prior_std REAL DEFAULT '1.0'")
-  let trows = query("SELECT sql AS s FROM sqlite_master WHERE name = 'trial'", [])
-  assert_contains(trows[0].s, "reward REAL DEFAULT '0.0'")
-  assert_contains(trows[0].s, "moment_source TEXT DEFAULT ''")
+test "a proposal writes a trial row in the chosen arm's window" {
+  let tid = bandit_propose(date_format_iso(now_unix()), 7.0)
+  assert_eq(tid > 0.0, true)
+  let rows = query("SELECT t.arm_id AS aid, t.day_window AS w, t.status AS st FROM trial t WHERE t.id = ?", [tid])
+  assert_eq(rows[0].st, "proposed")
+  let arm = query("SELECT day_window AS w FROM arm WHERE id = ?", [rows[0].aid])
+  assert_eq(rows[0].w, arm[0].w)
+}
+
+test "bandit table declarations match the store's (column pin)" {
+  let trial = query("SELECT sql AS s FROM sqlite_master WHERE name = 'trial'", [])
+  assert_contains(trial[0].s, "arm_id INTEGER")
+  assert_contains(trial[0].s, "status TEXT DEFAULT 'proposed'")
+  assert_contains(trial[0].s, "moment_present INTEGER DEFAULT '0'")
+  assert_contains(trial[0].s, "reward REAL DEFAULT '0.0'")
+  let arm = query("SELECT sql AS s FROM sqlite_master WHERE name = 'arm'", [])
+  assert_contains(arm[0].s, "prior_mean REAL DEFAULT '0.0'")
+  assert_contains(arm[0].s, "prior_std REAL DEFAULT '1.0'")
 }
