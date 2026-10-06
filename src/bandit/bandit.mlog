@@ -458,4 +458,11 @@ test "bandit table declarations match the store's (column pin)" {
   let arm = query("SELECT sql AS s FROM sqlite_master WHERE name = 'arm'", [])
   assert_contains(arm[0].s, "prior_mean REAL DEFAULT '0.0'")
   assert_contains(arm[0].s, "prior_std REAL DEFAULT '1.0'")
+  // №611 (v0.29.0): references() is enforced in the emitted DDL, so the
+  // FK clauses are pinnable — and the FK parent (note) must exist in this
+  // standalone schema, or inserts into trial fail with no such table.
+  let note = query("SELECT sql AS s FROM sqlite_master WHERE name = 'note'", [])
+  assert_contains(note[0].s, "body TEXT")
+  assert_contains(trial[0].s, "REFERENCES note(id)")
+  assert_contains(trial[0].s, "REFERENCES arm(id)")
 }
