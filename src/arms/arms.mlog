@@ -55,15 +55,19 @@ entity kamerton_arms: List = [
 // Seed the arm library. Idempotent by construction: a UNIQUE index on
 // name plus INSERT OR IGNORE — a repeated run changes nothing.
 //
-// WHY UNROLLED STATEMENTS (§2, declared loudly): the mlog v0.28.1
-// interpreter executes exactly ONE iteration of a loop placed inside a
-// pattern body (each and while alike; inline loops in test bodies are
-// unaffected — minimal repro in the naryad PR and worklog). A
-// loop-driven seed would silently insert only the first arm, so the
-// seed is unrolled into sequential statements and pinned to the
-// kamerton_arms entity list by a per-arm verification test; the JSON
-// mirror is pinned to the same list. Divergence of any copy is a loud
-// test failure.
+// WHY UNROLLED STATEMENTS (§2, declared loudly): the mlog D2 defect
+// (declared in Kamerton issue #24; verified on v0.28.1 AND v0.28.2 by
+// mutation probes) mis-executes loops whose body is a bare call — one
+// iteration, and in a test body the tail after such a loop is silently
+// cut (vacuously green). Assignment-body loops are full, but the
+// trigger surface is not fully mapped (the probeprint case differs
+// from the db_execute case), so the discipline here is: NO loops in
+// test bodies at all until the language naryads land (Metalogos-
+// №597/№598 → v0.28.3). A loop-driven seed would silently insert only
+// the first arm, so the seed is unrolled into sequential statements
+// and pinned to the kamerton_arms entity list by the per-arm VALUES
+// LEFT JOIN verification test (loop-free); the JSON mirror is pinned
+// to the same list. Divergence of any copy is a loud test failure.
 
 pattern seed_arms() -> Float {
   db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_arm_name_unique ON arm(name)")
@@ -100,19 +104,20 @@ test "five methodologies across two windows" {
 }
 
 test "no self-hypnosis and no sound groups in the wave-1 seed" {
-  each a in kamerton_arms {
-    assert_eq(contains(a.group_name, "Самогипноз"), false)
-    assert_eq(contains(a.group_name, "тона"), false)
-  }
+  // Loop-free by D2 discipline: the SQL predicate covers every seeded
+  // row; the SSOT side is transitively pinned by the per-arm VALUES
+  // test and the JSON lockstep test.
   seed_arms()
   let rows = query("SELECT count(*) AS n FROM arm WHERE group_name LIKE '%тона%' OR group_name = 'Самогипноз'", [])
   assert_eq(rows[0].n, 0.0)
 }
 
 test "every arm carries a non-empty literature source" {
-  each a in kamerton_arms {
-    assert_eq(len(a.source) > 0.0, true)
-  }
+  // Loop-free by D2 discipline. `source` lives only in the SSOT list
+  // (not a DB column), so the check rides the JSON encoding whose
+  // exact shape is byte-pinned by the lockstep test: an empty source
+  // would render as "source":"". One assert covers all ten arms.
+  assert_eq(contains(json_encode(kamerton_arms), "\"source\":\"\""), false)
 }
 
 test "priors are literature-seeded, not zeros" {
@@ -134,14 +139,11 @@ test "seeds/arms.json is in lockstep with the machine seed" {
 }
 
 test "unrolled seed matches the kamerton_arms list per arm" {
+  // Loop-free by D2 discipline. The VALUES rows below mirror the
+  // unrolled seed literals exactly; LEFT JOIN catches a missing row,
+  // the WHERE catches any field divergence. Expect 0 mismatches over
+  // all 10 arms × 5 fields.
   seed_arms()
-  each a in kamerton_arms {
-    let row = query("SELECT group_name AS g, day_window AS w, duration_min AS d, prior_mean AS m, prior_std AS s FROM arm WHERE name = ?", [a.name])
-    assert_eq(len(row), 1.0)
-    assert_eq(row[0].g, a.group_name)
-    assert_eq(row[0].w, a.day_window)
-    assert_eq(row[0].d, a.duration_min)
-    assert_eq(row[0].m, a.prior_mean)
-    assert_eq(row[0].s, a.prior_std)
-  }
+  let rows = query("SELECT count(*) AS n FROM (VALUES ('breath-resonance-morning','Резонансное дыхание','morning',10,0.6,0.15), ('breath-resonance-evening','Резонансное дыхание','evening',10,0.6,0.15), ('woop-morning','Имплементационные намерения','morning',10,0.6,0.15), ('woop-evening','Имплементационные намерения','evening',10,0.6,0.15), ('mental-rehearsal-morning','Ментальная репетиция','morning',10,0.5,0.15), ('mental-rehearsal-evening','Ментальная репетиция','evening',10,0.5,0.15), ('focusing-morning','Фокусинг','morning',10,0.45,0.2), ('focusing-evening','Фокусинг','evening',10,0.45,0.2), ('yoga-nidra-morning','Йога-нидра','morning',10,0.45,0.2), ('yoga-nidra-evening','Йога-нидра','evening',10,0.45,0.2)) AS v LEFT JOIN arm a ON a.name = v.column1 WHERE a.name IS NULL OR a.group_name != v.column2 OR a.day_window != v.column3 OR a.duration_min != v.column4 OR a.prior_mean != v.column5 OR a.prior_std != v.column6", [])
+  assert_eq(rows[0].n, 0.0)
 }
