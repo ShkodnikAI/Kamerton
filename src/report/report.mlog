@@ -1,0 +1,231 @@
+// Kamerton (naryad Н1-08): the report forms — src/report/
+// The CLI and the chat presentations of the honesty report (issue #27:
+// «отчёт в чат и CLI»). The honesty math and the SSOT text live in
+// src/honesty/honesty.mlog; THIS file carries the byte-identical mirror
+// of that block (the app.mlog no-cross-file-imports convention) plus
+// the two presentation forms:
+//   - honesty_report_cli()  — prints the report to stdout (the CLI form;
+//     every call assigned/returned, the D2 discipline).
+//   - honesty_report_chat() — escape_html(text): the chat-ready string
+//     (the Н1-06 rule: the DB output never reaches the chat raw). The
+//     caller (a Н1-06 tick) sends this string verbatim; integrating the
+//     tick lives in app.mlog — OUTSIDE this naryad's boundary, no
+//     same-file collision is created.
+// Mirror equality is verified by the verifier step recorded in the
+// naryad worklog (md5 of both block extracts; read_file refuses *.mlog
+// paths — the №455-sensitive list — so the pin lives outside the
+// language).
+// The tests pin: the chat form equals escape_html of the SSOT text
+// byte-for-byte, both forms carry the range form and the loud «сигнала
+// нет» phrase on an empty database.
+
+entity db_raw: String = env_or("KAMERTON_DB", ":memory:")
+
+entity db_url: String = "sqlite:" + db_raw
+
+db { url: db_url }
+
+schema kamerton {
+
+  table arm {
+    id: Int primary_key auto_increment,
+    name: String,
+    group_name: String,
+    day_window: String,
+    duration_min: Int default("10"),
+    prior_mean: Float default("0.0"),
+    prior_std: Float default("1.0"),
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table note {
+    id: Int primary_key auto_increment,
+    body: String,
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table trial {
+    id: Int primary_key auto_increment,
+    trial_date: String,
+    day_window: String,
+    arm_id: Int references(arm.id),
+    note_id: Int references(note.id),
+    status: String default("proposed"),
+    prediction_depth: Float default("0.0"),
+    prediction_confidence: Float default("0.0"),
+    moment_value: Float default("0.0"),
+    moment_present: Int default("0"),
+    moment_source: String default(""),
+    next_day_value: Float default("0.0"),
+    next_day_present: Int default("0"),
+    action_value: Float default("0.0"),
+    action_present: Int default("0"),
+    reward: Float default("0.0"),
+    free_note: String default(""),
+    closed_at: String default(""),
+    created_at: String default(now())
+  }
+
+  table response {
+    id: Int primary_key auto_increment,
+    trial_id: Int references(trial.id),
+    kind: String,
+    depth: Float default("0.0"),
+    details: String default(""),
+    created_at: String default(now())
+  }
+
+  table context {
+    id: Int primary_key auto_increment,
+    trial_id: Int references(trial.id),
+    moon_phase: String default(""),
+    weather: String default(""),
+    sound_mode: String default(""),
+    sleep_quality: Float default("0.0"),
+    logged_at: String default(now())
+  }
+}
+
+// ── The honesty math ──────────────────────────────────────────────────
+
+// The bandit side: every completed trial is a bandit pick with its
+// realized reward. The population variance form is declared (decision 2).
+// Returns the map {n, m, se} — the reward mean and its SE over the
+// completed picks.
+pattern bandit_side() -> map {
+  let rows = query("SELECT count(*) AS n, avg(reward) AS m, avg(reward * reward) AS m2 FROM trial WHERE status = 'completed'", [])
+  let n = to_float_or(to_string(rows[0].n), 0.0)
+  let m = to_float_or(to_string(rows[0].m), 0.0)
+  let m2 = to_float_or(to_string(rows[0].m2), 0.0)
+  let mut var = m2 - m * m
+  if var < 0.0 { let var = 0.0 }
+  let mut se = 0.0
+  if n > 0.0 {
+    let se = sqrt(var / n)
+  }
+  return {n: n, m: m, se: se}
+}
+
+// The random-choice baseline: the unweighted mean of the per-arm mean
+// rewards (decision 1). Returns the map {arms, m, se} — the arm count
+// and the baseline mean with its SE across arm means.
+pattern random_baseline() -> map {
+  let rows = query("SELECT count(*) AS arms, avg(m) AS m, avg(m * m) AS m2 FROM (SELECT arm_id, avg(reward) AS m FROM trial WHERE status = 'completed' GROUP BY arm_id)", [])
+  let k = to_float_or(to_string(rows[0].arms), 0.0)
+  let m = to_float_or(to_string(rows[0].m), 0.0)
+  let m2 = to_float_or(to_string(rows[0].m2), 0.0)
+  let mut var = m2 - m * m
+  if var < 0.0 { let var = 0.0 }
+  let mut se = 0.0
+  if k > 0.0 {
+    let se = sqrt(var / k)
+  }
+  return {arms: k, m: m, se: se}
+}
+
+// A number in the report form: rounded to hundredths, no long tails.
+pattern fmt2(x: Float) -> String {
+  return to_string(round(x * 100.0) / 100.0)
+}
+
+// The verdict (decision 3). The band edges mb ∓ 1.96·se_b are compared
+// against the baseline constant.
+pattern honesty_verdict() -> String {
+  let b = bandit_side()
+  if b.n < 1.0 { return "сигнала нет — данных нет (completed=0)" }
+  let r = random_baseline()
+  let lo = b.m - 1.96 * b.se
+  let hi = b.m + 1.96 * b.se
+  if lo > r.m { return "выигрыш есть — бандит лучше случайного выбора" }
+  if hi < r.m { return "выигрыша нет — хуже случайного выбора" }
+  return "сигнала нет — выигрыш над случайным выбором не выявлен"
+}
+
+// The gain line: expected [low; high], all three present — no point
+// estimate is ever printed alone (the acceptance row).
+pattern gain_line() -> String {
+  let b = bandit_side()
+  let r = random_baseline()
+  let lo = b.m - 1.96 * b.se - r.m
+  let hi = b.m + 1.96 * b.se - r.m
+  return "gain: expected=" + fmt2(b.m - r.m) + " [low=" + fmt2(lo) + "; high=" + fmt2(hi) + "] (95% approx)"
+}
+
+// Misses per arm — one aggregate line (decision 4): the fraction of
+// missed trials per arm, every arm, SQL-carried order.
+pattern misses_line() -> String {
+  let rows = query("SELECT group_concat(t.g || ': ' || t.miss || '/' || t.n || ' (' || t.pct || '%)', '; ') AS s FROM (SELECT arm.name AS g, CAST(sum(CASE WHEN trial.status = 'missed' THEN 1 ELSE 0 END) AS INT) AS miss, CAST(count(*) AS INT) AS n, CAST(CAST(sum(CASE WHEN trial.status = 'missed' THEN 1 ELSE 0 END) AS REAL) * 100.0 / count(*) AS INT) AS pct FROM trial JOIN arm ON arm.id = trial.arm_id GROUP BY arm.name ORDER BY arm.name) AS t", [])
+  if to_string(rows[0].s) == "" { return "misses: (нет проб)" }
+  return "misses: " + to_string(rows[0].s)
+}
+
+// Moment sources, SEPARATE per source (ADR-0001 — no silent mixing):
+// count and mean per source; the default empty source is listed as
+// "(пусто)" so a silent default can never hide.
+pattern source_lines() -> String {
+  let rows = query("SELECT group_concat(CASE WHEN t.src = '' THEN '(пусто)' ELSE t.src END || ': n=' || CAST(t.n AS INT) || ' avg=' || CAST(ROUND(t.m, 2) AS TEXT), '; ') AS s FROM (SELECT moment_source AS src, count(*) AS n, avg(moment_value) AS m FROM trial WHERE moment_present = 1 GROUP BY moment_source ORDER BY moment_source) AS t", [])
+  if to_string(rows[0].s) == "" { return "moment sources: (нет момент-откликов)" }
+  return "moment sources: " + to_string(rows[0].s)
+}
+
+// The SSOT report text. The chat and CLI forms live in
+// src/report/report.mlog (the mirror half of this naryad) and are
+// derived from THIS text — one source, two presentations.
+pattern honesty_report_text() -> String {
+  let head = "honesty report\nverdict: " + honesty_verdict()
+  let b = bandit_side()
+  let r = random_baseline()
+  let counts = "\ncompleted=" + to_string(round(b.n)) + " trials over " + to_string(round(r.arms)) + " arms"
+  return head + counts + "\n" + gain_line() + "\n" + misses_line() + "\n" + source_lines()
+}
+
+// ── The presentation forms ────────────────────────────────────────────
+
+// CLI: print the report to stdout. The assigned-call discipline keeps
+// the bare-call defect class (D2/№612) away by construction.
+pattern honesty_report_cli() -> Float {
+  let text = honesty_report_text()
+  print(text)
+  return 1.0
+}
+
+// Chat: the escape_html-wrapped SSOT text — chat-ready, no raw output.
+pattern honesty_report_chat() -> String {
+  return escape_html(honesty_report_text())
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────
+
+test "the chat form equals escape_html of the report text" {
+  let text = honesty_report_text()
+  let chat = honesty_report_chat()
+  assert_eq(chat, escape_html(text))
+  assert_eq(len(chat), len(escape_html(text)))
+}
+
+test "both forms carry the full report skeleton" {
+  let text = honesty_report_text()
+  let chat = honesty_report_chat()
+  assert_contains(text, "honesty report")
+  assert_contains(chat, "honesty report")
+  assert_contains(text, "verdict: ")
+  assert_contains(text, "gain: expected=")
+  assert_contains(text, "misses: ")
+  assert_contains(text, "moment sources: ")
+  assert_contains(chat, "verdict: ")
+}
+
+test "the empty database is loud in both forms" {
+  let text = honesty_report_text()
+  let chat = honesty_report_chat()
+  assert_contains(text, "сигнала нет")
+  assert_contains(chat, "сигнала нет")
+  assert_contains(text, "completed=0")
+}
+
+test "the cli form prints the report" {
+  let rc = honesty_report_cli()
+  assert_eq(rc, 1.0)
+}
