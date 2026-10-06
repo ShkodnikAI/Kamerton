@@ -1,0 +1,753 @@
+// Kamerton app (naryad Н1-06): the Telegram long-polling cycle in ONE
+// serve program — deploy contract of kamerton.service
+// (ExecStart: mlog serve /data/kamerton/app.mlog). The naryad fixes the
+// shape: "два cron-тика в одном .mlog" — the morning tick proposes an
+// arm (consumes the Н1-05 bandit core mirrored below) and asks for a
+// prediction, the evening tick drains getUpdates, writes the answers
+// into trial/response and closes unanswered trials as misses at 02:00
+// local.
+//
+// ── Design decisions fixed here (in-boundary choices; the naryad fixes
+//    the requirements, not the parametrisation) ─────────────────────────
+//   1. Registration: the serve process runs NO top-level statements and
+//     NO on_session_start hook at boot (the serve probe: hook file
+//     absent, jobs=0). Cron jobs are registered IDEMPOTENTLY from the
+//     /setup route (cron_list guard -> cron_add only when missing) and
+//     carried across restarts by `memory { persist }` — the jobs and
+//     the getUpdates offset survive the service restart (the
+//     acceptance row; verified by the serve probes in the worklog).
+//   2. Timezone: cron_add matches windows in the job's tz (default
+//     MLOG_CRON_TZ else UTC), the deploy allowlist opens
+//     KAMERTON_TZ_OFFSET (hours, float; MSK=3). The tick expressions
+//     are computed FROM the offset with the local wall-clock minutes
+//     folded to UTC (no modulo operator — to_int truncation, the
+//     bandit explore-idx precedent): 07:00 local under MSK registers
+//     as "0 4 * * *", 02:00 local as "0 23 * * *".
+//   3. Chat protocol (minimal, wave 1): the morning message proposes
+//     the arm and asks for a prediction; the owner answers "p:<0..1>"
+//     (prediction depth), "m:<0..1>" (the moment response), anything
+//     else is appended to trial.free_note. Every outgoing text passes
+//     escape_html — the DB output never reaches the chat raw.
+//   4. Exactly-once posture: the Telegram offset (kv tg_offset) is
+//     advanced AFTER a batch is processed; a crash before the advance
+//     replays the batch and the DB guards make the replay idempotent —
+//     the moment insert is guarded by (trial_id, kind), the prediction
+//     UPDATE fills an untouched default only, misses are status flips.
+//     A repeated free-note append is the one accepted dup window and
+//     is declared loudly here.
+//   5. Network posture: every http_get carries the per-call deadline
+//     (№592) inside 1..=300; the outcome taxonomy is consumed through
+//     the sanitize-then-decide form — escape_html (Sanitized =
+//     public/trusted) decides the control flow, never the raw label.
+//     send_message reads TELEGRAM_BOT_TOKEN from the process env
+//     itself and degrades to the [AUDIT] stub without it (probe-pinned),
+//     so tests never touch the network.
+//   6. Trust boundaries: fetch_updates returns UNTRUSTED network data;
+//     the whole update-processing chain runs inside ONE annotated
+//     boundary pattern (the parity-tick-route fire_job precedent) —
+//     inside it the data is sanctioned and the DB guards decide;
+//     outside it the return is never echoed or branched on. The chat
+//     filter compares SANITIZED projections.
+//   7. Composition: no cross-file imports exist in the language, so
+//     this file carries byte-identical mirrors of the store schema
+//     (the bandit.mlog precedent), the bandit decision core and the
+//     telegram pure core. The canonical copies live in
+//     src/bandit/bandit.mlog and src/telegram/telegram.mlog; the
+//     mirror modules carry the APP-MIRROR markers and the block
+//     equality is verified by the verifier script recorded in the
+//     naryad worklog (read_file refuses *.mlog paths — the
+//     №455-sensitive list — so the pin lives outside the language).
+//
+// Language-discipline notes (§2, declared loudly where relevant):
+//   - RESPOND_SWALLOWED (v0.28.2, security Y-1): every respond() is
+//     written `return respond(...)` — the fail-closed startup refusal
+//     of bare tail responds is the contract on both backends.
+//   - env() in route bodies and cron-tick bodies is gated by №259;
+//     every name read here (KAMERTON_TG_TOKEN, KAMERTON_CHAT_ID,
+//     KAMERTON_TZ_OFFSET) is opened by deploy/env.allowlist through
+//     METALOGOS_ENV_ALLOWLIST (install.sh derives the runtime value).
+//     TELEGRAM_BOT_TOKEN is read INSIDE the send_message builtin
+//     (process env) — deliberately NOT in the allowlist.
+//   - The D2 loop defect (№598, unfixed in v0.28.2): every sink call
+//     inside a loop body uses the assignment shape `let _ = f(...)`; a
+//     bare call inside a mixed loop body corrupts the pattern return.
+//   - NEW D2-family symptom isolated during this naryad (probe in the
+//     worklog): a `while i < len(xs)` loop whose body can reach
+//     cron_remove() MISCONVERGES — after the first removal the pass
+//     silently drops the remaining iterations (and stdout prints after
+//     the first remove are lost), so repeat runs diverge (0 or 2 jobs
+//     instead of 1). Every cron-store pass here therefore runs as
+//     `each` over the cron_list() snapshot; the symptom is declared to
+//     the Metalogos- agent (v0.28.3 task file). The same family, third
+//     case: a print() INSIDE an if-body that follows an effect call
+//     (cron_remove) inside an each-body silently kills the SUBSEQUENT
+//     if/add phase — the registration prints therefore happen ONCE as a
+//     post-loop summary, never inside the loop bodies (probe: variant
+//     A misconverges, variant B converges). Fourth case, cron-tick
+//     lane: a bare `return` inside a nested if-body of a Unit tick
+//     pattern dispatches as [UNDEFINED_VARIABLE] "undefined variable:
+//     return" — the early-return guards therefore invert into
+//     positive-branch blocks (no return under a nested if).
+//   - No modulo operator (grammar v0.28.2); to_int truncation
+//     arithmetic everywhere a remainder is needed.
+
+// The deploy contract of Н1-02: KAMERTON_DB carries the plain database
+// path; the VM lane resolves it lazily at the first db access (№758).
+// This file carries NO test blocks: v0.28.2 has no single db-url form
+// valid for both lanes (the interpreter test lane needs an entity-ref
+// url for the schema replay; the serve boot pass refuses entity refs —
+// the §2 declaration below), so the app's tests live in
+// src/telegram/telegram.mlog against a literal in-memory db and the
+// byte-identical mirror blocks; app.mlog stays the serve canon.
+db { url: "sqlite::memory:" }
+
+// The KV store carries the getUpdates offset AND the cron job store;
+// without persist both die with the process (the serve probe logs).
+memory { persist: "data/kamerton-kv.db" }
+
+// ── APP-MIRROR-START: db-cycle (byte-identical to
+//    src/telegram/telegram.mlog §db-cycle) ──────────────────────────────
+
+// ── APP-MIRROR-START: db-cycle (byte-identical to
+//    src/telegram/telegram.mlog §db-cycle) ──────────────────────────────
+
+// ── The schema: the operator-mirror DDL path (§2 declaration) ─────────
+// Затык §2 (v0.28.2, заявлен громко в PR/worklog): ONE db-url form for
+// BOTH lanes does not exist — `mlog test` (interpreter) requires an
+// entity-ref url for the schema replay at declaration time, while the
+// serve boot pass refuses entity refs ([UNDEFINED_VARIABLE]) and only
+// accepts inline env()/env_or()/literal (№758 lazy). The proposed and
+// implemented exit: the schema-as-code block is replaced by the
+// ADDITIVE-ONLY idempotent DDL literals of the operator mirror
+// (migrations/0001_init.sql, ADR-0183) executed by ensure_schema() —
+// called by both ticks and /setup before any query. Byte-equality of
+// the DDL to the migration is pinned by the verifier script in the
+// worklog.
+pattern ensure_schema() -> Unit {
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS arm (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, group_name TEXT, day_window TEXT, duration_min INTEGER DEFAULT '10', prior_mean REAL DEFAULT '0.0', prior_std REAL DEFAULT '1.0', active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS note (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS trial (id INTEGER PRIMARY KEY AUTOINCREMENT, trial_date TEXT, day_window TEXT, arm_id INTEGER REFERENCES arm(id), note_id INTEGER REFERENCES note(id), status TEXT DEFAULT 'proposed', prediction_depth REAL DEFAULT '0.0', prediction_confidence REAL DEFAULT '0.0', moment_value REAL DEFAULT '0.0', moment_present INTEGER DEFAULT '0', moment_source TEXT DEFAULT '', next_day_value REAL DEFAULT '0.0', next_day_present INTEGER DEFAULT '0', action_value REAL DEFAULT '0.0', action_present INTEGER DEFAULT '0', reward REAL DEFAULT '0.0', free_note TEXT DEFAULT '', closed_at TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS response (id INTEGER PRIMARY KEY AUTOINCREMENT, trial_id INTEGER REFERENCES trial(id), kind TEXT, depth REAL DEFAULT '0.0', details TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS context (id INTEGER PRIMARY KEY AUTOINCREMENT, trial_id INTEGER REFERENCES trial(id), moon_phase TEXT DEFAULT '', weather TEXT DEFAULT '', sound_mode TEXT DEFAULT '', sleep_quality REAL DEFAULT '0.0', logged_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS candidate (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, kind TEXT DEFAULT 'non_periodic', status TEXT DEFAULT 'candidate', stat_value REAL DEFAULT '0.0', threshold REAL DEFAULT '0.0', tested_at TEXT DEFAULT '', note TEXT DEFAULT '')", [])
+  ensure_indexes()
+}
+
+pattern ensure_indexes() -> Unit {
+  db_execute("CREATE INDEX IF NOT EXISTS idx_trial_date ON trial(trial_date)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_trial_arm ON trial(arm_id)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_trial_status ON trial(status)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_response_trial ON response(trial_id)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_context_trial ON context(trial_id)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_candidate_name ON candidate(name)")
+  db_execute("CREATE INDEX IF NOT EXISTS idx_arm_active ON arm(active)")
+}
+
+// ── APP-MIRROR-START: store-core (the signatures mirror
+//    src/store/store.mlog; equality pinned by the worklog script) ──────
+
+pattern trial_by_id(trial_id: Float) -> List {
+  return query("SELECT id, trial_date, day_window, arm_id, status, prediction_depth, prediction_confidence, moment_value, moment_present, moment_source, next_day_value, next_day_present, action_value, action_present, reward FROM trial WHERE id = ?", [trial_id])
+}
+
+pattern compute_reward(trial_id: Float) -> Float {
+  let rows = query("SELECT moment_value, moment_present, next_day_value, next_day_present, action_value, action_present FROM trial WHERE id = ?", [trial_id])
+  if len(rows) == 0.0 {
+    return 0.0
+  }
+  let r = rows[0]
+  let mut acc = 0.0
+  let mut wsum = 0.0
+  if r.moment_present == 1.0 {
+    acc = acc + 0.2 * r.moment_value
+    wsum = wsum + 0.2
+  }
+  if r.next_day_present == 1.0 {
+    acc = acc + 0.3 * r.next_day_value
+    wsum = wsum + 0.3
+  }
+  if r.action_present == 1.0 {
+    acc = acc + 0.5 * r.action_value
+    wsum = wsum + 0.5
+  }
+  if wsum == 0.0 {
+    return 0.0
+  }
+  let reward = acc / wsum
+  db_execute("UPDATE trial SET reward = ? WHERE id = ?", [reward, trial_id])
+  return reward
+}
+// ── APP-MIRROR-END: store-core
+pattern last_proposed_trial(local_date: String) -> List {
+  return query("SELECT id, arm_id, day_window FROM trial WHERE status = 'proposed' AND trial_date = ? ORDER BY id DESC LIMIT 1", [local_date])
+}
+
+pattern close_stale_misses(local_date: String) -> Float {
+  let stale = query("SELECT id FROM trial WHERE status = 'proposed' AND trial_date < ? AND arm_id IS NOT NULL", [local_date])
+  let mut closed = 0.0
+  each t in stale {
+    let tid = t.id
+    let _ = db_execute("UPDATE trial SET status = 'missed', closed_at = datetime('now') WHERE id = ?", [tid])
+    closed = closed + 1.0
+  }
+  return closed
+}
+
+pattern apply_answer(tid: Float, ans: Struct) -> String {
+  if ans.kind == "prediction" {
+    let rows = query("SELECT prediction_depth FROM trial WHERE id = ? AND status = 'proposed'", [tid])
+    if len(rows) == 0.0 {
+      return "no-open-trial"
+    }
+    if rows[0].prediction_depth != 0.0 {
+      return "prediction-kept"
+    }
+    let _ = db_execute("UPDATE trial SET prediction_depth = ? WHERE id = ?", [ans.value, tid])
+    return "prediction"
+  }
+  if ans.kind == "moment" {
+    let guard = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+    if guard[0].n > 0.0 {
+      return "moment-kept"
+    }
+    let row = {trial_id: tid, kind: "moment", depth: ans.value, details: "telegram m:"}
+    let _ = db_insert("response", row)
+    let _ = db_execute("UPDATE trial SET moment_value = ?, moment_present = 1, moment_source = 'subjective', status = 'completed' WHERE id = ?", [ans.value, tid])
+    let _ = compute_reward(tid)
+    return "moment"
+  }
+  let rows2 = query("SELECT free_note FROM trial WHERE id = ?", [tid])
+  let mut note = ""
+  if len(rows2) > 0.0 {
+    note = rows2[0].free_note
+  }
+  let joined = note + " | " + escape_html(ans.text)
+  let _ = db_execute("UPDATE trial SET free_note = ? WHERE id = ?", [joined, tid])
+  return "note"
+}
+
+pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, local_date: String<public, trusted>, offset: Float) -> Unit {
+  // The D2-family posture: the drain is a BARE each (db effects inside
+  // the loop are the m0_row-proven shape), every diagnostic lives in
+  // counters, ONE summary print after the loop. The chat filter
+  // compares SANITIZED projections; the untrusted raw never branches.
+  let mut processed = 0.0
+  let mut predictions = 0.0
+  let mut moments = 0.0
+  let mut skipped = 0.0
+  let mut last_id = 0 - 1.0
+  each u in updates {
+    last_id = json_get(u, "update_id", 0.0)
+    let chat = to_string(json_get(u, "message.chat.id", 0.0))
+    if escape_html(chat) == escape_html(chat_id) {
+      let text = json_get(u, "message.text", "")
+      if escape_html(text) != "" {
+        let ans = parse_chat_text(text)
+        let open = last_proposed_trial(local_date)
+        if len(open) > 0.0 {
+          let tid = open[0].id
+          let applied = apply_answer(tid, ans)
+          if applied == "prediction" {
+            predictions = predictions + 1.0
+            processed = processed + 1.0
+          }
+          if applied == "moment" {
+            moments = moments + 1.0
+            processed = processed + 1.0
+          }
+          if applied == "note" {
+            processed = processed + 1.0
+          }
+          if applied == "no-open-trial" {
+            skipped = skipped + 1.0
+          }
+        } else {
+          skipped = skipped + 1.0
+        }
+      } else {
+        skipped = skipped + 1.0
+      }
+    } else {
+      skipped = skipped + 1.0
+    }
+  }
+  // The offset advances AFTER the batch; a crash before the kv_set
+  // replays the batch into the idempotent guards (design note 4).
+  if last_id >= 0.0 {
+    let next_offset = last_id + 1.0
+    if next_offset != offset {
+      let _ = kv_set("tg_offset", to_string(next_offset))
+    }
+  }
+  let closed = close_stale_misses(local_date)
+  let _ = send_message(chat_id, format_report(processed, closed, predictions, moments))
+  print("[telegram] drain: processed=" + to_string(processed) + " closed=" + to_string(closed) + " predictions=" + to_string(predictions) + " moments=" + to_string(moments) + " skipped=" + to_string(skipped))
+}
+
+pattern has_job(expr: String, target: String) -> Bool {
+  // each over the snapshot: the while+len shape misconverges when the
+  // body can reach cron_remove (the worklog probe, the new D2-family
+  // symptom) — this pass must stay removal-free AND each-shaped.
+  let jobs = cron_list()
+  let mut found = false
+  each j in jobs {
+    if j.cron_expr == expr and j.prompt == target {
+      found = true
+    }
+  }
+  return found
+}
+
+pattern setup_register() -> Unit {
+  // The D2-family posture: NO prints and NO mixed statements inside the
+  // loop bodies — the stale sweep runs as a bare each, the add phase
+  // runs through precomputed flags, ONE summary print after everything
+  // (the probe: variant A misconverges, variant B converges).
+  let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+  let morning = cron_expr_for(420.0, off)
+  let evening = cron_expr_for(120.0, off)
+  let jobs = cron_list()
+  each j in jobs {
+    if j.prompt == "tg_morning_tick" and j.cron_expr != morning {
+      let _ = cron_remove(j.id)
+    }
+    if j.prompt == "tg_evening_tick" and j.cron_expr != evening {
+      let _ = cron_remove(j.id)
+    }
+  }
+  let add_m = has_job(morning, "tg_morning_tick") == false
+  if add_m == true {
+    let _ = cron_add(morning, "tg_morning_tick")
+  }
+  let add_e = has_job(evening, "tg_evening_tick") == false
+  if add_e == true {
+    let _ = cron_add(evening, "tg_evening_tick")
+  }
+  if add_m == true {
+    print("[telegram] registered morning " + morning)
+  }
+  if add_e == true {
+    print("[telegram] registered evening " + evening)
+  }
+}
+
+// ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
+
+// ── APP-MIRROR-START: bandit-core (the signatures mirror
+//    src/bandit/bandit.mlog; equality pinned by the worklog script) ────
+// Thompson Normal-Normal on the decayed rewards, the 20% forced
+// exploration floor, the seed contract. The entity constants below are
+// byte-identical to the bandit module's.
+
+entity reward_obs_std: Float = 0.25
+entity decay_tau_days: Float = 60.0
+entity explore_every: Float = 5.0
+
+pattern today_unix() -> Float {
+  return date_parse_iso(date_format_iso(now_unix()))
+}
+
+pattern decay_weight(age_days: Float) -> Float {
+  if age_days <= decay_tau_days {
+    return 1.0
+  }
+  return exp((decay_tau_days - age_days) / decay_tau_days)
+}
+
+pattern arm_posterior(arm_id: Float, prior_mean: Float, prior_std: Float) -> List {
+  let mut s0 = prior_std
+  if s0 <= 0.0 {
+    s0 = 1.0
+  }
+  let rows = query("SELECT reward, trial_date FROM trial WHERE arm_id = ? AND status = 'completed' AND (moment_present = 1 OR next_day_present = 1 OR action_present = 1)", [arm_id])
+  let today = today_unix()
+  let mut wsum = 0.0
+  let mut xsum = 0.0
+  each r in rows {
+    let mut age = date_diff_days(today, date_parse_iso(r.trial_date))
+    if age < 0.0 {
+      age = 0.0
+    }
+    let w = decay_weight(age)
+    wsum = wsum + w
+    xsum = xsum + w * r.reward
+  }
+  let inv0 = 1.0 / (s0 * s0)
+  let invr = 1.0 / (reward_obs_std * reward_obs_std)
+  let precision = inv0 + wsum * invr
+  let mean = (prior_mean * inv0 + xsum * invr) / precision
+  let sd = 1.0 / sqrt(precision)
+  return [mean, sd, wsum]
+}
+
+pattern bandit_pick(seed: Float) -> Struct {
+  let arms = query("SELECT id, name, prior_mean, prior_std FROM arm WHERE active = 1 ORDER BY id", [])
+  let k = len(arms)
+  if k == 0.0 {
+    return {arm_id: 0.0, mode: "empty", theta: 0.0}
+  }
+  let rows = query("SELECT count(*) AS n FROM trial WHERE arm_id IS NOT NULL", [])
+  let n = rows[0].n
+  if to_int(n / explore_every) * explore_every == n {
+    let step = to_int(n / explore_every)
+    let kk = to_int(k)
+    let idx = step - kk * to_int(step / kk)
+    let arm = arms[idx]
+    return {arm_id: arm.id, mode: "explore", theta: 0.0}
+  }
+  random_seed(seed)
+  let mut i = 0.0
+  let mut best_id = 0.0
+  let mut best_theta = 0.0
+  let mut first = true
+  while i < k {
+    let arm = arms[i]
+    let post = arm_posterior(arm.id, arm.prior_mean, arm.prior_std)
+    let theta = post[0] + post[1] * normal_sample(0.0, 1.0)
+    if first == true {
+      best_id = arm.id
+      best_theta = theta
+      first = false
+    }
+    if theta > best_theta {
+      best_id = arm.id
+      best_theta = theta
+    }
+    i = i + 1.0
+  }
+  return {arm_id: best_id, mode: "thompson", theta: best_theta}
+}
+
+pattern bandit_propose(trial_date: String, seed: Float) -> Float {
+  let pick = bandit_pick(seed)
+  if pick.arm_id == 0.0 {
+    return 0.0
+  }
+  let arm = query("SELECT id, day_window FROM arm WHERE id = ?", [pick.arm_id])
+  if len(arm) == 0.0 {
+    return 0.0
+  }
+  let row = {trial_date: trial_date, day_window: arm[0].day_window, arm_id: pick.arm_id}
+  return db_insert("trial", row)
+}
+// ── APP-MIRROR-END: bandit-core
+// ── APP-MIRROR-START: telegram-core (byte-identical to
+//    src/telegram/telegram.mlog §telegram-core) ────────────────────────
+
+// Local wall-clock date of a unix timestamp, "YYYY-MM-DD" — the trial
+// date is the OWNER's date, not UTC's (the 02:00 close already lives
+// in the next local day). date_parts is chrono::Local-based
+// (probe-pinned); the assembly is manual zero-padded.
+pattern local_iso_date(unix_ts: Float) -> String {
+  let p = date_parts(unix_ts)
+  let mut mo = to_string(p.month)
+  if p.month < 10.0 {
+    mo = "0" + mo
+  }
+  let mut dd = to_string(p.day)
+  if p.day < 10.0 {
+    dd = "0" + dd
+  }
+  return to_string(p.year) + "-" + mo + "-" + dd
+}
+
+// Fold local wall-clock minutes to the UTC cron expression for a fixed
+// local time. local_minutes = hour*60+minute in the OWNER's wall
+// clock, tz_offset_hours = local = UTC + offset. No modulo operator:
+// the +2880 pad keeps the subtraction non-negative before the
+// truncating division (the bandit explore-idx precedent).
+pattern cron_expr_for(local_minutes: Float, tz_offset_hours: Float) -> String {
+  let off_min = to_int(tz_offset_hours * 60.0)
+  let shifted = local_minutes - to_float(off_min) + 2880.0
+  let day = to_int(shifted / 1440.0)
+  let modm = shifted - day * 1440.0
+  let hh = to_int(modm / 60.0)
+  let mm = modm - hh * 60.0
+  return to_string(mm) + " " + to_string(hh) + " * * *"
+}
+
+// Parse one chat text into the protocol answer. Returns
+// {kind: "prediction"|"moment"|"note", value: Float, text: String}.
+// to_float fails LOUD on garbage (the m0_row precedent) — a malformed
+// p:/m: answer degrades to a note, never to a silent zero.
+pattern parse_chat_text(raw_text: String) -> Struct {
+  let text = trim(raw_text)
+  if starts_with(text, "p:") {
+    let rest = trim(substring(text, 2, len(text)))
+    // №514: to_float fails LOUD on garbage — a malformed answer
+    // degrades to a note through the explicit -1 sentinel, never to a
+    // silent zero (a silent zero would fabricate a prediction).
+    let v = to_float_or(rest, 0 - 1.0)
+    if v < 0.0 {
+      return {kind: "note", value: 0.0, text: text}
+    }
+    return {kind: "prediction", value: v, text: text}
+  }
+  if starts_with(text, "m:") {
+    let rest = trim(substring(text, 2, len(text)))
+    let v = to_float_or(rest, 0 - 1.0)
+    if v < 0.0 {
+      return {kind: "note", value: 0.0, text: text}
+    }
+    return {kind: "moment", value: v, text: text}
+  }
+  return {kind: "note", value: 0.0, text: text}
+}
+
+// The morning proposal message. Every dynamic fragment passes
+// escape_html — the acceptance row: DB output never reaches the chat
+// raw.
+pattern format_proposal(arm_name: String, note_body: String) -> String {
+  return "Проба дня: " + escape_html(arm_name) + ". Нота: " + escape_html(note_body) + ". Ответь предсказанием: p:0..1"
+}
+
+// The evening report message.
+pattern format_report(processed: Float, closed: Float, predictions: Float, moments: Float) -> String {
+  return "Отчёт: обработано " + escape_html(to_string(processed)) + ", закрыто пропуском " + escape_html(to_string(closed)) + ", предсказаний " + escape_html(to_string(predictions)) + ", откликов " + escape_html(to_string(moments))
+}
+
+// The getUpdates URL with the offset + the long-poll timeout. The
+// token lives in the URL path (the Bot API contract); it is read from
+// the environment at the call site and never printed or echoed.
+pattern get_updates_url(token: String, offset: Float) -> String {
+  return "https://api.telegram.org/bot" + token + "/getUpdates?offset=" + to_string(offset) + "&timeout=25"
+}
+
+// One long-poll getUpdates with the №592 per-call deadline and the
+// three-attempt caller-side retry (the language hides no retry inside,
+// CHANGELOG-282). Returns the parsed update LIST — UNTRUSTED network
+// data; the consumer must run it through the annotated boundary
+// (process_updates). Empty List on exhausted retry: the caller
+// distinguishes the drain outcome by the offset, silence is never
+// fabricated as data.
+pattern fetch_updates(token: String, offset: Float) -> List {
+  let url = get_updates_url(token, offset)
+  let mut attempt = 0.0
+  while attempt < 3.0 {
+    attempt = attempt + 1.0
+    let r = try http_get(url, 40.0)
+    // Sanitize-then-decide: escape_html restores integrity trust
+    // (Sanitized = public/trusted); the raw label never branches.
+    if escape_html(to_string(r.ok)) == "true" {
+      return json_get(r.value, "result", [])
+    }
+    if attempt < 3.0 {
+      sleep(15.0)
+    }
+  }
+  return []
+}
+// ── APP-MIRROR-END: telegram-core
+
+// ── Tests (the pure core, network-free) ───────────────────────────────
+
+test "local_iso_date is zero-padded and date-keyed" {
+  let d = local_iso_date(1791331200.0)
+  assert_eq(len(d), 10.0)
+  assert_eq(char_at(d, 4), "-")
+  assert_eq(char_at(d, 7), "-")
+  let yesterday = date_format_iso(date_parse_iso(d) - 86400.0)
+  assert_eq(len(substring(yesterday, 0, 10)), 10.0)
+}
+
+test "cron_expr_for folds local minutes to UTC (MSK and fractional)" {
+  assert_eq(cron_expr_for(420.0, 3.0), "0 4 * * *")
+  assert_eq(cron_expr_for(120.0, 3.0), "0 23 * * *")
+  assert_eq(cron_expr_for(420.0, 0.0), "0 7 * * *")
+  assert_eq(cron_expr_for(420.0, 3.5), "30 3 * * *")
+  assert_eq(cron_expr_for(420.0, -5.0), "0 12 * * *")
+}
+
+test "parse_chat_text: the p:/m:/note protocol" {
+  let a = parse_chat_text("p:0.6")
+  assert_eq(a.kind, "prediction")
+  assert_eq(a.value, 0.6)
+  let b = parse_chat_text(" m: 0.7 ")
+  assert_eq(b.kind, "moment")
+  assert_eq(b.value, 0.7)
+  let c = parse_chat_text("проба прошла спокойно")
+  assert_eq(c.kind, "note")
+  assert_eq(c.value, 0.0)
+  let d = parse_chat_text("p:abc")
+  assert_eq(d.kind, "note")
+}
+
+test "format_proposal and format_report escape every dynamic fragment" {
+  let msg = format_proposal("<b>arm</b>", "note & \"quote\"")
+  assert_contains(msg, "&lt;b&gt;arm&lt;/b&gt;")
+  assert_contains(msg, "note &amp; &quot;quote&quot;")
+  let rep = format_report(1.0, 2.0, 3.0, 4.0)
+  assert_contains(rep, "предсказаний 3")
+  assert_contains(rep, "закрыто пропуском 2")
+}
+
+test "get_updates_url carries the offset and the long-poll timeout" {
+  let url = get_updates_url("TEST-TOKEN", 102.0)
+  assert_contains(url, "/botTEST-TOKEN/getUpdates?offset=102")
+  assert_contains(url, "timeout=25")
+}
+
+test "fetch_updates: three attempts with backoff, empty list on refusal" {
+  let t0 = now_unix()
+  let updates = fetch_updates("TEST-TOKEN", 0.0)
+  let dt = now_unix() - t0
+  assert_eq(len(updates), 0.0)
+  assert_eq(dt > 30.0, true)
+  assert_eq(dt < 200.0, true)
+}
+
+test "json_get over the getUpdates shape: chat filter fields" {
+  let doc = parse_json("{\"ok\":true,\"result\":[{\"update_id\":100,\"message\":{\"message_id\":1,\"chat\":{\"id\":777},\"text\":\"p:0.5\"}}]}")
+  let updates = json_get(doc, "result", [])
+  let u = updates[0]
+  assert_eq(json_get(u, "update_id", 0.0), 100.0)
+  assert_eq(to_string(json_get(u, "message.chat.id", 0.0)), "777")
+  assert_eq(json_get(u, "message.text", ""), "p:0.5")
+  let doc2 = parse_json("{\"ok\":true,\"result\":[{\"update_id\":101}]}")
+  let u2 = json_get(doc2, "result", [])[0]
+  assert_eq(json_get(u2, "message.text", ""), "")
+  assert_eq(to_string(json_get(u2, "message.chat.id", 0.0)), "0")
+}
+
+// ── Tests: the db-cycle (in-memory store, network-free) ───────────────
+
+test "ensure_schema creates the six tables additively" {
+  ensure_schema()
+  ensure_schema()
+  let rows = query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('note','trial','arm','response','context','candidate')", [])
+  assert_eq(rows[0].n, 6.0)
+  let cols = query("PRAGMA table_info(trial)", [])
+  let mut has_prediction = false
+  let mut has_moment_source = false
+  each c in cols {
+    if c.name == "prediction_depth" {
+      has_prediction = true
+    }
+    if c.name == "moment_source" {
+      has_moment_source = true
+    }
+  }
+  assert_eq(has_prediction, true)
+  assert_eq(has_moment_source, true)
+}
+
+test "apply_answer: prediction fills an untouched default exactly once" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "answer-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let first = apply_answer(tid, parse_chat_text("p:0.6"))
+  assert_eq(first, "prediction")
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].prediction_depth, 0.6)
+  let second = apply_answer(tid, parse_chat_text("p:0.9"))
+  assert_eq(second, "prediction-kept")
+  let rows2 = trial_by_id(tid)
+  assert_eq(rows2[0].prediction_depth, 0.6)
+}
+
+test "apply_answer: moment completes the trial and computes the reward once" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "moment-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let first = apply_answer(tid, parse_chat_text("m:0.8"))
+  assert_eq(first, "moment")
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].status, "completed")
+  assert_eq(rows[0].moment_present, 1.0)
+  assert_eq(rows[0].moment_source, "subjective")
+  assert_eq(round(rows[0].reward * 100.0), 80.0)
+  let second = apply_answer(tid, parse_chat_text("m:0.2"))
+  assert_eq(second, "moment-kept")
+  let rows2 = trial_by_id(tid)
+  assert_eq(rows2[0].moment_value, 0.8)
+  let resp = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+  assert_eq(resp[0].n, 1.0)
+}
+
+test "apply_answer: free notes append (the declared dup window)" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "note-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let _ = apply_answer(tid, parse_chat_text("<script>x</script>"))
+  let note_rows = query("SELECT free_note FROM trial WHERE id = ?", [tid])
+  assert_contains(note_rows[0].free_note, "&lt;script&gt;")
+}
+
+test "close_stale_misses flips only the stale proposed rows" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "stale-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let old = db_insert("trial", {trial_date: "2026-10-01", day_window: "morning", arm_id: aid})
+  let fresh = db_insert("trial", {trial_date: "2026-10-06", day_window: "morning", arm_id: aid})
+  let done = db_insert("trial", {trial_date: "2026-10-01", day_window: "morning", arm_id: aid, status: "completed"})
+  let closed = close_stale_misses("2026-10-06")
+  assert_eq(closed, 1.0)
+  let rows_old = trial_by_id(old)
+  assert_eq(rows_old[0].status, "missed")
+  let rows_fresh = trial_by_id(fresh)
+  assert_eq(rows_fresh[0].status, "proposed")
+  let rows_done = trial_by_id(done)
+  assert_eq(rows_done[0].status, "completed")
+  assert_eq(close_stale_misses("2026-10-06"), 0.0)
+}
+
+test "process_updates with an empty batch: silent drain, offset untouched" {
+  ensure_schema()
+  kv_set("tg_offset", "7")
+  let _ = process_updates([], "777", "2026-10-06", 7.0)
+  assert_eq(to_float(kv_get("tg_offset")), 7.0)
+}
+
+test "process_updates drains a fake batch end-to-end (no network)" {
+  ensure_schema()
+  let d = "2026-11-09"
+  let aid = db_insert("arm", {name: "drain-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let nid = db_insert("note", {body: "drain note"})
+  let tid = db_insert("trial", {trial_date: d, day_window: "morning", arm_id: aid, note_id: nid})
+  let doc = parse_json("{\"result\":[{\"update_id\":900,\"message\":{\"chat\":{\"id\":777},\"text\":\"p:0.4\"}},{\"update_id\":901,\"message\":{\"chat\":{\"id\":777},\"text\":\"m:0.9\"}},{\"update_id\":902,\"message\":{\"chat\":{\"id\":999},\"text\":\"foreign\"}}]}")
+  let updates = json_get(doc, "result", [])
+  let _ = process_updates(updates, "777", d, 0.0)
+  assert_eq(to_float(kv_get("tg_offset")), 903.0)
+  let open_rows = trial_by_id(tid)
+  assert_eq(open_rows[0].prediction_depth, 0.4)
+  assert_eq(open_rows[0].status, "completed")
+  assert_eq(open_rows[0].moment_value, 0.9)
+  assert_eq(open_rows[0].moment_present, 1.0)
+  assert_eq(round(open_rows[0].reward * 100.0), 90.0)
+  let resp_rows = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+  assert_eq(resp_rows[0].n, 1.0)
+  assert_eq(open_rows[0].status, "completed")
+}
+
+test "has_job and setup_register: idempotent registration" {
+  ensure_schema()
+  let pre = cron_list()
+  each pj in pre {
+    if pj.prompt == "tg_morning_tick" or pj.prompt == "tg_evening_tick" {
+      let _ = cron_remove(pj.id)
+    }
+  }
+  let off = 3.0
+  let morning = cron_expr_for(420.0, off)
+  let evening = cron_expr_for(120.0, off)
+  assert_eq(has_job(morning, "tg_morning_tick"), false)
+  let j1 = cron_add(morning, "tg_morning_tick")
+  let _ = j1
+  assert_eq(has_job(morning, "tg_morning_tick"), true)
+  let j2 = cron_add(evening, "tg_evening_tick")
+  let _ = j2
+  setup_register()
+  setup_register()
+  let jobs = cron_list()
+  let mut morning_count = 0.0
+  let mut evening_count = 0.0
+  each j in jobs {
+    if j.prompt == "tg_morning_tick" {
+      morning_count = morning_count + 1.0
+    }
+    if j.prompt == "tg_evening_tick" {
+      evening_count = evening_count + 1.0
+    }
+  }
+  assert_eq(morning_count, 1.0)
+  assert_eq(evening_count, 1.0)
+}
