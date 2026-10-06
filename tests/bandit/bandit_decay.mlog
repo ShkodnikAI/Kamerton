@@ -1,0 +1,45 @@
+// Kamerton bandit decay scenario (naryad Н1-05) — the behavioral decay
+// catch. The unit pins in src/bandit/bandit.mlog catch removing the
+// decay directly; this file catches it BEHAVIORALLY: an old champion
+// with a stellar but stale history must lose to a fresh solid arm.
+//
+// Scenario (fixed clock 2026-10-06, fixed seed 2 — scanned at tuning):
+//   arm A "old champion": 15 completed trials, reward 0.95, dated
+//     2025-09-22 — age 380 days, weight exp(-320/60) ≈ 0.0048 per
+//     response: the stale evidence carries almost no precision, the
+//     posterior collapses to the literature prior 0.45±0.20;
+//   arm B "fresh solid": 15 completed trials, reward 0.75, dated
+//     2026-10-01 — age 5 days, full weight: posterior ≈ 0.727±0.059.
+// With the decay ON the pick is B (seed 2: exploit branch). With the
+// decay removed (mutation) A's raw 15×0.95 dominate (posterior
+// ≈ 0.84±0.06) and the same seed flips the pick to A — verified in the
+// naryad mutation battery (worklog).
+//
+// Bridge and discipline notes: see tests/bandit/bandit_stats.mlog — the
+// tests/bandit/src symlink bridge, the engine's inline tests seeding two
+// probe arms at import (their ids are the ids 1..2 this scenario coexists
+// with; the assert pins the CAPTURED id, not a literal), and the
+// let-binding rule for every call inside loops.
+
+import src/bandit/bandit
+
+pattern seed_decay_arms() -> Map {
+  let a = db_insert("arm", {name: "decay-old-champion", group_name: "sim", day_window: "morning", prior_mean: 0.45, prior_std: 0.2})
+  let b = db_insert("arm", {name: "decay-fresh-solid", group_name: "sim", day_window: "evening", prior_mean: 0.6, prior_std: 0.15})
+  let mut k = 0.0
+  while k < 15.0 {
+    let t1 = db_insert("trial", {trial_date: "2025-09-22", day_window: "morning", arm_id: a, status: "completed", reward: 0.95})
+    let t2 = db_insert("trial", {trial_date: "2026-10-01", day_window: "evening", arm_id: b, status: "completed", reward: 0.75})
+    k = k + 1.0
+  }
+  return {a: a, b: b}
+}
+
+test "the decayed champion loses to the fresh solid arm" {
+  let ids = seed_decay_arms()
+  let now = date_parse_iso("2026-10-06")
+  let d = bandit_pick(2.0, now)
+  assert_eq(d.arm_id, ids.b)
+  assert_eq(d.mode, "exploit")
+  assert_eq(d.explore, 0.0)
+}
