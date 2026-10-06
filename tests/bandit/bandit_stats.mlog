@@ -1,0 +1,73 @@
+// Kamerton bandit statistics (naryad Н1-05) — the acceptance battery.
+//
+// Bridge note (declared loudly): the №558 module rule resolves imports
+// against the ENTRY FILE's directory and the grammar admits no parent
+// segments, so this file reaches the engine through the repo symlink
+// tests/bandit/src -> ../../src (the one-file bridge; on a filesystem
+// without symlinks the import fails LOUDLY, never silently).
+//
+// Import side effect (by design): the engine module's own inline tests
+// execute first and seed two probe arms — every test below is written
+// order-proof against that (own arm ids are captured, the corridor share
+// is data-independent, the empty decision is reached by deactivating ALL
+// arms and restoring them).
+//
+// The simulation drivers (run_corridor / run_convergence / sim_true_mean)
+// live in the engine module: the v0.28.2 check pass does not resolve an
+// imported pattern called from another pattern's body (declared loudly;
+// runtime and mlog test resolve it fine). Test bodies here are loop-free
+// per the D2 discipline; fixed seeds and thresholds are justified in the
+// naryad worklog.
+
+import src/bandit/bandit
+
+test "exploration share on 1000 runs stays in the 20-25% corridor" {
+  let share = run_corridor(1.0, 1000.0)
+  assert_eq(round(share * 100.0) >= 20.0, true)
+  assert_eq(round(share * 100.0) <= 25.0, true)
+  assert_eq(round(share * 100.0), 22.0)
+}
+
+test "converges to the best arm on synthetic rewards" {
+  let r = run_convergence(1.0, 160.0, 50.0)
+  assert_eq(r.best_id > 0.0, true)
+  assert_eq(r.best_last >= 30.0, true)
+}
+
+test "fixed seed reproduces the decision exactly (tick-route parity)" {
+  let now = date_parse_iso("2026-10-06")
+  let d1 = bandit_pick(2026.0, now)
+  let d2 = bandit_pick(2026.0, now)
+  assert_eq(d1.arm_id, d2.arm_id)
+  assert_eq(d1.explore, d2.explore)
+  assert_eq(d1.mode, d2.mode)
+}
+
+test "the pick writes nothing to the store (purity)" {
+  let now = date_parse_iso("2026-10-06")
+  let t_before = query("SELECT count(*) AS n FROM trial", [])
+  let a_before = query("SELECT count(*) AS n FROM arm", [])
+  let d = bandit_pick(777.0, now)
+  let t_after = query("SELECT count(*) AS n FROM trial", [])
+  let a_after = query("SELECT count(*) AS n FROM arm", [])
+  assert_eq(t_before[0].n, t_after[0].n)
+  assert_eq(a_before[0].n, a_after[0].n)
+  assert_eq(d.mode != "empty", true)
+}
+
+test "no active arms yields the loud empty decision" {
+  let now = date_parse_iso("2026-10-06")
+  db_execute("UPDATE arm SET active = 0")
+  let d = bandit_pick(5.0, now)
+  db_execute("UPDATE arm SET active = 1")
+  assert_eq(d.arm_id, -1.0)
+  assert_eq(d.mode, "empty")
+}
+
+test "a fresh arm without observations decides from its prior" {
+  let aid = db_insert("arm", {name: "stats-fresh-prior", group_name: "sim", day_window: "morning", prior_mean: 0.42, prior_std: 0.3})
+  let now = date_parse_iso("2026-10-06")
+  let p = arm_posterior(aid, now)
+  assert_eq(p.mean, 0.42)
+  assert_eq(p.sd, 0.3)
+}

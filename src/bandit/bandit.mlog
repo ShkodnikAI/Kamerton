@@ -1,0 +1,332 @@
+// Kamerton bandit engine (naryad Н1-05, wave 1): Thompson sampling on
+// Gaussian posteriors, built on the №590 `normal_sample` builtin over the
+// SHARED deterministic PRNG (random_seed/random — №594 proved the
+// tick↔route parity of exactly this surface).
+//
+// Model-zone parameters (declared loudly; the bandit is the model side —
+// the measurement core of invariant 1 is NOT touched: the reward values
+// themselves are produced by store.mlog compute_reward per ADR-0001 and
+// only CONSUMED here):
+//   EXPLORE_P = 0.22 — the forced-exploration probability (invariant 5:
+//     at least 20% of probes are forced exploration; the acceptance
+//     corridor on 1000 runs is 20–25%, and 0.22 sits inside it);
+//   SIGMA_OBS = 0.25 — the known observation noise of a single normalized
+//     reward on the 0..1 scale. Rationale: rewards are noisy subjective
+//     composites; with literature priors of std 0.15–0.2 one observation
+//     moves the posterior modestly, and ~20 observations per arm sharpen
+//     it — the same scale as the concept's "20 observations per arm"
+//     ladder step;
+//   DECAY_HORIZON_DAYS = 60, DECAY_TAU_DAYS = 60 — per the naryad text
+//     "экспоненциальный распад откликов старше 60 дней" and ADR-0001
+//     "распад за 60 дней": responses up to 60 days carry full weight,
+//     older ones decay exponentially with a 60-day time constant, so a
+//     source switch is absorbed within about two months.
+//
+// Purity and parity: bandit_pick(seed, now_unix) is a pure function of
+// its arguments and the DB state. It re-seeds the shared PRNG on EVERY
+// call — the cron tick and the route therefore observe identical draw
+// sequences for identical (seed, state) — and writes nothing (pinned by
+// a test). Consequence declared loudly: bandit_pick owns the PRNG seed
+// for its duration; wave 1 has no other PRNG consumer.
+//
+// Determinism: a fixed seed with a fixed trial history reproduces the
+// same decision (pinned by tests); the same seed in the cron tick and in
+// a route gives the identical decision (№594 contract; the decision path
+// is pure arithmetic + the two parity-proven builtins normal_sample /
+// random over one shared stream).
+//
+// D2 discipline (v0.28.2, declared loudly in Kamerton #24 and the
+// worklog): a loop whose body is a BARE CALL mis-executes (one
+// iteration) — every loop body here starts with a statement that is not
+// a call (binding / assignment / if); `let x = f(...)` loop bodies are
+// verified full (probe battery in the naryad worklog). TEST bodies in
+// this file are loop-free by the same discipline.
+//
+// D1 note (v0.28.2): the schema-as-code replay still drops the
+// references(t.f) clause silently — the trial declaration below is
+// byte-identical to src/store/store.mlog (the additive-replay convention
+// of Н1-03/Н1-04) and carries the same references clauses so that the
+// v0.28.3 fix (№611) lands here without an edit; the operator mirror in
+// migrations/0001_init.sql keeps the real FKs.
+
+entity db_raw: String = env_or("KAMERTON_DB", ":memory:")
+entity db_url: String = "sqlite:" + db_raw
+
+entity EXPLORE_P: Float = 0.22
+entity SIGMA_OBS: Float = 0.25
+entity DECAY_HORIZON_DAYS: Float = 60.0
+entity DECAY_TAU_DAYS: Float = 60.0
+
+db { url: db_url }
+
+schema kamerton {
+
+  table arm {
+    id: Int primary_key auto_increment,
+    name: String,
+    group_name: String,
+    day_window: String,
+    duration_min: Int default("10"),
+    prior_mean: Float default("0.0"),
+    prior_std: Float default("1.0"),
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+
+  table trial {
+    id: Int primary_key auto_increment,
+    trial_date: String,
+    day_window: String,
+    arm_id: Int references(arm.id),
+    note_id: Int references(note.id),
+    status: String default("proposed"),
+    prediction_depth: Float default("0.0"),
+    prediction_confidence: Float default("0.0"),
+    moment_value: Float default("0.0"),
+    moment_present: Int default("0"),
+    moment_source: String default(""),
+    next_day_value: Float default("0.0"),
+    next_day_present: Int default("0"),
+    action_value: Float default("0.0"),
+    action_present: Int default("0"),
+    reward: Float default("0.0"),
+    free_note: String default(""),
+    closed_at: String default(""),
+    created_at: String default(now())
+  }
+}
+
+// ── Exponential decay of old responses (naryad Н1-05; ADR-0001) ─────────
+// age is clamped at zero: a future-dated row (clock skew) must not earn
+// weight above 1.0 — silence and fresh evidence are never inflated.
+
+pattern decay_weight(age_days: Float) -> Float {
+  let age = max(0.0, age_days)
+  if age <= DECAY_HORIZON_DAYS {
+    return 1.0
+  }
+  return exp(-(age - DECAY_HORIZON_DAYS) / DECAY_TAU_DAYS)
+}
+
+// ── Weighted Gaussian posterior (single source of the Bayesian math) ────
+// Conjugate update for the arm mean with a known observation noise
+// SIGMA_OBS: the weighted likelihood contributes w_sum / SIGMA^2 to the
+// precision and w_reward_sum / SIGMA^2 to the weighted mean. With no
+// weighted observations (w_sum = 0) the posterior IS the literature
+// prior — silence produces no fabricated signal, mirroring ADR-0001.
+
+pattern posterior_math(prior_mean: Float, prior_std: Float,
+                       w_reward_sum: Float, w_sum: Float) -> Map {
+  let prec0 = 1.0 / (prior_std * prior_std)
+  let prec_lik = w_sum / (SIGMA_OBS * SIGMA_OBS)
+  let prec = prec0 + prec_lik
+  let mean = (prior_mean * prec0 + w_reward_sum / (SIGMA_OBS * SIGMA_OBS)) / prec
+  let sd = sqrt(1.0 / prec)
+  return {mean: mean, sd: sd}
+}
+
+// ── Posterior of one arm from the store (public wrapper for reports) ────
+// Observations are COMPLETED trials only: 'proposed' rows have not
+// happened, 'missed' rows are owner silence (ADR-0001: silence is not
+// data and not zero), 'imported' rows carry no arm reference. The reward
+// column is the ADR-0001 normalized weighted sum written by the store.
+
+pattern arm_posterior(arm_id: Float, now_unix: Float) -> Map {
+  let arms = query("SELECT prior_mean, prior_std FROM arm WHERE id = ?", [arm_id])
+  if len(arms) == 0.0 {
+    return {mean: 0.0, sd: 1.0}
+  }
+  let a = arms[0]
+  let obs = query("SELECT reward, trial_date FROM trial WHERE arm_id = ? AND status = 'completed'", [arm_id])
+  let mut wrs = 0.0
+  let mut wsum = 0.0
+  each t in obs {
+    let age = date_diff_days(now_unix, date_parse_iso(t.trial_date))
+    let w = decay_weight(age)
+    wrs = wrs + w * t.reward
+    wsum = wsum + w
+  }
+  return posterior_math(a.prior_mean, a.prior_std, wrs, wsum)
+}
+
+// ── The decision (cron tick and route call exactly this) ────────────────
+// Draws, in order: (1) the exploration gate u = random(); (2) on the
+// explore branch one more uniform for the uniform arm choice; (3) on the
+// exploit branch exactly one normal_sample per active arm in id order —
+// the argmax tracks the best sample. The draw sequence is a pure
+// function of (seed, active arms, completed trials): identical inputs,
+// identical decision, tick or route alike.
+
+pattern bandit_pick(seed: Float, now_unix: Float) -> Map {
+  let arms = query("SELECT id, prior_mean, prior_std FROM arm WHERE active = 1 ORDER BY id", [])
+  if len(arms) == 0.0 {
+    return {arm_id: -1.0, explore: 0.0, mode: "empty"}
+  }
+  random_seed(seed)
+  let u = random()
+  if u < EXPLORE_P {
+    let off = round(random() * len(arms) - 0.5)
+    let row = arms[off]
+    return {arm_id: row.id, explore: 1.0, mode: "explore"}
+  }
+  let obs = query("SELECT arm_id, reward, trial_date FROM trial WHERE status = 'completed'", [])
+  let mut best_val = -1000000.0
+  let mut best_id = -1.0
+  each a in arms {
+    let mut wrs = 0.0
+    let mut wsum = 0.0
+    each t in obs {
+      if t.arm_id == a.id {
+        let age = date_diff_days(now_unix, date_parse_iso(t.trial_date))
+        let w = decay_weight(age)
+        wrs = wrs + w * t.reward
+        wsum = wsum + w
+      }
+    }
+    let post = posterior_math(a.prior_mean, a.prior_std, wrs, wsum)
+    let s = normal_sample(post.mean, post.sd)
+    if s > best_val {
+      best_val = s
+      best_id = a.id
+    }
+  }
+  return {arm_id: best_id, explore: 0.0, mode: "exploit"}
+}
+
+// ── Acceptance harness (Н1-05) ──────────────────────────────────────────
+// The simulation drivers behind the tests/bandit battery. They live in
+// the engine module because the v0.28.2 check pass does not resolve an
+// IMPORTED pattern called from another pattern's body (declared loudly;
+// the runtime and mlog test resolve it fine — the same programs are
+// green under mlog test). Every call inside every loop here is
+// let-bound: a call whose value is DISCARDED inside a loop body breaks
+// the loop on v0.28.2 (refined D2 matrix, see the naryad worklog).
+
+pattern sim_true_mean(x: Float, best_id: Float) -> Float {
+  if x == best_id {
+    return 0.8
+  }
+  return 0.4
+}
+
+pattern run_corridor(base: Float, rounds: Float) -> Float {
+  let now = date_parse_iso("2026-10-06")
+  let mut i = 0.0
+  let mut n_explore = 0.0
+  while i < rounds {
+    let d = bandit_pick(base + i, now)
+    if d.explore == 1.0 {
+      n_explore = n_explore + 1.0
+    }
+    i = i + 1.0
+  }
+  return n_explore / rounds
+}
+
+pattern run_convergence(base: Float, rounds: Float, k: Float) -> Map {
+  let now = date_parse_iso("2026-10-06")
+  let mut j = 0.0
+  let mut best_id = -1.0
+  while j < 10.0 {
+    let iid = db_insert("arm", {name: "sim-arm-" + to_string(j + 1.0), group_name: "sim", day_window: "morning", prior_mean: 0.5, prior_std: 0.15})
+    if j == 0.0 {
+      best_id = iid
+    }
+    j = j + 1.0
+  }
+  let mut i = 0.0
+  let mut best_last = 0.0
+  while i < rounds {
+    let d = bandit_pick(base + i, now)
+    if d.arm_id > 0.0 {
+      let rw = clamp(normal_sample(sim_true_mean(d.arm_id, best_id), 0.15), 0.0, 1.0)
+      let tid = db_insert("trial", {trial_date: "2026-10-05", day_window: "morning", arm_id: d.arm_id, status: "completed", reward: rw})
+      if i >= rounds - k {
+        if d.arm_id == best_id {
+          best_last = best_last + 1.0
+        }
+      }
+    }
+    i = i + 1.0
+  }
+  return {best_id: best_id, best_last: best_last}
+}
+
+// ── Tests (loop-free bodies per the D2 discipline) ──────────────────────
+// Float pins use the round(x·10^n) scale — binary floats make 0.25-power
+// arithmetic inexact against literals (the store's percent-scale lesson).
+
+test "model-zone parameters are pinned" {
+  assert_eq(EXPLORE_P, 0.22)
+  assert_eq(SIGMA_OBS, 0.25)
+  assert_eq(DECAY_HORIZON_DAYS, 60.0)
+  assert_eq(DECAY_TAU_DAYS, 60.0)
+}
+
+test "decay is full inside the horizon and exponential after it" {
+  assert_eq(decay_weight(0.0), 1.0)
+  assert_eq(decay_weight(60.0), 1.0)
+  assert_eq(round(decay_weight(61.0) * 1000000.0), 983471.0)
+  assert_eq(round(decay_weight(90.0) * 1000000.0), 606531.0)
+  assert_eq(round(decay_weight(120.0) * 1000000.0), 367879.0)
+  assert_eq(round(decay_weight(180.0) * 1000000.0), 135335.0)
+}
+
+test "a future-dated row earns no weight above one" {
+  assert_eq(decay_weight(-30.0), 1.0)
+}
+
+test "posterior with no weighted observations is the prior" {
+  let p = posterior_math(0.5, 0.2, 0.0, 0.0)
+  assert_eq(p.mean, 0.5)
+  assert_eq(p.sd, 0.2)
+}
+
+test "posterior hand case A: five old strong responses on a 0.45±0.2 prior" {
+  // 5 completed trials, reward 0.9, trial_date 200 days back; the
+  // weights ride decay_weight (pinned separately above).
+  let w = decay_weight(200.0)
+  let p = posterior_math(0.45, 0.2, 5.0 * w * 0.9, 5.0 * w)
+  assert_eq(round(p.mean * 10000.0), 5566.0)
+  assert_eq(round(p.sd * 10000.0), 1747.0)
+}
+
+test "posterior hand case B: five fresh moderate responses on a 0.6±0.15 prior" {
+  let p = posterior_math(0.6, 0.15, 5.0 * 0.75, 5.0)
+  assert_eq(round(p.mean * 10000.0), 6964.0)
+  assert_eq(round(p.sd * 10000.0), 896.0)
+}
+
+test "arm_posterior reads the store: A-case through the live tables" {
+  let aid = db_insert("arm", {name: "bandit-posterior-case-a", group_name: "test", day_window: "morning", prior_mean: 0.45, prior_std: 0.2})
+  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
+  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
+  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
+  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
+  db_insert("trial", {trial_date: "2026-03-20", day_window: "morning", arm_id: aid, status: "completed", reward: 0.9})
+  let now = date_parse_iso("2026-10-06")
+  let p = arm_posterior(aid, now)
+  assert_eq(round(p.mean * 10000.0), 5566.0)
+  assert_eq(round(p.sd * 10000.0), 1747.0)
+}
+
+test "arm_posterior skips proposed and missed rows: silence is not data" {
+  let aid = db_insert("arm", {name: "bandit-posterior-silence", group_name: "test", day_window: "evening", prior_mean: 0.6, prior_std: 0.15})
+  db_insert("trial", {trial_date: "2026-10-01", day_window: "evening", arm_id: aid, status: "completed", reward: 0.5})
+  db_insert("trial", {trial_date: "2026-10-02", day_window: "evening", arm_id: aid, status: "proposed", reward: 0.99})
+  db_insert("trial", {trial_date: "2026-10-03", day_window: "evening", arm_id: aid, status: "missed", reward: 0.99})
+  let now = date_parse_iso("2026-10-06")
+  let p = arm_posterior(aid, now)
+  // Exactly one weighted observation (0.5, fresh): prec0 = 1/0.15^2,
+  // prec_lik = 1/0.25^2; mean = (0.6·44.444 + 0.5/0.0625)/60.444 = 0.5735.
+  assert_eq(round(p.mean * 10000.0), 5735.0)
+}
+
+test "bandit tables replay byte-identical columns (pin)" {
+  let rows = query("SELECT sql AS s FROM sqlite_master WHERE name = 'arm'", [])
+  assert_contains(rows[0].s, "prior_mean REAL DEFAULT '0.0'")
+  assert_contains(rows[0].s, "prior_std REAL DEFAULT '1.0'")
+  let trows = query("SELECT sql AS s FROM sqlite_master WHERE name = 'trial'", [])
+  assert_contains(trows[0].s, "reward REAL DEFAULT '0.0'")
+  assert_contains(trows[0].s, "moment_source TEXT DEFAULT ''")
+}
