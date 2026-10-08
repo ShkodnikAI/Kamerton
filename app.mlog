@@ -431,6 +431,57 @@ pattern bandit_propose(trial_date: String, seed: Float) -> Float {
   return db_insert("trial", row)
 }
 // ── APP-MIRROR-END: bandit-core
+// ── APP-MIRROR-START: arms-seed (byte-identical to
+//    src/arms/arms.mlog §arms-seed) ─────────────────────────────────────
+
+entity kamerton_arms: List = [
+  {name: "breath-resonance-morning", group_name: "Резонансное дыхание", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
+  {name: "breath-resonance-evening", group_name: "Резонансное дыхание", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
+  {name: "woop-morning", group_name: "Имплементационные намерения", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol 38): meta-analysis of 94 studies, d ~ 0.65"},
+  {name: "woop-evening", group_name: "Имплементационные намерения", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol 38): meta-analysis of 94 studies, d ~ 0.65"},
+  {name: "mental-rehearsal-morning", group_name: "Ментальная репетиция", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15, source: "Driskell, Copper & Moran 1994 (J Appl Psychol 79(4)): mental practice meta-analysis, moderate effect, decays without physical practice"},
+  {name: "mental-rehearsal-evening", group_name: "Ментальная репетиция", day_window: "evening", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15, source: "Driskell, Copper & Moran 1994 (J Appl Psychol 79(4)): mental practice meta-analysis, moderate effect, decays without physical practice"},
+  {name: "focusing-morning", group_name: "Фокусинг", day_window: "morning", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Hendricks 2002 (The Focusing-oriented client): experiential review, small-N studies, mixed quality — wide prior"},
+  {name: "focusing-evening", group_name: "Фокусинг", day_window: "evening", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Hendricks 2002 (The Focusing-oriented client): experiential review, small-N studies, mixed quality — wide prior"},
+  {name: "yoga-nidra-morning", group_name: "Йога-нидра", day_window: "morning", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Moszeik, von Oertzen & Günther 2022 (Current Psychology): Yoga Nidra effects on stress, sleep, well-being — moderate, wide prior"},
+  {name: "yoga-nidra-evening", group_name: "Йога-нидра", day_window: "evening", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Moszeik, von Oertzen & Günther 2022 (Current Psychology): Yoga Nidra effects on stress, sleep, well-being — moderate, wide prior"}
+]
+
+// Seed the arm library. Idempotent by construction: a UNIQUE index on
+// name plus INSERT OR IGNORE — a repeated run changes nothing.
+//
+// WHY UNROLLED STATEMENTS (§2, declared loudly): the mlog D2 defect
+// (declared in Kamerton issue #24; verified on v0.28.1 AND v0.28.2 by
+// mutation probes) mis-executes loops whose body is a bare call — one
+// iteration, and in a test body the tail after such a loop is silently
+// cut (vacuously green). Assignment-body loops are full, but the
+// trigger surface is not fully mapped (the probeprint case differs
+// from the db_execute case), so the discipline here is: NO loops in
+// test bodies at all until the language naryads land (Metalogos-
+// №597/№598 → v0.28.3). A loop-driven seed would silently insert only
+// the first arm, so the seed is unrolled into sequential statements
+// and pinned to the kamerton_arms entity list by the per-arm VALUES
+// LEFT JOIN verification test (loop-free); the JSON mirror is pinned
+// to the same list. Divergence of any copy is a loud test failure.
+
+pattern seed_arms() -> Float {
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_arm_name_unique ON arm(name)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('breath-resonance-morning', 'Резонансное дыхание', 'morning', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('breath-resonance-evening', 'Резонансное дыхание', 'evening', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('woop-morning', 'Имплементационные намерения', 'morning', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('woop-evening', 'Имплементационные намерения', 'evening', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('mental-rehearsal-morning', 'Ментальная репетиция', 'morning', 10, 0.5, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('mental-rehearsal-evening', 'Ментальная репетиция', 'evening', 10, 0.5, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-morning', 'Фокусинг', 'morning', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-evening', 'Фокусинг', 'evening', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-morning', 'Йога-нидра', 'morning', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-evening', 'Йога-нидра', 'evening', 10, 0.45, 0.2)")
+  let rows = query("SELECT count(*) AS n FROM arm", [])
+  return rows[0].n
+}
+
+// ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────
+
 // ── APP-MIRROR-START: telegram-core (byte-identical to
 //    src/telegram/telegram.mlog §telegram-core) ────────────────────────
 
@@ -501,6 +552,15 @@ pattern format_proposal(arm_name: String, note_body: String) -> String {
   return "Проба дня: " + escape_html(arm_name) + ". Нота: " + escape_html(note_body) + ". Ответь предсказанием: p:0..1"
 }
 
+// The morning proposal row: arm name + optional note body. SQL NULL
+// from the LEFT JOIN materializes as Unit on 0.30.0 (probe-pinned,
+// Н2-01) — escape_html would fail-closed [TYPE_MISMATCH] inside the
+// first seeded proposal (the body would not be a String), so the
+// body is COALESCEd to a String here.
+pattern morning_proposal_row(tid: Float) -> List {
+  return query("SELECT a.name, COALESCE(n.body, '') AS body FROM trial t JOIN arm a ON a.id = t.arm_id LEFT JOIN note n ON n.id = t.note_id WHERE t.id = ?", [tid])
+}
+
 // The evening report message.
 pattern format_report(processed: Float, closed: Float, predictions: Float, moments: Float) -> String {
   return "Отчёт: обработано " + escape_html(to_string(processed)) + ", закрыто пропуском " + escape_html(to_string(closed)) + ", предсказаний " + escape_html(to_string(predictions)) + ", откликов " + escape_html(to_string(moments))
@@ -551,6 +611,11 @@ pattern tg_morning_tick() -> Unit {
   // Idempotent schema first: the tables exist even before the token
   // guard fires (the loud refusal must not leave an empty database).
   ensure_schema()
+  // The wave-1 arm library seeded idempotently (Н2-01): the loud zero
+  // ("Библиотека пуста") was the missing Н1-04 integration into the
+  // serve composition — the seed lives in the arms-seed mirror above;
+  // UNIQUE(name) + INSERT OR IGNORE make a repeated run a no-op.
+  let _ = seed_arms()
   // No early-return under a nested if (the D2-family case 4): the
   // guard inverts into a positive branch that carries the whole tick.
   let token = env_or("KAMERTON_TG_TOKEN", "")
@@ -560,7 +625,7 @@ pattern tg_morning_tick() -> Unit {
     let tid = bandit_propose(today, now_unix())
     let mut msg = "Библиотека пуста — предложение не сформировано (громкий ноль бандита)"
     if tid != 0.0 {
-      let arm_rows = query("SELECT a.name, n.body FROM trial t JOIN arm a ON a.id = t.arm_id LEFT JOIN note n ON n.id = t.note_id WHERE t.id = ?", [tid])
+      let arm_rows = morning_proposal_row(tid)
       if len(arm_rows) > 0.0 {
         msg = format_proposal(arm_rows[0].name, arm_rows[0].body)
       } else {

@@ -39,6 +39,9 @@ schema kamerton {
   }
 }
 
+// ── APP-MIRROR-START: arms-seed (byte-identical to
+//    src/arms/arms.mlog §arms-seed) ─────────────────────────────────────
+
 entity kamerton_arms: List = [
   {name: "breath-resonance-morning", group_name: "Резонансное дыхание", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
   {name: "breath-resonance-evening", group_name: "Резонансное дыхание", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
@@ -84,6 +87,8 @@ pattern seed_arms() -> Float {
   let rows = query("SELECT count(*) AS n FROM arm", [])
   return rows[0].n
 }
+
+// ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────
 
 test "seed inserts ten arms and a repeat breeds no duplicates" {
   let first = seed_arms()
