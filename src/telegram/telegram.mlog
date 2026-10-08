@@ -501,6 +501,15 @@ pattern format_proposal(arm_name: String, note_body: String) -> String {
   return "Проба дня: " + escape_html(arm_name) + ". Нота: " + escape_html(note_body) + ". Ответь предсказанием: p:0..1"
 }
 
+// The morning proposal row: arm name + optional note body. SQL NULL
+// from the LEFT JOIN materializes as Unit on 0.30.0 (probe-pinned,
+// Н2-01) — escape_html would fail-closed [TYPE_MISMATCH] inside the
+// first seeded proposal (the body would not be a String), so the
+// body is COALESCEd to a String here.
+pattern morning_proposal_row(tid: Float) -> List {
+  return query("SELECT a.name, COALESCE(n.body, '') AS body FROM trial t JOIN arm a ON a.id = t.arm_id LEFT JOIN note n ON n.id = t.note_id WHERE t.id = ?", [tid])
+}
+
 // The evening report message.
 pattern format_report(processed: Float, closed: Float, predictions: Float, moments: Float) -> String {
   return "Отчёт: обработано " + escape_html(to_string(processed)) + ", закрыто пропуском " + escape_html(to_string(closed)) + ", предсказаний " + escape_html(to_string(predictions)) + ", откликов " + escape_html(to_string(moments))
@@ -582,6 +591,22 @@ test "format_proposal and format_report escape every dynamic fragment" {
   let rep = format_report(1.0, 2.0, 3.0, 4.0)
   assert_contains(rep, "предсказаний 3")
   assert_contains(rep, "закрыто пропуском 2")
+}
+
+test "morning proposal row: a missing note stays a String (Н2-01 regression)" {
+  // SQL NULL from the LEFT JOIN materializes as Unit on 0.30.0 — the
+  // first seeded proposal died in escape_html AFTER the trial insert
+  // (the silent burned-trial loop). COALESCE keeps the body a String.
+  ensure_schema()
+  db_execute("INSERT INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('n2-01-arm', 'Резонансное дыхание', 'morning', 10, 0.6, 0.15)", [])
+  db_execute("INSERT INTO trial (trial_date, day_window, arm_id) VALUES ('2026-10-08', 'morning', 1)", [])
+  let ids = query("SELECT id FROM trial", [])
+  let pr = morning_proposal_row(ids[0].id)
+  assert_eq(len(pr), 1.0)
+  assert_eq(pr[0].body, "")
+  // must not fail-closed [TYPE_MISMATCH] on a missing note
+  let msg = format_proposal(pr[0].name, pr[0].body)
+  assert_contains(msg, "Проба дня: n2-01-arm")
 }
 
 test "get_updates_url carries the offset and the long-poll timeout" {
