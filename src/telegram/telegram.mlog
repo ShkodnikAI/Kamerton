@@ -520,6 +520,9 @@ pattern get_updates_url(token: String, offset: Float) -> String {
 // (process_updates). Empty List on exhausted retry: the caller
 // distinguishes the drain outcome by the offset, silence is never
 // fabricated as data.
+// http_get returns the body as a RAW STRING (probe-pinned 2026-10-08):
+// parse_json before json_get is mandatory — a direct json_get on the
+// String silently returns the default and the drain sees an empty list.
 pattern fetch_updates(token: String, offset: Float) -> List {
   let url = get_updates_url(token, offset)
   let mut attempt = 0.0
@@ -529,7 +532,7 @@ pattern fetch_updates(token: String, offset: Float) -> List {
     // Sanitize-then-decide: escape_html restores integrity trust
     // (Sanitized = public/trusted); the raw label never branches.
     if escape_html(to_string(r.ok)) == "true" {
-      return json_get(r.value, "result", [])
+      return json_get(parse_json(to_string(r.value)), "result", [])
     }
     if attempt < 3.0 {
       sleep(15.0)
@@ -585,6 +588,17 @@ test "get_updates_url carries the offset and the long-poll timeout" {
   let url = get_updates_url("TEST-TOKEN", 102.0)
   assert_contains(url, "/botTEST-TOKEN/getUpdates?offset=102")
   assert_contains(url, "timeout=25")
+}
+
+test "fetch_updates success path: the body is a raw String, parse_json before json_get (regression 2026-10-08)" {
+  // http_get returns r.value as the raw body STRING. The pre-fix code
+  // ran json_get on the String and silently got the default — the drain
+  // reported processed=0 while Telegram held unconfirmed updates.
+  let raw = "{\"ok\": true, \"result\": [{\"update_id\": 80194091, \"message\": {\"text\": \"Тест\", \"chat\": {\"id\": 2044005421}}}]}"
+  let updates = json_get(parse_json(raw), "result", [])
+  assert_eq(len(updates), 1.0)
+  assert_eq(json_get(updates[0], "update_id", 0.0), 80194091.0)
+  assert_eq(json_get(updates[0], "message.text", ""), "Тест")
 }
 
 test "fetch_updates: three attempts with backoff, empty list on refusal" {

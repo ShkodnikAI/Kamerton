@@ -520,6 +520,9 @@ pattern get_updates_url(token: String, offset: Float) -> String {
 // (process_updates). Empty List on exhausted retry: the caller
 // distinguishes the drain outcome by the offset, silence is never
 // fabricated as data.
+// http_get returns the body as a RAW STRING (probe-pinned 2026-10-08):
+// parse_json before json_get is mandatory — a direct json_get on the
+// String silently returns the default and the drain sees an empty list.
 pattern fetch_updates(token: String, offset: Float) -> List {
   let url = get_updates_url(token, offset)
   let mut attempt = 0.0
@@ -529,7 +532,7 @@ pattern fetch_updates(token: String, offset: Float) -> List {
     // Sanitize-then-decide: escape_html restores integrity trust
     // (Sanitized = public/trusted); the raw label never branches.
     if escape_html(to_string(r.ok)) == "true" {
-      return json_get(r.value, "result", [])
+      return json_get(parse_json(to_string(r.value)), "result", [])
     }
     if attempt < 3.0 {
       sleep(15.0)
@@ -581,7 +584,7 @@ pattern tg_evening_tick() -> Unit {
   let chat_id = env_or("KAMERTON_CHAT_ID", "")
   if token != "" and chat_id != "" {
     let today = local_iso_date(now_unix())
-    let offset = to_float(kv_get("tg_offset"))
+    let offset = to_float_or(kv_get("tg_offset"), 0.0)
     let updates = fetch_updates(token, offset)
     process_updates(updates, chat_id, today, offset)
   }
