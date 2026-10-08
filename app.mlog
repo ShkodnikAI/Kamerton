@@ -323,12 +323,14 @@ pattern setup_register() -> Unit {
   if add_e == true {
     let _ = cron_add(evening, "tg_evening_tick")
   }
-  if add_m == true {
-    print("[telegram] registered morning " + morning)
-  }
-  if add_e == true {
-    print("[telegram] registered evening " + evening)
-  }
+  // VM defect #52 (minimal repro m6b): TWO print-ifs reading flags after
+  // executed effect-call if-bodies miscompile on the serve VM lane — the
+  // first /setup against an EMPTY store throws [TYPE_MISMATCH] Struct Eq
+  // Bool (one pair is clean; the interpreter test lane never sees it, so
+  // this suite stays green either way). The registration log is therefore
+  // ONE flat summary print — the shape rig-validated clean on the full
+  // setup_register body (m7full: 3/3 first-hit clean on an empty store).
+  print("[telegram] cron setup: morning=" + morning + " evening=" + evening + " jobs=" + to_string(len(cron_list())))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
