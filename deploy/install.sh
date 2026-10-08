@@ -14,8 +14,8 @@
 set -euo pipefail
 
 DATA_DIR=/data/kamerton
-MLOG_TAG="v0.29.0"
-MLOG_SHA="256bed0dd4a7ae08fe913b6da11cd20d7b52c5fd43adcd98dcb18144076a99f5"
+MLOG_TAG="v0.30.0"
+MLOG_SHA="fe6215cb6010776b0a2b6615e76819580a2cd918de2c5a80e9eb46e5ea0e1fbb"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_AS="${SUDO_USER:-}"
 
