@@ -354,6 +354,143 @@ pattern set_candidate_status(name: String, status: String, stat_value: Float,
   db_execute("UPDATE candidate SET status = ?, stat_value = ?, threshold = ?, tested_at = datetime('now') WHERE name = ?", [status, stat_value, threshold, name])
 }
 
+// ── Sweep protocol (Н2-06): the individual resonance frequency ──────────
+// The tempo sweep (4.5–7.0 breaths/min, two minutes per tempo — the
+// Н2-04 pacer protocol) walks the protocol while the Н2-05 PPG records
+// the pulse on the device; every completed step carries its RR segment
+// in the session's step_marks ({"step","tempo_bpm","rr","rr_reason"}).
+// The spectrum of each segment is computed by the language's spectral
+// contour (№591 builtins lomb_scargle/spectral_peak): sin/cos are
+// absent from the 0.30.0 grammar (probe-pinned), so hand-rolling the
+// periodogram is impossible — the builtins are the only honest path.
+// The resonance frequency is the PACED tempo of the valid step with
+// the maximal power fraction. The preregistration (fixed in the
+// naryad BEFORE any live data, docs/volna-2-issues.md Н2-06):
+//   - a step counts as valid when its mark carries a non-empty rr
+//     array whose spectrum is not degraded (the language's own floor
+//     is 12 points — probe-pinned Degraded reason);
+//   - the protocol is accepted at >= 6 valid steps of the 11;
+//   - the repeat protocol reproduces when the resonance tempo stays
+//     within 0.3 breaths/min of the previous recorded run and the
+//     winner's power fraction stays within the ratio [0.5; 2.0].
+// An accepted run is fixed in the sweep_result table (invariant 6: a
+// third-party sqlite3 client reads it) AND mirrored into the persisted
+// kv (resonance_* keys, data/kamerton-kv.db) for the live process.
+
+pattern sweep_rr_times(rr_ms: List) -> List {
+  // Beat arrival times in seconds: the cumulative sums of the RR
+  // intervals. The segment carries no timestamps — the intervals are
+  // the full information the page sends (invariant 7 data minimum).
+  let mut ts = []
+  let mut t = 0.0
+  each v in rr_ms {
+    t = t + to_float(v) / 1000.0
+    ts = push(ts, t)
+  }
+  return ts
+}
+
+pattern sweep_step_peak(rr_ms: List) -> Struct {
+  // One step's RR segment -> the spectral verdict. Times are the
+  // cumulative arrival seconds, values are the RR intervals in ms.
+  // Degraded spectra refuse loudly with a reason — never silently.
+  if len(rr_ms) < 12.0 {
+    return {ok: false, freq_bpm: 0.0, share: 0.0, p_value: 1.0, reason: "RR-ряд короче 12 точек: " + to_string(len(rr_ms))}
+  }
+  let ts = sweep_rr_times(rr_ms)
+  let spec = lomb_scargle(ts, rr_ms)
+  let pk = spectral_peak(spec)
+  if pk.degraded == true {
+    return {ok: false, freq_bpm: 0.0, share: 0.0, p_value: 1.0, reason: "спектр деградировал: точек " + to_string(len(rr_ms))}
+  }
+  return {ok: true, freq_bpm: pk.freq * 60.0, share: pk.power_fraction, p_value: pk.p_value, reason: ""}
+}
+
+pattern sweep_analyze(marks_json: String<public, trusted>) -> Struct {
+  // The session's step_marks (the page-written JSON array) -> the sweep
+  // verdict. Loud refusals: not a JSON array, zero valid steps, fewer
+  // than the preregistered 6 valid steps. Marks predating the Н2-06
+  // shape (no rr key — an old-format writer or the toggle off) count as
+  // invalid steps; the field probe rides json_encode + contains because
+  // a missing struct field fails LOUDLY on 0.30.0 (probe-pinned) and
+  // the analyzer must classify, not crash.
+  let parsed = parse_json(marks_json)
+  if type_of(parsed) != "List" {
+    return {ok: false, reason: "step_marks: ожидается JSON-массив отметок шагов", resonance_bpm: 0.0, peak_freq_bpm: 0.0, share: 0.0, p_value: 1.0, steps_valid: 0.0, steps_total: 0.0}
+  }
+  let mut total = 0.0
+  let mut valid = 0.0
+  let mut best_bpm = 0.0
+  let mut best_freq = 0.0
+  let mut best_share = 0.0
+  let mut best_p = 1.0
+  each m in parsed {
+    total = total + 1.0
+    let mj = json_encode(m)
+    if contains(mj, "\"rr\"") == false {
+      let _ = mj
+    } else {
+      if contains(mj, "\"tempo_bpm\"") == false {
+        let _ = mj
+      } else {
+        if type_of(m.rr) == "List" {
+          if len(m.rr) > 0.0 {
+            let pk = sweep_step_peak(m.rr)
+            if pk.ok == true {
+              valid = valid + 1.0
+              if pk.share > best_share {
+                best_share = pk.share
+                best_bpm = to_float(m.tempo_bpm)
+                best_freq = pk.freq_bpm
+                best_p = pk.p_value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if valid == 0.0 {
+    return {ok: false, reason: "годных RR-сегментов нет: 0 из " + to_string(total), resonance_bpm: 0.0, peak_freq_bpm: 0.0, share: 0.0, p_value: 1.0, steps_valid: 0.0, steps_total: total}
+  }
+  if valid < 6.0 {
+    return {ok: false, reason: "шагов с годным спектром: " + to_string(valid) + " из " + to_string(total) + " — протокол требует не менее 6 (предрегистрация Н2-06)", resonance_bpm: 0.0, peak_freq_bpm: 0.0, share: 0.0, p_value: 1.0, steps_valid: valid, steps_total: total}
+  }
+  return {ok: true, reason: "", resonance_bpm: best_bpm, peak_freq_bpm: best_freq, share: best_share, p_value: best_p, steps_valid: valid, steps_total: total}
+}
+
+pattern sweep_record(sid: Float, res: Struct, result_date: String) -> Struct {
+  // Fix the accepted run: the sweep_result row (invariant 6) + the kv
+  // mirror. The verdict compares against the previous recorded run per
+  // the preregistration: the tempo delta <= 0.3 breaths/min AND the
+  // power fraction ratio in [0.5; 2.0]. The first recorded run carries
+  // the empty verdict — there is nothing to reproduce against yet.
+  let prev = query("SELECT resonance_bpm, power_fraction FROM sweep_result ORDER BY id DESC LIMIT 1", [])
+  let mut verdict = ""
+  let mut delta = 0.0
+  let mut ratio = 0.0
+  let mut prev_bpm = 0.0
+  if len(prev) > 0.0 {
+    prev_bpm = to_float(prev[0].resonance_bpm)
+    let prev_share = to_float(prev[0].power_fraction)
+    delta = abs(res.resonance_bpm - prev_bpm)
+    if prev_share > 0.0 {
+      ratio = res.share / prev_share
+    }
+    if delta <= 0.3 and ratio >= 0.5 and ratio <= 2.0 {
+      verdict = "reproducible"
+    } else {
+      verdict = "divergent"
+    }
+  }
+  let _ = db_execute("INSERT INTO sweep_result (session_id, result_date, resonance_bpm, peak_freq_bpm, power_fraction, p_value, steps_valid, steps_total, prev_resonance_bpm, freq_delta_bpm, share_ratio, verdict) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [sid, result_date, res.resonance_bpm, res.peak_freq_bpm, res.share, res.p_value, res.steps_valid, res.steps_total, prev_bpm, delta, ratio, verdict])
+  let _ = kv_set("resonance_bpm", to_string(res.resonance_bpm))
+  let _ = kv_set("resonance_peak_freq", to_string(res.peak_freq_bpm))
+  let _ = kv_set("resonance_share", to_string(res.share))
+  let _ = kv_set("resonance_verdict", verdict)
+  return {ok: true, resonance_bpm: res.resonance_bpm, peak_freq_bpm: res.peak_freq_bpm, share: res.share, p_value: res.p_value, steps_valid: res.steps_valid, steps_total: res.steps_total, verdict: verdict, freq_delta_bpm: delta, share_ratio: ratio}
+}
+
 // ── Tests ───────────────────────────────────────────────────────────────
 // Float comparisons of the reward use the percent scale (round(100x)):
 // binary floats make 0.2/0.3/0.5 arithmetic inexact against literals.
@@ -466,4 +603,158 @@ test "M0 import gives the same rows as direct input" {
   let ic = query("SELECT sleep_quality FROM context WHERE trial_id = (SELECT min(id) FROM trial WHERE status = 'imported')", [])
   let dc = query("SELECT sleep_quality FROM context WHERE trial_id = ?", [did])
   assert_eq(ic[0].sleep_quality, dc[0].sleep_quality)
+}
+
+// ── Sweep tests (Н2-06) ─────────────────────────────────────────────────
+// No sin()/floor() in the 0.30.0 grammar (probe-pinned): the synthetic
+// segments are literal cycles on a 1 Hz beat grid, which is exactly the
+// shape the analyzer consumes. The pure 6-point cycle concentrates all
+// periodic power in one band; the spread cycle smears it — that contrast
+// drives the resonance pick deterministically.
+
+// The test fixture builder: a literal cycle shape scaled by ampl on a
+// flat base, repeated `cycles` times (period = 6 beats = 6 s).
+pattern sweep_test_rr(base: Float, ampl: Float, shape: List, cycles: Float) -> List {
+  let mut rr = []
+  let mut c = 0.0
+  while c < cycles {
+    each s in shape {
+      rr = push(rr, base + ampl * s)
+    }
+    c = c + 1.0
+  }
+  return rr
+}
+
+test "sweep_rr_times accumulates beat arrival seconds" {
+  let ts = sweep_rr_times([1000.0, 1500.0, 500.0])
+  assert_eq(ts[0], 1.0)
+  assert_eq(ts[1], 2.5)
+  assert_eq(ts[2], 3.0)
+  assert_eq(len(sweep_rr_times([])), 0.0)
+}
+
+test "sweep_step_peak finds the paced frequency on a literal segment" {
+  // The zero-mean pure cycle (sums to 0) on the 1000 ms base: the 6-beat
+  // cycle lasts exactly 6.0 s, so the periodogram peak sits at the
+  // breathing tempo 10.0 breaths/min (the Факт band of the naryad: near
+  // 0.1 Hz). A nonzero-mean cycle shifts the temporal period with the
+  // mean RR — the analyzer is honest about TIME, the fixture must be
+  // zero-mean for the tempo semantics.
+  let pure = [0.0, 1.0, 2.0, 0.0, -1.0, -2.0]
+  let rr = sweep_test_rr(1000.0, 40.0, pure, 20.0)
+  let pk = sweep_step_peak(rr)
+  assert_eq(pk.ok, true)
+  assert_eq(round(pk.freq_bpm * 10.0), 100.0)
+  assert_eq(pk.share > 0.5, true)
+}
+
+test "sweep_step_peak refuses a short segment loudly" {
+  let pk = sweep_step_peak([900.0, 910.0, 890.0])
+  assert_eq(pk.ok, false)
+  assert_contains(pk.reason, "12")
+}
+
+test "sweep_analyze picks the max-share step as the resonance tempo" {
+  // Six steps at 6–60 amplitude; the third step carries the pure cycle
+  // (all power in one band) — it must win over louder spread shapes and
+  // fix the resonance at its paced tempo 5.5.
+  let pure = [0.0, 1.0, 2.0, 0.0, -1.0, -2.0]
+  let spread = [-0.6, 0.4, -0.3, 0.6, -0.4, 0.3]
+  let m1 = {step: 1.0, tempo_bpm: 4.5, rr: sweep_test_rr(1000.0, 30.0, spread, 20.0), rr_reason: ""}
+  let m2 = {step: 2.0, tempo_bpm: 5.0, rr: sweep_test_rr(1000.0, 30.0, spread, 20.0), rr_reason: ""}
+  let m3 = {step: 3.0, tempo_bpm: 5.5, rr: sweep_test_rr(1000.0, 30.0, pure, 20.0), rr_reason: ""}
+  let m4 = {step: 4.0, tempo_bpm: 5.75, rr: sweep_test_rr(1000.0, 30.0, spread, 20.0), rr_reason: ""}
+  let m5 = {step: 5.0, tempo_bpm: 6.0, rr: sweep_test_rr(1000.0, 30.0, spread, 20.0), rr_reason: ""}
+  let m6 = {step: 6.0, tempo_bpm: 6.25, rr: sweep_test_rr(1000.0, 30.0, spread, 20.0), rr_reason: ""}
+  let marks = json_encode([m1, m2, m3, m4, m5, m6])
+  let res = sweep_analyze(marks)
+  assert_eq(res.ok, true)
+  assert_eq(res.resonance_bpm, 5.5)
+  assert_eq(res.steps_valid, 6.0)
+  assert_eq(res.steps_total, 6.0)
+  // The winner's spectral peak sits at its paced frequency (6 s cycle
+  // = 10 breaths/min on the 1 Hz beat grid).
+  assert_eq(round(res.peak_freq_bpm * 10.0), 100.0)
+}
+
+test "sweep_analyze refuses below the preregistered 6 valid steps" {
+  let pure = [0.0, 1.0, 2.0, 0.0, -1.0, -2.0]
+  let m1 = {step: 1.0, tempo_bpm: 4.5, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m2 = {step: 2.0, tempo_bpm: 5.0, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m3 = {step: 3.0, tempo_bpm: 5.5, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m4 = {step: 4.0, tempo_bpm: 5.75, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m5 = {step: 5.0, tempo_bpm: 6.0, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let marks = json_encode([m1, m2, m3, m4, m5])
+  let res = sweep_analyze(marks)
+  assert_eq(res.ok, false)
+  assert_contains(res.reason, "не менее 6")
+  assert_eq(res.steps_valid, 5.0)
+}
+
+test "sweep_analyze counts broken and pre-H2-06 marks as invalid steps" {
+  // A session where the camera QC refused two steps (rr_reason set) and
+  // one mark predates the rr field entirely: 3 valid of 6 — refused.
+  let pure = [0.0, 1.0, 2.0, 0.0, -1.0, -2.0]
+  let m1 = {step: 1.0, tempo_bpm: 4.5, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m2 = {step: 2.0, tempo_bpm: 5.0, rr: [], rr_reason: "брак: отбраковано эпох 8 из 12"}
+  let m3 = {step: 3.0, tempo_bpm: 5.5}
+  let m4 = {step: 4.0, tempo_bpm: 5.75, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m5 = {step: 5.0, tempo_bpm: 6.0, rr: sweep_test_rr(1000.0, 40.0, pure, 20.0), rr_reason: ""}
+  let m6 = {step: 6.0, tempo_bpm: 6.25, rr: [], rr_reason: "брак: восстановлено RR 5 (< 8)"}
+  let marks = json_encode([m1, m2, m3, m4, m5, m6])
+  let res = sweep_analyze(marks)
+  assert_eq(res.ok, false)
+  assert_eq(res.steps_valid, 3.0)
+  assert_eq(res.steps_total, 6.0)
+}
+
+test "sweep_analyze refuses a non-array marks body" {
+  let res = sweep_analyze("{\"step\":1}")
+  assert_eq(res.ok, false)
+  assert_contains(res.reason, "массив")
+}
+
+test "sweep_record fixes the verdict, the row and the kv mirror" {
+  // The FK parent first — the enforced-references replay refuses an
+  // INSERT into a table whose parent is missing (the store discipline).
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_session (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT DEFAULT 'pacer', arm_id INTEGER REFERENCES arm(id), trial_id INTEGER REFERENCES trial(id), tempo_bpm REAL DEFAULT '0.0', steps_total INTEGER DEFAULT '0', steps_done INTEGER DEFAULT '0', step_marks TEXT DEFAULT '', rr_json TEXT DEFAULT '', rr_source TEXT DEFAULT '', session_date TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER REFERENCES practice_session(id), result_date TEXT DEFAULT '', resonance_bpm REAL DEFAULT '0.0', peak_freq_bpm REAL DEFAULT '0.0', power_fraction REAL DEFAULT '0.0', p_value REAL DEFAULT '1.0', steps_valid INTEGER DEFAULT '0', steps_total INTEGER DEFAULT '0', prev_resonance_bpm REAL DEFAULT '0.0', freq_delta_bpm REAL DEFAULT '0.0', share_ratio REAL DEFAULT '0.0', verdict TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  // The FK parent needs real rows — the enforced references refuse an
+  // INSERT pointing at a missing parent; three sessions, one per run.
+  let _ = db_execute("INSERT INTO practice_session (kind, session_date) VALUES ('sweep', '2026-10-09')", [])
+  let _ = db_execute("INSERT INTO practice_session (kind, session_date) VALUES ('sweep', '2026-10-09')", [])
+  let _ = db_execute("INSERT INTO practice_session (kind, session_date) VALUES ('sweep', '2026-10-09')", [])
+  let sid_rows = query("SELECT min(id) AS id FROM practice_session", [])
+  let sid = sid_rows[0].id
+  let res1 = {ok: true, reason: "", resonance_bpm: 5.5, peak_freq_bpm: 5.9, share: 0.6, p_value: 0.0001, steps_valid: 11.0, steps_total: 11.0}
+  let rec1 = sweep_record(sid, res1, "2026-10-09")
+  // The first recorded run has no comparison partner: the empty verdict
+  // is the honest "nothing to reproduce against yet".
+  assert_eq(rec1.verdict, "")
+  assert_eq(to_float(kv_get("resonance_bpm")), 5.5)
+  assert_eq(kv_get("resonance_verdict"), "")
+  let rows = query("SELECT session_id, resonance_bpm, verdict FROM sweep_result", [])
+  assert_eq(len(rows), 1.0)
+  assert_eq(rows[0].session_id, sid)
+  // The repeat run: tempo +0.25 (<= 0.3), share 0.5 (ratio 0.833) —
+  // reproduced per the preregistration.
+  let res2 = {ok: true, reason: "", resonance_bpm: 5.75, peak_freq_bpm: 5.9, share: 0.5, p_value: 0.0002, steps_valid: 11.0, steps_total: 11.0}
+  let rec2 = sweep_record(sid + 1.0, res2, "2026-10-09")
+  assert_eq(rec2.verdict, "reproducible")
+  assert_eq(round(rec2.share_ratio * 1000.0), 833.0)
+  assert_eq(round(rec2.freq_delta_bpm * 100.0), 25.0)
+  // A divergent repeat: the tempo jumps +1.25 (> 0.3) — loud.
+  let res3 = {ok: true, reason: "", resonance_bpm: 7.0, peak_freq_bpm: 6.9, share: 0.55, p_value: 0.0003, steps_valid: 11.0, steps_total: 11.0}
+  let rec3 = sweep_record(sid + 2.0, res3, "2026-10-09")
+  assert_eq(rec3.verdict, "divergent")
+  assert_eq(to_float(kv_get("resonance_bpm")), 7.0)
+  assert_eq(kv_get("resonance_verdict"), "divergent")
+}
+
+test "the sweep_result DDL literal is idempotent (replay twice)" {
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER REFERENCES practice_session(id), result_date TEXT DEFAULT '', resonance_bpm REAL DEFAULT '0.0', peak_freq_bpm REAL DEFAULT '0.0', power_fraction REAL DEFAULT '0.0', p_value REAL DEFAULT '1.0', steps_valid INTEGER DEFAULT '0', steps_total INTEGER DEFAULT '0', prev_resonance_bpm REAL DEFAULT '0.0', freq_delta_bpm REAL DEFAULT '0.0', share_ratio REAL DEFAULT '0.0', verdict TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER REFERENCES practice_session(id), result_date TEXT DEFAULT '', resonance_bpm REAL DEFAULT '0.0', peak_freq_bpm REAL DEFAULT '0.0', power_fraction REAL DEFAULT '0.0', p_value REAL DEFAULT '1.0', steps_valid INTEGER DEFAULT '0', steps_total INTEGER DEFAULT '0', prev_resonance_bpm REAL DEFAULT '0.0', freq_delta_bpm REAL DEFAULT '0.0', share_ratio REAL DEFAULT '0.0', verdict TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let rows = query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'sweep_result'", [])
+  assert_eq(rows[0].n, 1.0)
 }

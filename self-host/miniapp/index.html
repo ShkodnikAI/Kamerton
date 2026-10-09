@@ -42,11 +42,13 @@
       <button class="act" id="pacer-step-btn" onclick="startStep()">Старт шага (2 мин)</button>
     </div>
     <p class="lbl" id="pacer-timer">&nbsp;</p>
+    <p class="lbl"><label><input type="checkbox" id="ppg-during-step"> писать пульс во время шагов — RR-сегмент на каждый темп (Н2-06)</label></p>
   </div>
   <div class="card">
     <p class="lbl">Журнал сессии (таблица practice_session, SQLite)</p>
     <div class="row">
       <button class="act" onclick="openSession('pacer')">Начать сессию</button>
+      <button class="act" onclick="openSession('sweep')">Начать протокол перебора</button>
       <button class="act sec" onclick="closeSession()">Завершить</button>
     </div>
     <p id="pacer-marks" class="lbl"></p>
@@ -179,10 +181,13 @@ function tempoDown() {
 function startStep() {
   if (stepRunning) { return; }
   if (!sessionId) { status("Сначала начните сессию", "err"); return; }
+  var wantPpg = document.getElementById("ppg-during-step").checked;
+  if (wantPpg && ppgSampling) { status("Сначала остановите запись на вкладке «Пульс»", "err"); return; }
   stepRunning = true;
   stepNo = marks.length + 1;
   stepStart = performance.now();
   document.getElementById("pacer-step-btn").disabled = true;
+  if (wantPpg) { sweepStepStart(); }
   paceFrame();
 }
 
@@ -207,7 +212,7 @@ function finishStep() {
   document.getElementById("pacer-phase").textContent = "\u00a0";
   document.getElementById("pacer-timer").textContent = "\u00a0";
   document.getElementById("pacer-step-btn").disabled = false;
-  var rec = { step: stepNo, tempo_bpm: tempo };
+  var rec = stepMark();
   api("/miniapp/session/close", {
     id: String(sessionId),
     steps_done: String(marks.length + 1),
@@ -220,7 +225,13 @@ function finishStep() {
       if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
       marks.push(rec);
       document.getElementById("pacer-marks").textContent = "Сессия №" + sessionId + ", шагов: " + marks.length + " · последний темп " + tempo.toFixed(2);
-      status("Шаг " + stepNo + " (темп " + tempo.toFixed(2) + ") записан в журнал — смените темп и повторите", "ok");
+      if (rec.rr_reason !== "") {
+        status("Шаг " + stepNo + " (темп " + tempo.toFixed(2) + ") записан, но пульс забракован: " + rec.rr_reason, "err");
+      } else if (rec.rr.length) {
+        status("Шаг " + stepNo + " (темп " + tempo.toFixed(2) + ") записан с RR (" + rec.rr.length + " интервалов) — смените темп и повторите", "ok");
+      } else {
+        status("Шаг " + stepNo + " (темп " + tempo.toFixed(2) + ") записан — смените темп и повторите", "ok");
+      }
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
@@ -232,13 +243,25 @@ function closeSession() {
     steps_done: String(marks.length),
     step_marks: JSON.stringify(marks),
     rr_json: rrBuffer.length ? JSON.stringify(rrBuffer) : "",
-    rr_source: rrBuffer.length ? "ppg" : ""
+    rr_source: rrBuffer.length ? "ppg" : "",
+    final: "1"
   })
     .then(function (res) {
       if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
       if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
-      status("Сессия " + sessionId + " закрыта: шагов " + marks.length + (rrBuffer.length ? ", RR " + rrBuffer.length : ""), "ok");
-      sessionId = 0; marks = []; rrBuffer = [];
+      var d = JSON.parse(res.body);
+      if (d.sweep && d.sweep.ok) {
+        var v = "";
+        if (d.sweep.verdict === "reproducible") { v = " · повтор: воспроизведён"; }
+        if (d.sweep.verdict === "divergent") { v = " · повтор: РАСХОЖДЕНИЕ"; }
+        status("Протокол принят: резонанс " + d.sweep.resonance_bpm + " вдох/мин, доля мощности " + Math.round(d.sweep.share * 100) + "%" + v + " — зафиксировано в sweep_result", "ok");
+      } else if (d.sweep) {
+        status("Протокол не принят: " + d.sweep.reason, "err");
+      } else {
+        status("Сессия " + sessionId + " закрыта: шагов " + marks.length + (rrBuffer.length ? ", RR " + rrBuffer.length : ""), "ok");
+      }
+      sessionId = 0; marks = []; rrBuffer = []; stepSamples = [];
+      sweepStopCam();
       document.getElementById("pacer-marks").textContent = "";
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
@@ -342,6 +365,78 @@ function ppgQualityRefusal(ex) {
   return "";
 }
 // PpgEngine-END
+
+// ── Протокол перебора (Н2-06) ───────────────────────────────────────────
+// SweepEngine-START (маркер скрипт-проверки: сборка RR-сегментов)
+// Каждому шагу пейсера — свой RR-сегмент: камера пишет пульс на протяжении
+// шага (инвариант 7: кадры умирают в canvas, наружу идёт только итоговый
+// RR), на финише сегмент проходит QC движка Н2-05 и попадает в отметку
+// {step, tempo_bpm, rr, rr_reason}. Сервер считает спектры билтинами
+// Ломба–Скаргла (№591), фиксирует резонанс в sweep_result и kv; анализ
+// запускается только финальным закрытием сессии (final=1).
+var stepSamples = [];
+var stepPpgOn = false;   // семплирование текущего шага идёт
+
+function sweepStepStart() {
+  ppgStart_ = performance.now();
+  stepSamples = [];
+  if (ppgStream) { stepPpgOn = true; stepSampleFrame(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status("Камера недоступна: нужен защищённый контекст (https) — шаг пойдёт без пульса", "err");
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 320, height: 240 }, audio: false })
+    .then(function (stream) {
+      ppgStream = stream;
+      var video = document.getElementById("ppg-video");
+      video.srcObject = stream;
+      video.play();
+      stepPpgOn = true;
+      stepSampleFrame();
+    })
+    .catch(function (e) { status("Камера отказала громко: " + e.name + " — шаг пойдёт без пульса", "err"); });
+}
+
+function stepSampleFrame() {
+  if (!stepPpgOn) { return; }
+  var video = document.getElementById("ppg-video");
+  if (video.videoWidth > 0) {
+    ppgCtx.drawImage(video, 8, 8, 16, 16, 0, 0, 8, 8);
+    var d = ppgCtx.getImageData(0, 0, 8, 8).data;
+    var sum = 0;
+    for (var i = 0; i < d.length; i += 4) { sum += d[i + 1]; }
+    stepSamples.push({ t: performance.now() - ppgStart_, v: sum / (d.length / 4) });
+  }
+  requestAnimationFrame(stepSampleFrame);
+}
+
+function stepMark() {
+  // Отметка шага: RR-сегмент (если пульс писался) едет в отметке; брак
+  // едет громко в rr_reason — протокол продолжается, сервер считает
+  // шаг негодным. Поле rr присутствует ВСЕГДА — сервер отличает отметку
+  // Н2-06 от старого формата по наличию ключа.
+  var rec = { step: stepNo, tempo_bpm: tempo, rr: [], rr_reason: "" };
+  if (stepPpgOn) {
+    stepPpgOn = false;
+    var ex = ppgExtractRR(stepSamples);
+    var refusal = ppgQualityRefusal(ex);
+    if (refusal !== "") { rec.rr_reason = refusal; }
+    else { rec.rr = ex.rr; }
+    stepSamples = [];
+  }
+  return rec;
+}
+
+function sweepStopCam() {
+  // Камера протокола гасится вместе с сессией; если вкладка «Пульс»
+  // сейчас ведёт свою запись — её стрим не трогаем.
+  if (ppgStream && !ppgSampling) {
+    var tracks = ppgStream.getTracks();
+    for (var i = 0; i < tracks.length; i++) { tracks[i].stop(); }
+    ppgStream = null;
+  }
+}
+// SweepEngine-END
 
 var rrBuffer = [];
 var ppgStream = null;

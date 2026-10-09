@@ -87,18 +87,23 @@ else:
         print("  строка %d:\n    app: %r\n    tg : %r" % (ln, a, t))
     fail = 1
 
-# ── 3. DDL practice_session присутствует и в ensure_schema, и в миграции ─
+# ── 3. DDL practice_session и sweep_result присутствуют и в ensure_schema,
+#       и в миграции ────────────────────────────────────────────────────────
 app_text = read(FILES["app"])
 mig_text = read(REPO + "/migrations/0001_init.sql")
-pin_a = "CREATE TABLE IF NOT EXISTS practice_session (id INTEGER"
-pin_m = "CREATE TABLE IF NOT EXISTS practice_session ("
-ok_a = pin_a in app_text and "ensure_schema" in app_text
-ok_m = pin_m in mig_text
-if ok_a and ok_m:
-    print("OK ddl-pin: practice_session заявлена в ensure_schema (app) и в миграции")
-else:
-    print("FAIL ddl-pin: app=%s migration=%s" % (ok_a, ok_m))
-    fail = 1
+pins = [
+    ("practice_session", "CREATE TABLE IF NOT EXISTS practice_session (id INTEGER"),
+    ("sweep_result",     "CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER"),
+]
+for table, pin_a in pins:
+    pin_m = "CREATE TABLE IF NOT EXISTS " + table + " ("
+    ok_a = pin_a in app_text and "ensure_schema" in app_text
+    ok_m = pin_m in mig_text
+    if ok_a and ok_m:
+        print("OK ddl-pin: %s заявлена в ensure_schema (app) и в миграции" % table)
+    else:
+        print("FAIL ddl-pin %s: app=%s migration=%s" % (table, ok_a, ok_m))
+        fail = 1
 
 if fail:
     sys.exit(1)
