@@ -223,7 +223,14 @@ pattern bandit_pick(seed: Float) -> Struct {
 // (the prediction fields stay at their defaults until the owner answers
 // through Н1-06). Returns the trial id, or 0.0 when the library is
 // empty (nothing proposed — silence, not a fabricated choice).
+// Н2-08 day guard: a proposal is one per calendar day — a repeated tick
+// (/fire, a re-registered cron) re-shows the existing trial (the caller
+// formats the same proposal again); the decision counter does not move.
 pattern bandit_propose(trial_date: String, seed: Float) -> Float {
+  let existing = query("SELECT id FROM trial WHERE trial_date = ? AND arm_id IS NOT NULL ORDER BY id LIMIT 1", [trial_date])
+  if len(existing) > 0.0 {
+    return existing[0].id
+  }
   let pick = bandit_pick(seed)
   if pick.arm_id == 0.0 {
     return 0.0
@@ -441,12 +448,31 @@ test "converges to the best arm on synthetic data" {
 }
 
 test "a proposal writes a trial row in the chosen arm's window" {
-  let tid = bandit_propose(date_format_iso(now_unix()), 7.0)
+  // Н2-08: a unique date — the synthetic fixtures above already occupy
+  // today's, and the day guard re-shows their rows.
+  let tid = bandit_propose("2031-01-01", 7.0)
   assert_eq(tid > 0.0, true)
   let rows = query("SELECT t.arm_id AS aid, t.day_window AS w, t.status AS st FROM trial t WHERE t.id = ?", [tid])
   assert_eq(rows[0].st, "proposed")
   let arm = query("SELECT day_window AS w FROM arm WHERE id = ?", [rows[0].aid])
   assert_eq(rows[0].w, arm[0].w)
+}
+
+test "Н2-08 guard: a repeated proposal for the same day re-shows the trial" {
+  let d = "2031-02-01"
+  let t1 = bandit_propose(d, 7.0)
+  assert_eq(t1 > 0.0, true)
+  let t2 = bandit_propose(d, 99.0)
+  assert_eq(t2, t1)
+  let rows = query("SELECT count(*) AS n FROM trial WHERE trial_date = ?", [d])
+  assert_eq(rows[0].n, 1.0)
+}
+
+test "Н2-08 guard: a fresh date proposes anew" {
+  let t = bandit_propose("2031-02-02", 7.0)
+  assert_eq(t > 0.0, true)
+  let rows = query("SELECT count(*) AS n FROM trial WHERE trial_date = '2031-02-02'", [])
+  assert_eq(rows[0].n, 1.0)
 }
 
 test "bandit table declarations match the store's (column pin)" {
