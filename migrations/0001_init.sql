@@ -24,6 +24,31 @@
 -- connection — turn the pragma on when working by hand:
 --   PRAGMA foreign_keys = ON;
 
+-- ── practice_session: the Mini App practice journal (Н2-03) ────────────
+-- One row per practice session opened from the Mini App (the page is
+-- delivered per ADR-0002 variant (а), private tunnel). kind:
+-- 'pacer' | 'ppg'. tempo_bpm: the session tempo in breaths/min (Н2-04;
+-- 0.0 in the skeleton). steps_total/steps_done: the protocol step plan
+-- and the completed-step count (Н2-04, «по две минуты на темп»).
+-- step_marks: JSON array of the per-step records (Н2-04). rr_json:
+-- JSON array of RR intervals in ms (Н2-05); rr_source: 'ppg' |
+-- 'manual' (Н2-05). arm_id/trial_id: linkage to the day's proposal —
+-- NULL when the session runs without one (0 is never stored).
+CREATE TABLE IF NOT EXISTS practice_session (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT DEFAULT 'pacer',
+    arm_id INTEGER REFERENCES arm(id),
+    trial_id INTEGER REFERENCES trial(id),
+    tempo_bpm REAL DEFAULT '0.0',
+    steps_total INTEGER DEFAULT '0',
+    steps_done INTEGER DEFAULT '0',
+    step_marks TEXT DEFAULT '',
+    rr_json TEXT DEFAULT '',
+    rr_source TEXT DEFAULT '',
+    session_date TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- ── arm: the hand library (Н1-04 seeds rows) ────────────────────────────
 CREATE TABLE IF NOT EXISTS arm (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
