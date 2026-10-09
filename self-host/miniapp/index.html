@@ -55,8 +55,15 @@
 
 <section id="screen-ppg" class="screen">
   <div class="card">
-    <div class="circle"></div>
-    <p class="lbl">Экран PPG — каркас. Съёмка пульса через камеру и RR-ряд входят нарядом Н2-05.</p>
+    <video id="ppg-video" playsinline muted autoplay style="width:120px;height:120px;border-radius:50%;object-fit:cover;background:#22262f;display:block;margin:0 auto;"></video>
+    <p class="lbl" id="ppg-hint">Палец на объектив камеры (или лицо в кадр). Кадры обрабатываются на устройстве и никуда не сохраняются — инвариант 7.</p>
+    <p class="lbl" id="ppg-timer">&nbsp;</p>
+    <div class="row">
+      <button class="act" id="ppg-start-btn" onclick="ppgStart()">Старт записи</button>
+      <button class="act sec" id="ppg-stop-btn" onclick="ppgStop()" disabled>Стоп</button>
+      <button class="act sec" id="ppg-save-btn" onclick="ppgSave()" disabled>Сохранить RR в сессию</button>
+    </div>
+    <p class="lbl" id="ppg-summary">&nbsp;</p>
   </div>
 </section>
 
@@ -224,15 +231,209 @@ function closeSession() {
     id: String(sessionId),
     steps_done: String(marks.length),
     step_marks: JSON.stringify(marks),
-    rr_json: "",
-    rr_source: ""
+    rr_json: rrBuffer.length ? JSON.stringify(rrBuffer) : "",
+    rr_source: rrBuffer.length ? "ppg" : ""
   })
     .then(function (res) {
       if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
       if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
-      status("Сессия " + sessionId + " закрыта: шагов " + marks.length, "ok");
-      sessionId = 0; marks = [];
+      status("Сессия " + sessionId + " закрыта: шагов " + marks.length + (rrBuffer.length ? ", RR " + rrBuffer.length : ""), "ok");
+      sessionId = 0; marks = []; rrBuffer = [];
       document.getElementById("pacer-marks").textContent = "";
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+// ── PPG через камеру → RR-интервалы (Н2-05) ─────────────────────────────
+// Инвариант 7: кадры живут только в canvas на устройстве; наружу уходит
+// ТОЛЬКО итоговый RR-ряд с метками качества, по явному действию
+// владельца. Сырые кадры не сохраняются нигде — их некуда сохранять:
+// страница не имеет хранилища, кроме сессионного журнала RR.
+// PpgEngine-START (маркер скрипт-проверки: источник математики)
+// Дискретизация сигнала: {t: мс, v: 0..255 — средний зелёный канал
+// центральной области кадра}. Пайплайн: скользящая база (окно 1.5 с) →
+// AC-составляющая → эпохи по 10 с → пики (локальные максимумы выше
+// порога 0.6 амплитуды эпохи с рефрактерным окном 300 мс = верхний
+// предел 200 уд/мин) → RR = межпиковые интервалы.
+// Контроль качества эпохи: пиков ≥ 5; RR эпохи в [300, 2000] мс
+// (30–200 уд/мин); CV = std/mean ≤ 0.25; амплитуда ≥ 6× шумовой пол
+// (шум — медиана |Δv| соседних отсчётов). Отбракованные эпохи
+// считаются; итоговый отказ громкий: эпох < 2, брак > 50% или RR < 8.
+var PPG_EPOCH_MS = 10000;
+var PPG_BASELINE_MS = 1500;
+var PPG_REFRACTORY_MS = 300;
+var PPG_RR_MIN = 300;
+var PPG_RR_MAX = 2000;
+var PPG_CV_MAX = 0.25;
+var PPG_AMPL_NOISE_X = 6.0;
+
+function ppgExtractRR(samples) {
+  var n = samples.length;
+  if (n < 2) {
+    return { rr: [], epochsTotal: 0, epochsRejected: 0, reason: "слишком мало отсчётов" };
+  }
+  // Скользящая база: среднее по отсчётам в окне ±PPG_BASELINE_MS/2.
+  var half = PPG_BASELINE_MS / 2;
+  var ac = new Array(n);
+  var j0 = 0, j1 = 0, sum = 0, cnt = 0;
+  for (var i = 0; i < n; i++) {
+    while (j1 < n && samples[j1].t <= samples[i].t + half) { sum += samples[j1].v; cnt++; j1++; }
+    while (j0 < n && samples[j0].t < samples[i].t - half) { sum -= samples[j0].v; cnt--; j0++; }
+    ac[i] = { t: samples[i].t, v: samples[i].v - sum / cnt };
+  }
+  // Шумовой пол: медиана |Δv| соседних отсчётов.
+  var diffs = [];
+  for (var i = 1; i < n; i++) { diffs.push(Math.abs(ac[i].v - ac[i - 1].v)); }
+  diffs.sort(function (a, b) { return a - b; });
+  var noise = diffs[Math.floor(diffs.length / 2)] || 0.001;
+  // Эпохи по времени.
+  var t0 = samples[0].t, tEnd = samples[n - 1].t;
+  var epochs = [];
+  for (var e = t0; e < tEnd; e += PPG_EPOCH_MS) { epochs.push({ from: e, to: e + PPG_EPOCH_MS }); }
+  var rr = [];
+  var rejected = 0;
+  for (var k = 0; k < epochs.length; k++) {
+    var ep = epochs[k];
+    var idx = [];
+    for (var i = 0; i < n; i++) { if (ac[i].t >= ep.from && ac[i].t < ep.to) { idx.push(i); } }
+    if (idx.length < 10) { rejected++; continue; }
+    var lo = Infinity, hi = -Infinity;
+    for (var i = 0; i < idx.length; i++) {
+      var v = ac[idx[i]].v;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    var ampl = hi - lo;
+    if (ampl < PPG_AMPL_NOISE_X * noise) { rejected++; continue; }
+    var thr = lo + 0.6 * ampl;
+    var peaks = [];
+    var lastPeakT = -Infinity;
+    for (var i = 1; i < idx.length - 1; i++) {
+      var t = ac[idx[i]].t, v = ac[idx[i]].v;
+      if (v > thr && v >= ac[idx[i - 1]].v && v >= ac[idx[i + 1]].v && t - lastPeakT >= PPG_REFRACTORY_MS) {
+        peaks.push(t); lastPeakT = t;
+      }
+    }
+    if (peaks.length < 5) { rejected++; continue; }
+    var okEpoch = true;
+    var epRR = [];
+    for (var i = 1; i < peaks.length; i++) {
+      var d = peaks[i] - peaks[i - 1];
+      if (d < PPG_RR_MIN || d > PPG_RR_MAX) { okEpoch = false; break; }
+      epRR.push(d);
+    }
+    if (!okEpoch) { rejected++; continue; }
+    var mean = epRR.reduce(function (a, b) { return a + b; }, 0) / epRR.length;
+    var vari = epRR.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / epRR.length;
+    var cv = Math.sqrt(vari) / mean;
+    if (cv > PPG_CV_MAX) { rejected++; continue; }
+    for (var i = 0; i < epRR.length; i++) { rr.push(epRR[i]); }
+  }
+  var epochsTotal = epochs.length;
+  return { rr: rr, epochsTotal: epochsTotal, epochsRejected: rejected, reason: "" };
+}
+
+// Громкий отказ сборки RR: возвращает строку отказа или пустую строку.
+function ppgQualityRefusal(ex) {
+  if (ex.epochsTotal < 2) { return "брак: запись короче двух эпох (" + ex.epochsTotal + ")"; }
+  var share = ex.epochsRejected / ex.epochsTotal;
+  if (share > 0.5) { return "брак: отбраковано эпох " + ex.epochsRejected + " из " + ex.epochsTotal + " — сигнала пульса нет"; }
+  if (ex.rr.length < 8) { return "брак: восстановлено RR " + ex.rr.length + " (< 8)"; }
+  return "";
+}
+// PpgEngine-END
+
+var rrBuffer = [];
+var ppgStream = null;
+var ppgSampling = false;
+var ppgStart_ = 0;
+var ppgCanvas = document.createElement("canvas");
+ppgCanvas.width = 32; ppgCanvas.height = 32;
+var ppgCtx = ppgCanvas.getContext("2d", { willReadFrequently: true });
+var ppgSamples = [];
+
+function ppgStart() {
+  if (ppgSampling) { return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status("Камера недоступна: нужен защищённый контекст (https) — канал ADR-0002 (а) его даёт, http-закладка нет", "err");
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 320, height: 240 }, audio: false })
+    .then(function (stream) {
+      ppgStream = stream;
+      var video = document.getElementById("ppg-video");
+      video.srcObject = stream;
+      video.play();
+      ppgSamples = [];
+      rrBuffer = [];
+      ppgSampling = true;
+      ppgStart_ = performance.now();
+      document.getElementById("ppg-start-btn").disabled = true;
+      document.getElementById("ppg-stop-btn").disabled = false;
+      document.getElementById("ppg-save-btn").disabled = true;
+      document.getElementById("ppg-summary").textContent = "";
+      ppgSampleFrame();
+    })
+    .catch(function (e) { status("Камера отказала громко: " + e.name, "err"); });
+}
+
+function ppgSampleFrame() {
+  if (!ppgSampling) { return; }
+  var video = document.getElementById("ppg-video");
+  if (video.videoWidth > 0) {
+    // Центральная область кадра — средний зелёный канал (самый
+    // пульсативный). Кадр умирает в canvas: ни копий, ни передачи.
+    ppgCtx.drawImage(video, 8, 8, 16, 16, 0, 0, 8, 8);
+    var d = ppgCtx.getImageData(0, 0, 8, 8).data;
+    var sum = 0;
+    for (var i = 0; i < d.length; i += 4) { sum += d[i + 1]; }
+    ppgSamples.push({ t: performance.now() - ppgStart_, v: sum / (d.length / 4) });
+  }
+  var el = Math.round((performance.now() - ppgStart_) / 1000);
+  document.getElementById("ppg-timer").textContent = "Запись: " + el + " с (отсчётов " + ppgSamples.length + ")";
+  requestAnimationFrame(ppgSampleFrame);
+}
+
+function ppgStop() {
+  if (!ppgSampling) { return; }
+  ppgSampling = false;
+  if (ppgStream) {
+    var tracks = ppgStream.getTracks();
+    for (var i = 0; i < tracks.length; i++) { tracks[i].stop(); }
+    ppgStream = null;
+  }
+  document.getElementById("ppg-start-btn").disabled = false;
+  document.getElementById("ppg-stop-btn").disabled = true;
+  var ex = ppgExtractRR(ppgSamples);
+  var refusal = ppgQualityRefusal(ex);
+  if (refusal !== "") {
+    status(refusal + " — запись НЕ сохранена, повторите с хорошим сигналом", "err");
+    document.getElementById("ppg-summary").textContent = "Эпох: " + ex.epochsTotal + ", отбраковано: " + ex.epochsRejected;
+    return;
+  }
+  rrBuffer = ex.rr;
+  var mean = ex.rr.reduce(function (a, b) { return a + b; }, 0) / ex.rr.length;
+  document.getElementById("ppg-save-btn").disabled = false;
+  document.getElementById("ppg-summary").textContent =
+    "RR: " + ex.rr.length + " · средний " + Math.round(mean) + " мс (" + Math.round(60000 / mean) + " уд/мин) · эпохи: " +
+    (ex.epochsTotal - ex.epochsRejected) + "/" + ex.epochsTotal + " годных";
+  status("Сигнал годен — сохраните в сессию или перепишите", "ok");
+}
+
+function ppgSave() {
+  if (!sessionId) { status("Сначала начните сессию (это отдельная сессия PPG)", "err"); return; }
+  if (!rrBuffer.length) { status("RR-ряда нет — сначала запишите сигнал", "err"); return; }
+  api("/miniapp/session/close", {
+    id: String(sessionId),
+    steps_done: String(marks.length),
+    step_marks: JSON.stringify(marks),
+    rr_json: JSON.stringify(rrBuffer),
+    rr_source: "ppg"
+  })
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
+      status("RR-ряд (" + rrBuffer.length + " интервалов) записан в сессию " + sessionId, "ok");
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
