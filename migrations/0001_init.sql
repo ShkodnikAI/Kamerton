@@ -27,13 +27,16 @@
 -- ── practice_session: the Mini App practice journal (Н2-03) ────────────
 -- One row per practice session opened from the Mini App (the page is
 -- delivered per ADR-0002 variant (а), private tunnel). kind:
--- 'pacer' | 'ppg'. tempo_bpm: the session tempo in breaths/min (Н2-04;
--- 0.0 in the skeleton). steps_total/steps_done: the protocol step plan
--- and the completed-step count (Н2-04, «по две минуты на темп»).
--- step_marks: JSON array of the per-step records (Н2-04). rr_json:
--- JSON array of RR intervals in ms (Н2-05); rr_source: 'ppg' |
--- 'manual' (Н2-05). arm_id/trial_id: linkage to the day's proposal —
--- NULL when the session runs without one (0 is never stored).
+-- 'pacer' | 'ppg' | 'sweep' (Н2-06). tempo_bpm: the session tempo in
+-- breaths/min (Н2-04; 0.0 in the skeleton). steps_total/steps_done: the
+-- protocol step plan and the completed-step count (Н2-04, «по две минуты
+-- на темп»). step_marks: JSON array of the per-step records; from Н2-06
+-- each record carries the step's RR segment {"step","tempo_bpm","rr",
+-- "rr_reason"} — the sweep protocol walks the tempos with the pulse
+-- recording on. rr_json: JSON array of RR intervals in ms (Н2-05, the
+-- standalone PPG screen); rr_source: 'ppg' | 'manual' (Н2-05).
+-- arm_id/trial_id: linkage to the day's proposal — NULL when the session
+-- runs without one (0 is never stored).
 CREATE TABLE IF NOT EXISTS practice_session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     kind TEXT DEFAULT 'pacer',
@@ -46,6 +49,35 @@ CREATE TABLE IF NOT EXISTS practice_session (
     rr_json TEXT DEFAULT '',
     rr_source TEXT DEFAULT '',
     session_date TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ── sweep_result: the accepted runs of the resonance-finding protocol
+--    (Н2-06) ──────────────────────────────────────────────────────────────
+-- One row per ACCEPTED protocol run (the prereg gate: >= 6 valid steps
+-- of 11). resonance_bpm: the PACED tempo of the max-power-fraction step
+-- — the individual resonance frequency; peak_freq_bpm: the spectral peak
+-- of the winning segment (the Факт band: near 0.1 Hz); power_fraction /
+-- p_value: the №591 spectral verdict of the winning segment. The
+-- reproducibility verdict compares against the previous row per the
+-- preregistration: freq_delta_bpm <= 0.3 AND share_ratio in [0.5; 2.0]
+-- → 'reproducible', otherwise 'divergent'; the first recorded run
+-- carries '' (nothing to reproduce against yet). Invariant 6: a
+-- third-party sqlite3 client reads the same rows.
+CREATE TABLE IF NOT EXISTS sweep_result (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER REFERENCES practice_session(id),
+    result_date TEXT DEFAULT '',
+    resonance_bpm REAL DEFAULT '0.0',
+    peak_freq_bpm REAL DEFAULT '0.0',
+    power_fraction REAL DEFAULT '0.0',
+    p_value REAL DEFAULT '1.0',
+    steps_valid INTEGER DEFAULT '0',
+    steps_total INTEGER DEFAULT '0',
+    prev_resonance_bpm REAL DEFAULT '0.0',
+    freq_delta_bpm REAL DEFAULT '0.0',
+    share_ratio REAL DEFAULT '0.0',
+    verdict TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
 );
 

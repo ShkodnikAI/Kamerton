@@ -32,7 +32,7 @@ https://<tailnet-адрес>:8461/miniapp?t=<KAMERTON_MINIAPP_TOKEN>
 Токен — alphanumeric (мост `escape_html` над `query_param` точен для такого
 алфавита); не используйте в нём `& < > " '`.
 
-## Состояние на Н2-05 (пейсер + PPG)
+## Состояние на Н2-06 (пейсер + PPG + протокол перебора)
 
 - `index.html` — канон страницы; отдаётся из ДОВЕРЕННОГО литерала в
   `src/miniapp/miniapp.mlog` (`miniapp_html()`), байт-равенство пиннуто
@@ -62,6 +62,25 @@ https://<tailnet-адрес>:8461/miniapp?t=<KAMERTON_MINIAPP_TOKEN>
   `node self-host/miniapp/test/ppg-test.mjs`.
   Приёмка «эталонный пульсометр: расхождение среднего RR ≤ 5%» — шаг
   владельца на устройстве при деплое (заявлено в PR).
+- **Протокол перебора (Н2-06)**: сессия `kind=sweep` — полный проход 11
+  темпов по две минуты с записью пульса на каждом шаге (переключатель
+  «писать пульс во время шагов»). Отметка шага несёт свой RR-сегмент:
+  `{step, tempo_bpm, rr, rr_reason}` (поле `rr` присутствует всегда;
+  брак QC едет громко в `rr_reason`, протокол продолжается). «Завершить»
+  шлёт `final=1` — ТОЛЬКО финальное закрытие запускает серверный анализ:
+  спектр каждого сегмента билтинами Ломба–Скаргла (№591:
+  `lomb_scargle`/`spectral_peak`), резонанс = темп шага с максимальной
+  долей мощности; принятая прогонка пишется в таблицу `sweep_result`
+  (инвариант 6) и зеркалится в kv (`resonance_*`).
+  **Предрегистрация допуска (зафиксирована в наряде до просмотра живых
+  данных):** шаг годен, если его спектр не деградировал (пол языка —
+  12 точек RR); протокол принимается при ≥ 6 годных шагах из 11;
+  повторная прогонка воспроизводит резонанс при сдвиге ≤ 0.3 вдоха/мин
+  и отношении доли мощности [0.5; 2.0] к предыдущей (вердикт
+  `reproducible`/`divergent` в таблице и ответе). Приёмка «повторная
+  прогонка на живых данных воспроизводится» — шаг владельца после
+  деплоя (заявлено в PR). Скрипт-проверка сборщика сегментов:
+  `node self-host/miniapp/test/sweep-test.mjs`.
 - Журнал сессий работает целиком: `POST /miniapp/session` открывает строку
   в таблице `practice_session` (SQLite, инвариант 6), «Завершить» закрывает.
   Читается любым sqlite3 клиентом.
@@ -73,8 +92,8 @@ https://<tailnet-адрес>:8461/miniapp?t=<KAMERTON_MINIAPP_TOKEN>
 | Маршрут | Параметры | Ответ |
 |---|---|---|
 | `GET /miniapp` | `t` | HTML-страница (или 403) |
-| `POST /miniapp/session` | `t, kind=pacer\|ppg, tempo_bpm, steps_total, arm_id?, trial_id?` | `{"id":N}`; 400 при мусоре |
-| `POST /miniapp/session/close` | `t, id, steps_done, step_marks(JSON), rr_json(JSON), rr_source=ppg\|manual` | `{"updated":1}`; 404 — неизвестный id |
+| `POST /miniapp/session` | `t, kind=pacer\|ppg\|sweep, tempo_bpm, steps_total, arm_id?, trial_id?` | `{"id":N}`; 400 при мусоре |
+| `POST /miniapp/session/close` | `t, id, steps_done, step_marks(JSON), rr_json(JSON), rr_source=ppg\|manual, final?` | `{"updated":1}`; для sweep+final=1 — `{"updated":1,"sweep":{ok,resonance_bpm,share,verdict,…}}`; 404 — неизвестный id |
 
 Тела запросов не используются: на 0.30.0 парсеры тела
 (`json_body`/`form_data`/`request_body`) возвращают пустую структуру
