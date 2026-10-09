@@ -34,13 +34,19 @@
 <section id="screen-pacer" class="screen on">
   <div class="card">
     <div class="circle" id="pacer-circle"></div>
-    <p class="lbl">Экран пейсера — каркас. Ритм дыхания и протокол темпов входят нарядом Н2-04.</p>
+    <p class="lbl" id="pacer-phase">&nbsp;</p>
+    <p class="lbl">Темп: <b id="pacer-tempo">5.5</b> вдохов/мин (диапазон 4.5–7.0, шаг 0.25)</p>
+    <div class="row">
+      <button class="act sec" onclick="tempoDown()">−</button>
+      <button class="act sec" onclick="tempoUp()">+</button>
+      <button class="act" id="pacer-step-btn" onclick="startStep()">Старт шага (2 мин)</button>
+    </div>
+    <p class="lbl" id="pacer-timer">&nbsp;</p>
   </div>
   <div class="card">
     <p class="lbl">Журнал сессии (таблица practice_session, SQLite)</p>
     <div class="row">
       <button class="act" onclick="openSession('pacer')">Начать сессию</button>
-      <button class="act sec" onclick="markStep()">Отметить шаг</button>
       <button class="act sec" onclick="closeSession()">Завершить</button>
     </div>
     <p id="pacer-marks" class="lbl"></p>
@@ -105,7 +111,7 @@ function csrfToken() {
 }
 
 function openSession(kind) {
-  api("/miniapp/session", { kind: kind, tempo_bpm: "0", steps_total: "0", arm_id: "0", trial_id: "0" })
+  api("/miniapp/session", { kind: kind, tempo_bpm: String(tempo), steps_total: String(STEPS_TOTAL), arm_id: "0", trial_id: "0" })
     .then(function (res) {
       if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
       if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
@@ -113,27 +119,101 @@ function openSession(kind) {
       sessionId = d.id;
       marks = [];
       document.getElementById("pacer-marks").textContent = "Сессия №" + sessionId + ", шагов: 0";
-      status("Сессия " + sessionId + " открыта", "ok");
+      status("Сессия " + sessionId + " открыта: протокол " + STEPS_TOTAL + " шагов по 2 минуты", "ok");
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
 
-function markStep() {
+// ── Пейсер (Н2-04) ──────────────────────────────────────────────────────
+// Протокол концепции: перебор темпов 4.5–7.0 вдох/мин с шагом 0.25,
+// по две минуты на темп; отметка завершения шага пишется в сессию
+// инкрементально (писцы Н2-03). Чистая математика фазы вынесена в
+// pacerState — её пиннет скрипт-проверка против эталонной раскадки
+// (self-host/miniapp/test/pacer-test.mjs).
+// PacerEngine-START (маркер скрипт-проверки: источник математики)
+var TEMPO_MIN = 4.5;
+var TEMPO_MAX = 7.0;
+var TEMPO_STEP = 0.25;
+var STEP_MS = 120000;   // две минуты на темп — протокол концепции
+var STEPS_TOTAL = 11;   // (7.0 − 4.5) / 0.25 + 1
+
+// Плавная синусоида: равные половины вдоха/выдоха, масштаб 0.10–1.00,
+// старт из середины (0.55) на вдохе. Никакого накопления дрейфа: фаза
+// всегда считается от времени старта шага, а не приращением.
+function pacerState(tempoBpm, tMs) {
+  var periodMs = 60000 / tempoBpm;
+  var phase = (tMs % periodMs) / periodMs;
+  var s = Math.sin(2 * Math.PI * phase);
+  return {
+    periodMs: periodMs,
+    phase: phase,
+    dir: phase < 0.5 ? "вдох" : "выдох",
+    scale: 0.55 + 0.45 * s
+  };
+}
+// PacerEngine-END
+
+var tempo = 5.5;
+var stepRunning = false;
+var stepStart = 0;
+var stepNo = 0;
+var rafId = 0;
+
+function tempoUp() {
+  tempo = Math.min(TEMPO_MAX, Math.round((tempo + TEMPO_STEP) * 100) / 100);
+  document.getElementById("pacer-tempo").textContent = tempo.toFixed(2);
+}
+
+function tempoDown() {
+  tempo = Math.max(TEMPO_MIN, Math.round((tempo - TEMPO_STEP) * 100) / 100);
+  document.getElementById("pacer-tempo").textContent = tempo.toFixed(2);
+}
+
+function startStep() {
+  if (stepRunning) { return; }
   if (!sessionId) { status("Сначала начните сессию", "err"); return; }
-  var stepNo = marks.length + 1;
+  stepRunning = true;
+  stepNo = marks.length + 1;
+  stepStart = performance.now();
+  document.getElementById("pacer-step-btn").disabled = true;
+  paceFrame();
+}
+
+function paceFrame() {
+  var t = performance.now() - stepStart;
+  if (t >= STEP_MS) {
+    finishStep();
+    return;
+  }
+  var st = pacerState(tempo, t);
+  document.getElementById("pacer-circle").style.transform = "scale(" + st.scale.toFixed(4) + ")";
+  document.getElementById("pacer-phase").textContent = st.dir;
+  var left = Math.ceil((STEP_MS - t) / 1000);
+  document.getElementById("pacer-timer").textContent = "Шаг " + stepNo + " · осталось " + left + " с";
+  rafId = requestAnimationFrame(paceFrame);
+}
+
+function finishStep() {
+  stepRunning = false;
+  cancelAnimationFrame(rafId);
+  document.getElementById("pacer-circle").style.transform = "scale(0.55)";
+  document.getElementById("pacer-phase").textContent = "\u00a0";
+  document.getElementById("pacer-timer").textContent = "\u00a0";
+  document.getElementById("pacer-step-btn").disabled = false;
+  var rec = { step: stepNo, tempo_bpm: tempo };
   api("/miniapp/session/close", {
     id: String(sessionId),
-    steps_done: String(stepNo),
-    step_marks: JSON.stringify(marks.concat([{ step: stepNo }])),
+    steps_done: String(marks.length + 1),
+    step_marks: JSON.stringify(marks.concat([rec])),
     rr_json: "",
     rr_source: ""
   })
     .then(function (res) {
       if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
       if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
-      marks.push({ step: stepNo });
-      document.getElementById("pacer-marks").textContent = "Сессия №" + sessionId + ", шагов: " + marks.length;
-      status("Шаг " + stepNo + " записан в журнал", "ok");
+      marks.push(rec);
+      document.getElementById("pacer-marks").textContent = "Сессия №" + sessionId + ", шагов: " + marks.length + " · последний темп " + tempo.toFixed(2);
+      status("Шаг " + stepNo + " (темп " + tempo.toFixed(2) + ") записан в журнал — смените темп и повторите", "ok");
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
