@@ -607,6 +607,12 @@ pattern bandit_pick(seed: Float) -> Struct {
 }
 
 pattern bandit_propose(trial_date: String, seed: Float) -> Float {
+  // Н2-08 day guard: a proposal is one per calendar day — a repeated
+  // tick re-shows the existing trial instead of a second decision.
+  let existing = query("SELECT id FROM trial WHERE trial_date = ? AND arm_id IS NOT NULL ORDER BY id LIMIT 1", [trial_date])
+  if len(existing) > 0.0 {
+    return existing[0].id
+  }
   let pick = bandit_pick(seed)
   if pick.arm_id == 0.0 {
     return 0.0

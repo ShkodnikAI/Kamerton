@@ -607,6 +607,12 @@ pattern bandit_pick(seed: Float) -> Struct {
 }
 
 pattern bandit_propose(trial_date: String, seed: Float) -> Float {
+  // Н2-08 day guard: a proposal is one per calendar day — a repeated
+  // tick re-shows the existing trial instead of a second decision.
+  let existing = query("SELECT id FROM trial WHERE trial_date = ? AND arm_id IS NOT NULL ORDER BY id LIMIT 1", [trial_date])
+  if len(existing) > 0.0 {
+    return existing[0].id
+  }
   let pick = bandit_pick(seed)
   if pick.arm_id == 0.0 {
     return 0.0
@@ -864,6 +870,8 @@ pattern fetch_updates(token: String, offset: Float) -> List {
 // trial (status 'proposed', the prediction fields stay at their
 // defaults until the owner answers), message the owner. The proposal
 // IS the prediction request — the owner answers p: during the day.
+// Repeated ticks are safe (Н2-08): the proposal is one per day, a
+// repeated tick re-shows the existing trial.
 pattern tg_morning_tick() -> Unit {
   // Idempotent schema first: the tables exist even before the token
   // guard fires (the loud refusal must not leave an empty database).
@@ -945,6 +953,8 @@ mlogserver {
     return respond("200 " + lines)
   }
   // Manual fire for the end-to-end check on a test chat (acceptance).
+  // Safe to repeat on a live day (Н2-08): the proposal is one per day,
+  // a repeated fire re-shows today's trial instead of a second one.
   route "/fire" method=GET {
     let jobs = cron_list()
     each j in jobs {
