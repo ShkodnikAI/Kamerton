@@ -368,6 +368,50 @@ pattern apply_answer(tid: Float, ans: Struct) -> String {
   return "note"
 }
 
+// ── H2-07-SPECTRAL-START (byte-mirrored into app.mlog telegram-core) ────
+// The M2 projection source (Н2-07, ADR-0001): with a valid practice RR
+// series the trial's moment is written by the SPECTRAL source — the
+// power fraction in the band around the dominant peak (the honest
+// resonance measure per the concept; the №591 builtins do the math,
+// sin/cos are absent from the 0.30.0 grammar). The subjective scales
+// stay the fallback: their drain path above is guarded by the ANY-moment
+// response count, so an existing projection is never silently
+// overwritten, and the projection carries the declared PRIORITY over an
+// earlier subjective row (both rows remain in response — nothing is
+// lost; the trial fixes the source actually used).
+
+pattern moment_spectral_from_rr(rr_ms: List) -> Struct {
+  // A practice RR series -> the spectral verdict. Loud refusal on a
+  // short or degraded series (the language floor is 12 points,
+  // probe-pinned) — the fallback stays untouched, never a fabricated 0.
+  if len(rr_ms) < 12.0 {
+    return {ok: false, share: 0.0, peak_hz: 0.0, reason: "RR-ряд короче 12 точек: " + to_string(len(rr_ms))}
+  }
+  let ts = sweep_rr_times(rr_ms)
+  let spec = lomb_scargle(ts, rr_ms)
+  let pk = spectral_peak(spec)
+  if pk.degraded == true {
+    return {ok: false, share: 0.0, peak_hz: 0.0, reason: "спектр деградировал: точек " + to_string(len(rr_ms))}
+  }
+  return {ok: true, share: pk.power_fraction, peak_hz: pk.freq, reason: ""}
+}
+
+pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float {
+  // The guarded projection write: once per trial (a repeated projection
+  // is refused loudly by the caller contract — 0.0, rows untouched).
+  // The response row makes the write visible to the drain's ANY-moment
+  // guard, so the subjective fallback can never silently replace it.
+  let guard = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment' AND details LIKE 'spectral%'", [tid])
+  if guard[0].n > 0.0 {
+    return 0.0
+  }
+  let row = {trial_id: tid, kind: "moment", depth: share, details: "spectral projection: peak " + to_string(peak_hz) + " Hz"}
+  let _ = db_insert("response", row)
+  let _ = db_execute("UPDATE trial SET moment_value = ?, moment_present = 1, moment_source = 'spectral', status = 'completed' WHERE id = ?", [share, tid])
+  return 1.0
+}
+// ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
+
 pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, local_date: String<public, trusted>, offset: Float) -> Unit {
   // The D2-family posture: the drain is a BARE each (db effects inside
   // the loop are the m0_row-proven shape), every diagnostic lives in
@@ -1007,9 +1051,44 @@ mlogserver {
           let res = sweep_analyze(rows[0].step_marks)
           if res.ok == true {
             let rec = sweep_record(sid, res, local_iso_date(now_unix()))
-            return respond("200 {\"updated\":" + escape_html(to_string(updated)) + ",\"sweep\":" + json_encode(rec) + "}")
+            // Н2-07: the accepted run fixes the LINKED trial's moment by
+            // the spectral source — the winner's power fraction is the
+            // honest resonance measure (ADR-0001 priority).
+            let mut mom = ""
+            if type_of(rows[0].trial_id) == "Float" {
+              if rows[0].trial_id > 0.0 {
+                let mw = moment_spectral_write(rows[0].trial_id, rec.share, rec.peak_freq_bpm / 60.0)
+                if mw > 0.0 {
+                  mom = ",\"moment\":{\"written\":1,\"share\":" + to_string(rec.share) + ",\"peak_hz\":" + to_string(rec.peak_freq_bpm / 60.0) + "}"
+                }
+              }
+            }
+            return respond("200 {\"updated\":" + escape_html(to_string(updated)) + ",\"sweep\":" + json_encode(rec) + mom + "}")
           }
           return respond("200 {\"updated\":" + escape_html(to_string(updated)) + ",\"sweep\":" + json_encode(res) + "}")
+        }
+        if rows[0].kind == "ppg" {
+          // Н2-07: the linked ppg session's RR series -> the spectral
+          // moment; a refusing series stays loud and the subjective
+          // fallback remains untouched (no fabricated value).
+          let mut mom = ""
+          if type_of(rows[0].trial_id) == "Float" {
+            if rows[0].trial_id > 0.0 {
+              if rows[0].rr_json != "" {
+                let rr = parse_json(rows[0].rr_json)
+                if type_of(rr) == "List" {
+                  let mv = moment_spectral_from_rr(rr)
+                  if mv.ok == true {
+                    let mw = moment_spectral_write(rows[0].trial_id, mv.share, mv.peak_hz)
+                    if mw > 0.0 {
+                      mom = ",\"moment\":{\"written\":1,\"share\":" + to_string(mv.share) + ",\"peak_hz\":" + to_string(mv.peak_hz) + "}"
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return respond("200 {\"updated\":" + escape_html(to_string(updated)) + mom + "}")
         }
       }
     }
