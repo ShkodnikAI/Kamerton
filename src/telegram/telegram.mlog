@@ -50,13 +50,15 @@
 //     filter compares SANITIZED projections.
 //   7. Composition: no cross-file imports exist in the language, so
 //     this file carries byte-identical mirrors of the store schema
-//     (the bandit.mlog precedent), the bandit decision core and the
-//     telegram pure core. The canonical copies live in
-//     src/bandit/bandit.mlog and src/telegram/telegram.mlog; the
-//     mirror modules carry the APP-MIRROR markers and the block
-//     equality is verified by the verifier script recorded in the
-//     naryad worklog (read_file refuses *.mlog paths — the
-//     №455-sensitive list — so the pin lives outside the language).
+//     (the bandit.mlog precedent), the bandit decision core, the arms
+//     seed (§arms-seed) and the mini-app core (§miniapp-core). The
+//     canonical copies live in src/bandit/bandit.mlog,
+//     src/arms/arms.mlog, src/miniapp/miniapp.mlog and
+//     src/telegram/telegram.mlog; the mirror modules carry the
+//     APP-MIRROR markers and the block equality is verified by the
+//     verifier script recorded in the naryad worklog (read_file
+//     refuses *.mlog paths — the №455-sensitive list — so the pin
+//     lives outside the language).
 //
 // Language-discipline notes (§2, declared loudly where relevant):
 //   - RESPOND_SWALLOWED (v0.28.2, security Y-1): every respond() is
@@ -130,6 +132,7 @@ pattern ensure_schema() -> Unit {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS response (id INTEGER PRIMARY KEY AUTOINCREMENT, trial_id INTEGER REFERENCES trial(id), kind TEXT, depth REAL DEFAULT '0.0', details TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS context (id INTEGER PRIMARY KEY AUTOINCREMENT, trial_id INTEGER REFERENCES trial(id), moon_phase TEXT DEFAULT '', weather TEXT DEFAULT '', sound_mode TEXT DEFAULT '', sleep_quality REAL DEFAULT '0.0', logged_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS candidate (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, kind TEXT DEFAULT 'non_periodic', status TEXT DEFAULT 'candidate', stat_value REAL DEFAULT '0.0', threshold REAL DEFAULT '0.0', tested_at TEXT DEFAULT '', note TEXT DEFAULT '')", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_session (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT DEFAULT 'pacer', arm_id INTEGER REFERENCES arm(id), trial_id INTEGER REFERENCES trial(id), tempo_bpm REAL DEFAULT '0.0', steps_total INTEGER DEFAULT '0', steps_done INTEGER DEFAULT '0', step_marks TEXT DEFAULT '', rr_json TEXT DEFAULT '', rr_source TEXT DEFAULT '', session_date TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   ensure_indexes()
 }
 
@@ -433,6 +436,126 @@ pattern bandit_propose(trial_date: String, seed: Float) -> Float {
   return db_insert("trial", row)
 }
 // ── APP-MIRROR-END: bandit-core
+// ── APP-MIRROR-START: arms-seed (byte-identical to
+//    src/arms/arms.mlog §arms-seed) ─────────────────────────────────────
+
+entity kamerton_arms: List = [
+  {name: "breath-resonance-morning", group_name: "Резонансное дыхание", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
+  {name: "breath-resonance-evening", group_name: "Резонансное дыхание", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Lehrer & Gevirtz 2014 (Front Psychol 5:753): resonance-frequency HRV biofeedback, robust baroreflex effects"},
+  {name: "woop-morning", group_name: "Имплементационные намерения", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol 38): meta-analysis of 94 studies, d ~ 0.65"},
+  {name: "woop-evening", group_name: "Имплементационные намерения", day_window: "evening", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.15, source: "Gollwitzer & Sheeran 2006 (Adv Exp Soc Psychol 38): meta-analysis of 94 studies, d ~ 0.65"},
+  {name: "mental-rehearsal-morning", group_name: "Ментальная репетиция", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15, source: "Driskell, Copper & Moran 1994 (J Appl Psychol 79(4)): mental practice meta-analysis, moderate effect, decays without physical practice"},
+  {name: "mental-rehearsal-evening", group_name: "Ментальная репетиция", day_window: "evening", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15, source: "Driskell, Copper & Moran 1994 (J Appl Psychol 79(4)): mental practice meta-analysis, moderate effect, decays without physical practice"},
+  {name: "focusing-morning", group_name: "Фокусинг", day_window: "morning", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Hendricks 2002 (The Focusing-oriented client): experiential review, small-N studies, mixed quality — wide prior"},
+  {name: "focusing-evening", group_name: "Фокусинг", day_window: "evening", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Hendricks 2002 (The Focusing-oriented client): experiential review, small-N studies, mixed quality — wide prior"},
+  {name: "yoga-nidra-morning", group_name: "Йога-нидра", day_window: "morning", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Moszeik, von Oertzen & Günther 2022 (Current Psychology): Yoga Nidra effects on stress, sleep, well-being — moderate, wide prior"},
+  {name: "yoga-nidra-evening", group_name: "Йога-нидра", day_window: "evening", duration_min: 10.0, prior_mean: 0.45, prior_std: 0.2, source: "Moszeik, von Oertzen & Günther 2022 (Current Psychology): Yoga Nidra effects on stress, sleep, well-being — moderate, wide prior"}
+]
+
+// Seed the arm library. Idempotent by construction: a UNIQUE index on
+// name plus INSERT OR IGNORE — a repeated run changes nothing.
+//
+// WHY UNROLLED STATEMENTS (§2, declared loudly): the mlog D2 defect
+// (declared in Kamerton issue #24; verified on v0.28.1 AND v0.28.2 by
+// mutation probes) mis-executes loops whose body is a bare call — one
+// iteration, and in a test body the tail after such a loop is silently
+// cut (vacuously green). Assignment-body loops are full, but the
+// trigger surface is not fully mapped (the probeprint case differs
+// from the db_execute case), so the discipline here is: NO loops in
+// test bodies at all until the language naryads land (Metalogos-
+// №597/№598 → v0.28.3). A loop-driven seed would silently insert only
+// the first arm, so the seed is unrolled into sequential statements
+// and pinned to the kamerton_arms entity list by the per-arm VALUES
+// LEFT JOIN verification test (loop-free); the JSON mirror is pinned
+// to the same list. Divergence of any copy is a loud test failure.
+
+pattern seed_arms() -> Float {
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_arm_name_unique ON arm(name)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('breath-resonance-morning', 'Резонансное дыхание', 'morning', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('breath-resonance-evening', 'Резонансное дыхание', 'evening', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('woop-morning', 'Имплементационные намерения', 'morning', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('woop-evening', 'Имплементационные намерения', 'evening', 10, 0.6, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('mental-rehearsal-morning', 'Ментальная репетиция', 'morning', 10, 0.5, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('mental-rehearsal-evening', 'Ментальная репетиция', 'evening', 10, 0.5, 0.15)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-morning', 'Фокусинг', 'morning', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-evening', 'Фокусинг', 'evening', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-morning', 'Йога-нидра', 'morning', 10, 0.45, 0.2)")
+  db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-evening', 'Йога-нидра', 'evening', 10, 0.45, 0.2)")
+  let rows = query("SELECT count(*) AS n FROM arm", [])
+  return rows[0].n
+}
+
+// ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────
+
+// ── APP-MIRROR-START: miniapp-core (byte-identical to
+//    src/miniapp/miniapp.mlog §miniapp-core) ────────────────────────────
+
+// Mini App core (Н2-03): the token guard, the page literal and the
+// practice-session writers. The page is served from the TRUSTED
+// literal: read_file output carries 'public, untrusted' and the №391
+// sink clearance refuses respond(read_file(...)) (probe n203-serve-1),
+// so self-host/miniapp/index.html is the byte-pinned canon and this
+// literal is its serving copy; the lockstep test in the miniapp module
+// pins the byte equality.
+
+// The token guard — PURE function (the test lane has no env gate): the
+// route passes the allowlisted stored value and the SANITIZED provided
+// one (the escape_html bridge over query_param — the repo's
+// sanitize-then-decide convention; the deploy token charset is
+// alphanumeric, so the bridge is exact). Fail-closed: an unconfigured
+// token (empty stored value) denies everything.
+pattern miniapp_check_token(stored: String, provided: String) -> Bool {
+  if stored == "" {
+    return false
+  }
+  return provided == stored
+}
+
+// The page literal — byte-pinned to self-host/miniapp/index.html (see
+// the miniapp module tests). No external origin anywhere in the markup
+// (invariant 7): inline CSS/JS only, same-origin fetches only.
+pattern miniapp_html() -> String {
+  return "<!doctype html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Камертон — практики</title>\n<style>\n  :root { --bg:#0f1115; --fg:#e8e6e3; --dim:#9a9a93; --accent:#e8862c; --ok:#4f9d69; --err:#c94f4f; }\n  * { box-sizing: border-box; margin: 0; }\n  body { background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; }\n  h1 { font-size: 20px; margin-bottom: 12px; }\n  nav { display: flex; gap: 8px; margin-bottom: 16px; }\n  nav button { flex: 1; padding: 10px; background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; font-size: 15px; }\n  nav button.on { border-color: var(--accent); color: var(--accent); }\n  .screen { display: none; }\n  .screen.on { display: block; }\n  .card { background: #161920; border: 1px solid #2a2e37; border-radius: 12px; padding: 16px; margin-bottom: 12px; }\n  .circle { width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #3a4152, #22262f); margin: 24px auto; }\n  .lbl { color: var(--dim); font-size: 13px; }\n  .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }\n  button.act { padding: 10px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #14100b; font-size: 15px; }\n  button.act.sec { background: #2a2e37; color: var(--fg); }\n  #status { font-size: 13px; color: var(--dim); min-height: 20px; margin-top: 8px; white-space: pre-wrap; }\n  .ok { color: var(--ok); } .err { color: var(--err); }\n</style>\n</head>\n<body>\n<h1>Камертон</h1>\n<nav>\n  <button id=\"tab-pacer\" class=\"on\" onclick=\"show('pacer')\">Пейсер</button>\n  <button id=\"tab-ppg\" onclick=\"show('ppg')\">Пульс</button>\n</nav>\n\n<section id=\"screen-pacer\" class=\"screen on\">\n  <div class=\"card\">\n    <div class=\"circle\" id=\"pacer-circle\"></div>\n    <p class=\"lbl\">Экран пейсера — каркас. Ритм дыхания и протокол темпов входят нарядом Н2-04.</p>\n  </div>\n  <div class=\"card\">\n    <p class=\"lbl\">Журнал сессии (таблица practice_session, SQLite)</p>\n    <div class=\"row\">\n      <button class=\"act\" onclick=\"openSession('pacer')\">Начать сессию</button>\n      <button class=\"act sec\" onclick=\"markStep()\">Отметить шаг</button>\n      <button class=\"act sec\" onclick=\"closeSession()\">Завершить</button>\n    </div>\n    <p id=\"pacer-marks\" class=\"lbl\"></p>\n  </div>\n</section>\n\n<section id=\"screen-ppg\" class=\"screen\">\n  <div class=\"card\">\n    <div class=\"circle\"></div>\n    <p class=\"lbl\">Экран PPG — каркас. Съёмка пульса через камеру и RR-ряд входят нарядом Н2-05.</p>\n  </div>\n</section>\n\n<p id=\"status\"></p>\n\n<script>\n\"use strict\";\n// Канал ADR-0002 (вариант «а», приватный туннель): страница отдаётся\n// маршрутом /miniapp программы Камертона; токен владельца передаётся в\n// каждом запросе (параметр t из адреса страницы). Наружу страница не\n// ходит: вся работа против того же origin, внешних ресурсов нет —\n// инвариант 7 (данные не покидают машину владельца).\nvar TOKEN = new URLSearchParams(location.search).get(\"t\") || \"\";\nvar sessionId = 0;\nvar marks = [];\n\nfunction show(name) {\n  var names = [\"pacer\", \"ppg\"];\n  for (var i = 0; i < names.length; i++) {\n    document.getElementById(\"screen-\" + names[i]).className = names[i] === name ? \"screen on\" : \"screen\";\n    document.getElementById(\"tab-\" + names[i]).className = names[i] === name ? \"on\" : \"\";\n  }\n}\n\nfunction status(msg, cls) {\n  var el = document.getElementById(\"status\");\n  el.textContent = msg;\n  el.className = cls || \"\";\n}\n\nfunction api(path, params) {\n  var q = new URLSearchParams(params || {});\n  q.set(\"t\", TOKEN);\n  return fetch(path + \"?\" + q.toString(), {\n    method: \"POST\",\n    headers: { \"X-CSRF-Token\": csrfToken() }\n  })\n    .then(function (r) {\n      return r.text().then(function (body) { return { code: r.status, body: body }; });\n    });\n}\n\n// CSRF-мидлварь сервера (double-submit): GET страницы выдаёт куку\n// _mlog_csrf, каждый POST обязан нести её значение в X-CSRF-Token.\n// TTL токена — 15 минут; истёкший/чужой токен отвечает 403 с «CSRF»\n// в теле — перезагружаем страницу (GET перевыпустит куку). Отметки\n// шагов пишутся инкрементально, поэтому перезагрузка теряет максимум\n// текущий неотмеченный шаг.\nfunction csrfToken() {\n  var m = document.cookie.match(/(?:^|;\\s*)_mlog_csrf=([^;]+)/);\n  return m ? m[1] : \"\";\n}\n\nfunction openSession(kind) {\n  api(\"/miniapp/session\", { kind: kind, tempo_bpm: \"0\", steps_total: \"0\", arm_id: \"0\", trial_id: \"0\" })\n    .then(function (res) {\n      if (res.code === 403 && res.body.indexOf(\"CSRF\") >= 0) { location.reload(); return; }\n      if (res.code !== 200) { status(\"Отказ сервера: \" + res.code + \" \" + res.body, \"err\"); return; }\n      var d = JSON.parse(res.body);\n      sessionId = d.id;\n      marks = [];\n      document.getElementById(\"pacer-marks\").textContent = \"Сессия №\" + sessionId + \", шагов: 0\";\n      status(\"Сессия \" + sessionId + \" открыта\", \"ok\");\n    })\n    .catch(function (e) { status(\"Ошибка сети: \" + e, \"err\"); });\n}\n\nfunction markStep() {\n  if (!sessionId) { status(\"Сначала начните сессию\", \"err\"); return; }\n  var stepNo = marks.length + 1;\n  api(\"/miniapp/session/close\", {\n    id: String(sessionId),\n    steps_done: String(stepNo),\n    step_marks: JSON.stringify(marks.concat([{ step: stepNo }])),\n    rr_json: \"\",\n    rr_source: \"\"\n  })\n    .then(function (res) {\n      if (res.code === 403 && res.body.indexOf(\"CSRF\") >= 0) { location.reload(); return; }\n      if (res.code !== 200) { status(\"Отказ сервера: \" + res.code + \" \" + res.body, \"err\"); return; }\n      marks.push({ step: stepNo });\n      document.getElementById(\"pacer-marks\").textContent = \"Сессия №\" + sessionId + \", шагов: \" + marks.length;\n      status(\"Шаг \" + stepNo + \" записан в журнал\", \"ok\");\n    })\n    .catch(function (e) { status(\"Ошибка сети: \" + e, \"err\"); });\n}\n\nfunction closeSession() {\n  if (!sessionId) { status(\"Сессия не открыта\", \"err\"); return; }\n  api(\"/miniapp/session/close\", {\n    id: String(sessionId),\n    steps_done: String(marks.length),\n    step_marks: JSON.stringify(marks),\n    rr_json: \"\",\n    rr_source: \"\"\n  })\n    .then(function (res) {\n      if (res.code === 403 && res.body.indexOf(\"CSRF\") >= 0) { location.reload(); return; }\n      if (res.code !== 200) { status(\"Отказ сервера: \" + res.code + \" \" + res.body, \"err\"); return; }\n      status(\"Сессия \" + sessionId + \" закрыта: шагов \" + marks.length, \"ok\");\n      sessionId = 0; marks = [];\n      document.getElementById(\"pacer-marks\").textContent = \"\";\n    })\n    .catch(function (e) { status(\"Ошибка сети: \" + e, \"err\"); });\n}\n</script>\n</body>\n</html>\n"
+}
+
+// Open a practice session (the Н2-03 skeleton writer; the Н2-04/Н2-05
+// screens are its clients). BOUNDARY pattern (the process_updates
+// precedent of Н1-06): the route validates shapes loudly (whitelists,
+// numeric guards over the escape bridge) and passes the values; inside
+// the annotated parameters the data is sanctioned and the writers run.
+// arm_id/trial_id below 1 mean "no linkage" and land as SQL NULL (the
+// CASE form keeps ONE parameterized statement; 0 is never stored, so
+// the FK clauses stay truthful under the enforced-references replay).
+// Returns the new row id.
+pattern miniapp_session_open(kind: String<public, trusted>, tempo_bpm: Float, steps_total: Float,
+                             session_date: String<public, trusted>, arm_id: Float, trial_id: Float) -> Float {
+  let _ = db_execute("INSERT INTO practice_session (kind, tempo_bpm, steps_total, session_date, arm_id, trial_id) VALUES (?, ?, ?, ?, CASE WHEN ? > 0 THEN ? END, CASE WHEN ? > 0 THEN ? END)", [kind, tempo_bpm, steps_total, session_date, arm_id, arm_id, trial_id, trial_id])
+  let rows = query("SELECT last_insert_rowid() AS id", [])
+  return rows[0].id
+}
+
+// Close/update a session: the completed-step count, the per-step marks
+// and (from Н2-05) the RR series. BOUNDARY pattern: the raw JSON
+// strings arrive trusted-by-annotation (the route capped their size
+// and the parameterized UPDATE carries them verbatim — SQL-injection
+// impossible); the JSON shape is validated by parse_json at every
+// READ (garbage never decodes silently). Returns the number of
+// updated rows (0 = unknown id — the route answers 404 loudly).
+pattern miniapp_session_close(sid: Float, steps_done: Float, step_marks: String<public, trusted>,
+                              rr_json: String<public, trusted>, rr_source: String<public, trusted>) -> Float {
+  let _ = db_execute("UPDATE practice_session SET steps_done = ?, step_marks = ?, rr_json = ?, rr_source = ? WHERE id = ?", [steps_done, step_marks, rr_json, rr_source, sid])
+  let rows = query("SELECT changes() AS n", [])
+  return rows[0].n
+}
+
+// Read one session back (the module tests + the read path of
+// Н2-06/Н2-07; a third-party sqlite3 client reads the same rows —
+// invariant 6).
+pattern miniapp_session_get(sid: Float) -> List {
+  return query("SELECT id, kind, arm_id, trial_id, tempo_bpm, steps_total, steps_done, step_marks, rr_json, rr_source, session_date FROM practice_session WHERE id = ?", [sid])
+}
+// ── APP-MIRROR-END: miniapp-core ─────────────────────────────────────────
+
 // ── APP-MIRROR-START: telegram-core (byte-identical to
 //    src/telegram/telegram.mlog §telegram-core) ────────────────────────
 
@@ -609,6 +732,22 @@ test "morning proposal row: a missing note stays a String (Н2-01 regression)" {
   // must not fail-closed [TYPE_MISMATCH] on a missing note
   let msg = format_proposal(pr[0].name, pr[0].body)
   assert_contains(msg, "Проба дня: n2-01-arm")
+}
+
+
+test "seed_arms seeds exactly the ten canonical arms (Н2-01 restoration)" {
+  // The Н2-01 order-proof restored: the byte-mirrored seed block must
+  // produce exactly the ten canonical names (the IN-list predicate
+  // covers every row in one assert — loop-free by the D2 discipline).
+  // The double call exercises the INSERT OR IGNORE idempotency; the
+  // group-by pins the UNIQUE index — a duplicate name cannot hide.
+  ensure_schema()
+  let _ = seed_arms()
+  let _ = seed_arms()
+  let rows = query("SELECT count(*) AS n FROM arm WHERE name IN ('breath-resonance-morning','breath-resonance-evening','woop-morning','woop-evening','mental-rehearsal-morning','mental-rehearsal-evening','focusing-morning','focusing-evening','yoga-nidra-morning','yoga-nidra-evening')", [])
+  assert_eq(rows[0].n, 10.0)
+  let dup = query("SELECT count(*) AS n FROM (SELECT name FROM arm GROUP BY name HAVING count(*) > 1)", [])
+  assert_eq(dup[0].n, 0.0)
 }
 
 test "get_updates_url carries the offset and the long-poll timeout" {

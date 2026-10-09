@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Камертон — практики</title>
+<style>
+  :root { --bg:#0f1115; --fg:#e8e6e3; --dim:#9a9a93; --accent:#e8862c; --ok:#4f9d69; --err:#c94f4f; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 12px; }
+  nav { display: flex; gap: 8px; margin-bottom: 16px; }
+  nav button { flex: 1; padding: 10px; background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; font-size: 15px; }
+  nav button.on { border-color: var(--accent); color: var(--accent); }
+  .screen { display: none; }
+  .screen.on { display: block; }
+  .card { background: #161920; border: 1px solid #2a2e37; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .circle { width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #3a4152, #22262f); margin: 24px auto; }
+  .lbl { color: var(--dim); font-size: 13px; }
+  .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  button.act { padding: 10px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #14100b; font-size: 15px; }
+  button.act.sec { background: #2a2e37; color: var(--fg); }
+  #status { font-size: 13px; color: var(--dim); min-height: 20px; margin-top: 8px; white-space: pre-wrap; }
+  .ok { color: var(--ok); } .err { color: var(--err); }
+</style>
+</head>
+<body>
+<h1>Камертон</h1>
+<nav>
+  <button id="tab-pacer" class="on" onclick="show('pacer')">Пейсер</button>
+  <button id="tab-ppg" onclick="show('ppg')">Пульс</button>
+</nav>
+
+<section id="screen-pacer" class="screen on">
+  <div class="card">
+    <div class="circle" id="pacer-circle"></div>
+    <p class="lbl">Экран пейсера — каркас. Ритм дыхания и протокол темпов входят нарядом Н2-04.</p>
+  </div>
+  <div class="card">
+    <p class="lbl">Журнал сессии (таблица practice_session, SQLite)</p>
+    <div class="row">
+      <button class="act" onclick="openSession('pacer')">Начать сессию</button>
+      <button class="act sec" onclick="markStep()">Отметить шаг</button>
+      <button class="act sec" onclick="closeSession()">Завершить</button>
+    </div>
+    <p id="pacer-marks" class="lbl"></p>
+  </div>
+</section>
+
+<section id="screen-ppg" class="screen">
+  <div class="card">
+    <div class="circle"></div>
+    <p class="lbl">Экран PPG — каркас. Съёмка пульса через камеру и RR-ряд входят нарядом Н2-05.</p>
+  </div>
+</section>
+
+<p id="status"></p>
+
+<script>
+"use strict";
+// Канал ADR-0002 (вариант «а», приватный туннель): страница отдаётся
+// маршрутом /miniapp программы Камертона; токен владельца передаётся в
+// каждом запросе (параметр t из адреса страницы). Наружу страница не
+// ходит: вся работа против того же origin, внешних ресурсов нет —
+// инвариант 7 (данные не покидают машину владельца).
+var TOKEN = new URLSearchParams(location.search).get("t") || "";
+var sessionId = 0;
+var marks = [];
+
+function show(name) {
+  var names = ["pacer", "ppg"];
+  for (var i = 0; i < names.length; i++) {
+    document.getElementById("screen-" + names[i]).className = names[i] === name ? "screen on" : "screen";
+    document.getElementById("tab-" + names[i]).className = names[i] === name ? "on" : "";
+  }
+}
+
+function status(msg, cls) {
+  var el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = cls || "";
+}
+
+function api(path, params) {
+  var q = new URLSearchParams(params || {});
+  q.set("t", TOKEN);
+  return fetch(path + "?" + q.toString(), {
+    method: "POST",
+    headers: { "X-CSRF-Token": csrfToken() }
+  })
+    .then(function (r) {
+      return r.text().then(function (body) { return { code: r.status, body: body }; });
+    });
+}
+
+// CSRF-мидлварь сервера (double-submit): GET страницы выдаёт куку
+// _mlog_csrf, каждый POST обязан нести её значение в X-CSRF-Token.
+// TTL токена — 15 минут; истёкший/чужой токен отвечает 403 с «CSRF»
+// в теле — перезагружаем страницу (GET перевыпустит куку). Отметки
+// шагов пишутся инкрементально, поэтому перезагрузка теряет максимум
+// текущий неотмеченный шаг.
+function csrfToken() {
+  var m = document.cookie.match(/(?:^|;\s*)_mlog_csrf=([^;]+)/);
+  return m ? m[1] : "";
+}
+
+function openSession(kind) {
+  api("/miniapp/session", { kind: kind, tempo_bpm: "0", steps_total: "0", arm_id: "0", trial_id: "0" })
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
+      var d = JSON.parse(res.body);
+      sessionId = d.id;
+      marks = [];
+      document.getElementById("pacer-marks").textContent = "Сессия №" + sessionId + ", шагов: 0";
+      status("Сессия " + sessionId + " открыта", "ok");
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+function markStep() {
+  if (!sessionId) { status("Сначала начните сессию", "err"); return; }
+  var stepNo = marks.length + 1;
+  api("/miniapp/session/close", {
+    id: String(sessionId),
+    steps_done: String(stepNo),
+    step_marks: JSON.stringify(marks.concat([{ step: stepNo }])),
+    rr_json: "",
+    rr_source: ""
+  })
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
+      marks.push({ step: stepNo });
+      document.getElementById("pacer-marks").textContent = "Сессия №" + sessionId + ", шагов: " + marks.length;
+      status("Шаг " + stepNo + " записан в журнал", "ok");
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+function closeSession() {
+  if (!sessionId) { status("Сессия не открыта", "err"); return; }
+  api("/miniapp/session/close", {
+    id: String(sessionId),
+    steps_done: String(marks.length),
+    step_marks: JSON.stringify(marks),
+    rr_json: "",
+    rr_source: ""
+  })
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Отказ сервера: " + res.code + " " + res.body, "err"); return; }
+      status("Сессия " + sessionId + " закрыта: шагов " + marks.length, "ok");
+      sessionId = 0; marks = [];
+      document.getElementById("pacer-marks").textContent = "";
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+</script>
+</body>
+</html>
