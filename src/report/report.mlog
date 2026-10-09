@@ -229,3 +229,15 @@ test "the cli form prints the report" {
   let rc = honesty_report_cli()
   assert_eq(rc, 1.0)
 }
+
+test "Н2-07: subjective and spectral sources show separately in the report" {
+  // The canonical ADR-0001 source names on synthetic data with BOTH
+  // sources present — the report lists them per source, never merged.
+  let a1 = db_insert("arm", {name: "h2-07-report", group_name: "report", day_window: "morning", duration_min: 10.0, prior_mean: 0.5, prior_std: 0.15})
+  let t1 = db_insert("trial", {trial_date: "2026-10-09", day_window: "morning", arm_id: a1, status: "completed", reward: 0.5, moment_present: 1, moment_value: 0.6, moment_source: "subjective"})
+  let t2 = db_insert("trial", {trial_date: "2026-10-09", day_window: "morning", arm_id: a1, status: "completed", reward: 0.5, moment_present: 1, moment_value: 0.8, moment_source: "subjective"})
+  let t3 = db_insert("trial", {trial_date: "2026-10-09", day_window: "morning", arm_id: a1, status: "completed", reward: 0.5, moment_present: 1, moment_value: 0.71, moment_source: "spectral"})
+  let text = honesty_report_text()
+  assert_contains(text, "subjective: n=2 avg=0.7")
+  assert_contains(text, "spectral: n=1 avg=0.71")
+}

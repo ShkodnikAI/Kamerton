@@ -368,6 +368,50 @@ pattern apply_answer(tid: Float, ans: Struct) -> String {
   return "note"
 }
 
+// ── H2-07-SPECTRAL-START (byte-mirrored into app.mlog telegram-core) ────
+// The M2 projection source (Н2-07, ADR-0001): with a valid practice RR
+// series the trial's moment is written by the SPECTRAL source — the
+// power fraction in the band around the dominant peak (the honest
+// resonance measure per the concept; the №591 builtins do the math,
+// sin/cos are absent from the 0.30.0 grammar). The subjective scales
+// stay the fallback: their drain path above is guarded by the ANY-moment
+// response count, so an existing projection is never silently
+// overwritten, and the projection carries the declared PRIORITY over an
+// earlier subjective row (both rows remain in response — nothing is
+// lost; the trial fixes the source actually used).
+
+pattern moment_spectral_from_rr(rr_ms: List) -> Struct {
+  // A practice RR series -> the spectral verdict. Loud refusal on a
+  // short or degraded series (the language floor is 12 points,
+  // probe-pinned) — the fallback stays untouched, never a fabricated 0.
+  if len(rr_ms) < 12.0 {
+    return {ok: false, share: 0.0, peak_hz: 0.0, reason: "RR-ряд короче 12 точек: " + to_string(len(rr_ms))}
+  }
+  let ts = sweep_rr_times(rr_ms)
+  let spec = lomb_scargle(ts, rr_ms)
+  let pk = spectral_peak(spec)
+  if pk.degraded == true {
+    return {ok: false, share: 0.0, peak_hz: 0.0, reason: "спектр деградировал: точек " + to_string(len(rr_ms))}
+  }
+  return {ok: true, share: pk.power_fraction, peak_hz: pk.freq, reason: ""}
+}
+
+pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float {
+  // The guarded projection write: once per trial (a repeated projection
+  // is refused loudly by the caller contract — 0.0, rows untouched).
+  // The response row makes the write visible to the drain's ANY-moment
+  // guard, so the subjective fallback can never silently replace it.
+  let guard = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment' AND details LIKE 'spectral%'", [tid])
+  if guard[0].n > 0.0 {
+    return 0.0
+  }
+  let row = {trial_id: tid, kind: "moment", depth: share, details: "spectral projection: peak " + to_string(peak_hz) + " Hz"}
+  let _ = db_insert("response", row)
+  let _ = db_execute("UPDATE trial SET moment_value = ?, moment_present = 1, moment_source = 'spectral', status = 'completed' WHERE id = ?", [share, tid])
+  return 1.0
+}
+// ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
+
 pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, local_date: String<public, trusted>, offset: Float) -> Unit {
   // The D2-family posture: the drain is a BARE each (db effects inside
   // the loop are the m0_row-proven shape), every diagnostic lives in
@@ -1069,4 +1113,74 @@ test "has_job and setup_register: idempotent registration" {
   }
   assert_eq(morning_count, 1.0)
   assert_eq(evening_count, 1.0)
+}
+
+// ── Н2-07 tests: the spectral moment source (ADR-0001) ──────────────────
+// The projection value rides the №591 spectral verdict on a zero-mean
+// literal cycle (the same fixture discipline as the Н2-06 store tests).
+
+test "moment_spectral_write fixes the trial's moment with the spectral source" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "spec-moment-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let nid = db_insert("note", {body: "spec moment note"})
+  let tid = db_insert("trial", {trial_date: "2026-10-09", day_window: "morning", arm_id: aid, note_id: nid})
+  let n = moment_spectral_write(tid, 0.71, 0.098)
+  assert_eq(n, 1.0)
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].moment_present, 1.0)
+  assert_eq(rows[0].moment_source, "spectral")
+  assert_eq(round(rows[0].moment_value * 100.0), 71.0)
+  assert_eq(rows[0].status, "completed")
+  let resp = query("SELECT details FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+  assert_eq(len(resp), 1.0)
+  assert_contains(resp[0].details, "spectral")
+  assert_contains(resp[0].details, "0.098")
+  // The repeated projection is refused — no second row, values intact.
+  let n2 = moment_spectral_write(tid, 0.9, 0.12)
+  assert_eq(n2, 0.0)
+  let resp2 = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+  assert_eq(resp2[0].n, 1.0)
+  let rows2 = trial_by_id(tid)
+  assert_eq(round(rows2[0].moment_value * 100.0), 71.0)
+}
+
+test "moment_spectral_from_rr refuses a short series loudly" {
+  let res = moment_spectral_from_rr([900.0, 910.0, 890.0])
+  assert_eq(res.ok, false)
+  assert_contains(res.reason, "12")
+}
+
+test "the subjective fallback never overwrites the spectral projection" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "guard-spec-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-09", day_window: "morning", arm_id: aid})
+  let _ = moment_spectral_write(tid, 0.66, 0.101)
+  let late = apply_answer(tid, parse_chat_text("m:0.95"))
+  assert_eq(late, "moment-kept")
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].moment_source, "spectral")
+  assert_eq(round(rows[0].moment_value * 100.0), 66.0)
+  let resp = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+  assert_eq(resp[0].n, 1.0)
+}
+
+test "the projection carries the declared priority over an earlier subjective row" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "prio-arm", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-09", day_window: "morning", arm_id: aid})
+  let first = apply_answer(tid, parse_chat_text("m:0.5"))
+  assert_eq(first, "moment")
+  let rows0 = trial_by_id(tid)
+  assert_eq(rows0[0].moment_source, "subjective")
+  // The linked device session closes later: the projection wins per
+  // ADR-0001; the subjective row REMAINS in response — nothing is lost.
+  let n = moment_spectral_write(tid, 0.73, 0.104)
+  assert_eq(n, 1.0)
+  let rows = trial_by_id(tid)
+  assert_eq(rows[0].moment_source, "spectral")
+  assert_eq(round(rows[0].moment_value * 100.0), 73.0)
+  let resp = query("SELECT details FROM response WHERE trial_id = ? AND kind = 'moment' ORDER BY id", [tid])
+  assert_eq(len(resp), 2.0)
+  assert_contains(resp[0].details, "telegram")
+  assert_contains(resp[1].details, "spectral")
 }
