@@ -94,6 +94,7 @@ mig_text = read(REPO + "/migrations/0001_init.sql")
 pins = [
     ("practice_session", "CREATE TABLE IF NOT EXISTS practice_session (id INTEGER"),
     ("sweep_result",     "CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER"),
+    ("practice_text",    "CREATE TABLE IF NOT EXISTS practice_text (id INTEGER"),
 ]
 for table, pin_a in pins:
     pin_m = "CREATE TABLE IF NOT EXISTS " + table + " ("
