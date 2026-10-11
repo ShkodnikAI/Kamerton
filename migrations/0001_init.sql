@@ -81,6 +81,25 @@ CREATE TABLE IF NOT EXISTS sweep_result (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- ── practice_text: the practice delivery of a proposal (Н2-09) ──────────
+-- One row per methodology group: the 10-minute instruction the morning
+-- proposal carries. The wave-1 gap (issue #63): the arm NAMES the
+-- protocol, but nothing told the owner what to actually do — the M1
+-- window burned every trial as a miss while the machine contour ran
+-- clean. Seeded idempotently by seed_arms (UNIQUE(group_name) +
+-- INSERT OR IGNORE), grounded in the same literature sources as the
+-- arms (Lehrer & Gevirtz 2014; Gollwitzer & Sheeran 2006 / Oettingen;
+-- Driskell, Copper & Moran 1994; Hendricks 2002 / Gendlin; Moszeik et
+-- al. 2022). The proposal joins practice_text by arm.group_name; a
+-- missing or empty row degrades LOUD to '(нет текста практики)'.
+CREATE TABLE IF NOT EXISTS practice_text (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_name TEXT,
+    body TEXT,
+    active INTEGER DEFAULT '1',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- ── arm: the hand library (Н1-04 seeds rows) ────────────────────────────
 CREATE TABLE IF NOT EXISTS arm (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

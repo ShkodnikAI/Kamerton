@@ -134,6 +134,7 @@ pattern ensure_schema() -> Unit {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS candidate (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, kind TEXT DEFAULT 'non_periodic', status TEXT DEFAULT 'candidate', stat_value REAL DEFAULT '0.0', threshold REAL DEFAULT '0.0', tested_at TEXT DEFAULT '', note TEXT DEFAULT '')", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_session (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT DEFAULT 'pacer', arm_id INTEGER REFERENCES arm(id), trial_id INTEGER REFERENCES trial(id), tempo_bpm REAL DEFAULT '0.0', steps_total INTEGER DEFAULT '0', steps_done INTEGER DEFAULT '0', step_marks TEXT DEFAULT '', rr_json TEXT DEFAULT '', rr_source TEXT DEFAULT '', session_date TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER REFERENCES practice_session(id), result_date TEXT DEFAULT '', resonance_bpm REAL DEFAULT '0.0', peak_freq_bpm REAL DEFAULT '0.0', power_fraction REAL DEFAULT '0.0', p_value REAL DEFAULT '1.0', steps_valid INTEGER DEFAULT '0', steps_total INTEGER DEFAULT '0', prev_resonance_bpm REAL DEFAULT '0.0', freq_delta_bpm REAL DEFAULT '0.0', share_ratio REAL DEFAULT '0.0', verdict TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_text (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
   ensure_indexes()
 }
 
@@ -670,6 +671,23 @@ pattern seed_arms() -> Float {
   db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('focusing-evening', 'Фокусинг', 'evening', 10, 0.45, 0.2)")
   db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-morning', 'Йога-нидра', 'morning', 10, 0.45, 0.2)")
   db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std) VALUES ('yoga-nidra-evening', 'Йога-нидра', 'evening', 10, 0.45, 0.2)")
+  // Н2-09: the practice DELIVERY — the proposal must tell what to do,
+  // not just name the hand (the M1-window gap: the trial asked for a
+  // prediction with no practice content anywhere). One 10-minute
+  // instruction per methodology group, grounded in the SAME literature
+  // sources as the arms above; the proposal joins this table by
+  // arm.group_name. Idempotent like the arm seed: UNIQUE(group_name)
+  // plus INSERT OR IGNORE. Loop-free by the D2 discipline (unrolled,
+  // like the arm seed above). The bodies carry no quote characters —
+  // the SQL literals stay plain; a missing or empty row degrades LOUD
+  // in the proposal (the NULLIF fallback, see morning_proposal_row).
+  db_execute("CREATE TABLE IF NOT EXISTS practice_text (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))")
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_practice_text_group_unique ON practice_text(group_name)")
+  db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Резонансное дыхание', 'Сядь ровно, таймер на 10 минут. Дыши через нос, медленно и ровно: вдох около 5 секунд, выдох около 5 секунд — примерно 5–6 циклов в минуту, без усилия. Живот мягко уходит вперёд на вдохе. Держи ровный ритм: сбился — спокойно возвращайся к счёту. Это резонансная зона 4.5–6.5 вдохов в минуту, на ней дыхание и сердечный ритм входят в синхрон (Lehrer и Gevirtz, 2014).')")
+  db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Имплементационные намерения', 'Бумага и ручка, 10 минут по четырём шагам. W — желание: запиши важное и реальное желание на ближайшие дни. O — исход: 2–3 минуты живо представляй лучший результат его достижения. O — препятствие: честно назови внутреннее, что чаще всего мешает. P — план: собери формулу «если у меня …, то я …», подставь своё препятствие и своё действие, повтори про себя 2–3 раза (Оэттинген; Голвитцер и Ширан, 2006).')")
+  db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Ментальная репетиция', 'Выбери конкретный навык или предстоящее действие: выступление, разговор, движение. Первые 1–2 минуты — вживись в обстановку: где, что вокруг, кто рядом. Затем проиграй действие от начала до конца изнутри, своими глазами, в реальном темпе. Трудное место пройди отдельно 2–3 раза в исправленном варианте. Финал — одна уверенная полная прогонка без остановок. Репетиция дополняет физическую практику, а не заменяет её (Driskell, Copper и Moran, 1994).')")
+  db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Фокусинг', 'Сядь удобно, 10 минут. Минута: пройди вниманием по телу — где сейчас самое заметное ощущение. 2–3 минуты: не меняй его, просто признай — здравствуй, я тебя вижу. Спроси внутри: о чём это? Не отвечай умом — жди телесного отклика, каким бы медленным он ни был. Всё, что придёт, признай без спора. Закончи вопросом: чего тебе нужно? — и спокойно выходи. Здесь ничего не надо добиваться: важно только присутствие внимания (Gendlin; Hendricks, 2002).')")
+  db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Йога-нидра', 'Ляг на спину, руки чуть в стороны, глаза закрыты — держи лёгкую бодрость, не засыпай. Короткое намерение в настоящем времени, своими словами. Затем медленно пройди вниманием по телу: правая рука, левая рука, ноги, туловище, лицо. Дальше пары ощущений: тяжесть — лёгкость, тепло — прохлада. Потом просто наблюдай дыхание, не считая. В конце повтори намерение и сделай 2–3 глубоких вдоха, вставай медленно. Сжатая форма на 10 минут (Moszeik и соавт., 2022).')")
   let rows = query("SELECT count(*) AS n FROM arm", [])
   return rows[0].n
 }
@@ -810,18 +828,22 @@ pattern parse_chat_text(raw_text: String) -> Struct {
 
 // The morning proposal message. Every dynamic fragment passes
 // escape_html — the acceptance row: DB output never reaches the chat
-// raw.
-pattern format_proposal(arm_name: String, note_body: String) -> String {
-  return "Проба дня: " + escape_html(arm_name) + ". Нота: " + escape_html(note_body) + ". Ответь предсказанием: p:0..1"
+// raw. Н2-09: the practice body is a third fragment — the proposal
+// must tell what to do, not just name the hand.
+pattern format_proposal(arm_name: String, practice_body: String, note_body: String) -> String {
+  return "Проба дня: " + escape_html(arm_name) + ".\nПрактика: " + escape_html(practice_body) + "\nНота: " + escape_html(note_body) + ".\nОтветь предсказанием: p:0..1"
 }
 
-// The morning proposal row: arm name + optional note body. SQL NULL
-// from the LEFT JOIN materializes as Unit on 0.30.0 (probe-pinned,
-// Н2-01) — escape_html would fail-closed [TYPE_MISMATCH] inside the
-// first seeded proposal (the body would not be a String), so the
-// body is COALESCEd to a String here.
+// The morning proposal row: arm name + optional note body + the group
+// practice text. SQL NULL from the LEFT JOIN materializes as Unit on
+// 0.30.0 (probe-pinned, Н2-01) — escape_html would fail-closed
+// [TYPE_MISMATCH] inside the first seeded proposal (the body would not
+// be a String), so the note is COALESCEd to a String here. Н2-09: the
+// practice text joins by arm.group_name; a missing or empty row
+// degrades LOUD to «(нет текста практики)» — NULLIF lifts the empty
+// string into the same COALESCE fallback, never a silent blank.
 pattern morning_proposal_row(tid: Float) -> List {
-  return query("SELECT a.name, COALESCE(n.body, '') AS body FROM trial t JOIN arm a ON a.id = t.arm_id LEFT JOIN note n ON n.id = t.note_id WHERE t.id = ?", [tid])
+  return query("SELECT a.name, COALESCE(n.body, '') AS body, COALESCE(NULLIF(p.body, ''), '(нет текста практики)') AS practice FROM trial t JOIN arm a ON a.id = t.arm_id LEFT JOIN note n ON n.id = t.note_id LEFT JOIN practice_text p ON p.group_name = a.group_name WHERE t.id = ?", [tid])
 }
 
 // The evening report message.
@@ -899,9 +921,11 @@ test "parse_chat_text: the p:/m:/note protocol" {
 }
 
 test "format_proposal and format_report escape every dynamic fragment" {
-  let msg = format_proposal("<b>arm</b>", "note & \"quote\"")
+  let msg = format_proposal("<b>arm</b>", "<i>practice</i>", "note & \"quote\"")
   assert_contains(msg, "&lt;b&gt;arm&lt;/b&gt;")
+  assert_contains(msg, "&lt;i&gt;practice&lt;/i&gt;")
   assert_contains(msg, "note &amp; &quot;quote&quot;")
+  assert_contains(msg, "\nПрактика: ")
   let rep = format_report(1.0, 2.0, 3.0, 4.0)
   assert_contains(rep, "предсказаний 3")
   assert_contains(rep, "закрыто пропуском 2")
@@ -919,8 +943,12 @@ test "morning proposal row: a missing note stays a String (Н2-01 regression)" {
   assert_eq(len(pr), 1.0)
   assert_eq(pr[0].body, "")
   // must not fail-closed [TYPE_MISMATCH] on a missing note
-  let msg = format_proposal(pr[0].name, pr[0].body)
+  let msg = format_proposal(pr[0].name, pr[0].practice, pr[0].body)
   assert_contains(msg, "Проба дня: n2-01-arm")
+  // Н2-09: the seed has not run in this scratch db, so the group has
+  // no practice row — the fallback is LOUD, never a silent blank.
+  assert_eq(pr[0].practice, "(нет текста практики)")
+  assert_contains(msg, "Практика: (нет текста практики)")
 }
 
 
@@ -937,6 +965,19 @@ test "seed_arms seeds exactly the ten canonical arms (Н2-01 restoration)" {
   assert_eq(rows[0].n, 10.0)
   let dup = query("SELECT count(*) AS n FROM (SELECT name FROM arm GROUP BY name HAVING count(*) > 1)", [])
   assert_eq(dup[0].n, 0.0)
+}
+
+test "proposal row carries the practice text of the arm group (Н2-09)" {
+  // The full live path on the seeded library: propose → join → the
+  // practice body of the winner's group arrives in the row, byte-equal
+  // to the seeded text (the join key is group_name, not the arm name).
+  ensure_schema()
+  let _ = seed_arms()
+  let tid = bandit_propose("2031-03-09", 1893456000.0)
+  let pr = morning_proposal_row(tid)
+  assert_eq(len(pr), 1.0)
+  let pair = query("SELECT p.body AS b FROM trial t JOIN arm a ON a.id = t.arm_id JOIN practice_text p ON p.group_name = a.group_name WHERE t.id = ?", [tid])
+  assert_eq(pr[0].practice, pair[0].b)
 }
 
 test "get_updates_url carries the offset and the long-poll timeout" {
