@@ -66,7 +66,7 @@ sudo bash deploy/install.sh
 Инсталлятор делает: `/data/kamerton` (700, владелец — твой пользователь);
 `/data/kamerton/env` (600: пустые `KAMERTON_TG_TOKEN` и `KAMERTON_CHAT_ID`,
 путь к базе, `KAMERTON_TZ_OFFSET=3`, `METALOGOS_ENV_ALLOWLIST` — выводится
-из `deploy/env.allowlist`); бинарник `mlog v0.30.0` с проверкой SHA256;
+из `deploy/env.allowlist`); бинарник `mlog v0.32.0` с проверкой SHA256;
 `app.mlog` (пока Н1-06 не смержен — ставится `deploy/smoke.mlog`
 заглушкой); `backup.sh`; `sqlite3`; systemd-юниты с подстановкой твоего
 пользователя в `User=`; enable + старт.
