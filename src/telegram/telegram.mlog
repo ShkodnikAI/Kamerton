@@ -494,12 +494,20 @@ pattern setup_register() -> Unit {
   let morning = cron_expr_for(420.0, off)
   let evening = cron_expr_for(120.0, off)
   let jobs = cron_list()
+  // №706 (mlog 0.33.1): cron_list rows flow as private (prompt/payload
+  // are user-authored content — the №689 whole-struct fail-closed
+  // posture), and cron_remove/cron_run are decision sinks (№391) — the
+  // id takes the sanctioned redact bridge: redact(id,
+  // "secrets") sheds the label and passes the id string through
+  // unchanged (probe-pinned on 0.33.1: real ids are "cron_<ts>_<n>"
+  // strings, the value survives byte-exact); the
+  // derived count in the summary print rides the escape_html bridge.
   each j in jobs {
     if j.prompt == "tg_morning_tick" and j.cron_expr != morning {
-      let _ = cron_remove(j.id)
+      let _ = cron_remove(redact(j.id, "secrets"))
     }
     if j.prompt == "tg_evening_tick" and j.cron_expr != evening {
-      let _ = cron_remove(j.id)
+      let _ = cron_remove(redact(j.id, "secrets"))
     }
   }
   let add_m = has_job(morning, "tg_morning_tick") == false
@@ -517,7 +525,7 @@ pattern setup_register() -> Unit {
   // this suite stays green either way). The registration log is therefore
   // ONE flat summary print — the shape rig-validated clean on the full
   // setup_register body (m7full: 3/3 first-hit clean on an empty store).
-  print("[telegram] cron setup: morning=" + morning + " evening=" + evening + " jobs=" + to_string(len(cron_list())))
+  print("[telegram] cron setup: morning=" + morning + " evening=" + evening + " jobs=" + escape_html(to_string(len(cron_list()))))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
@@ -1133,7 +1141,8 @@ test "has_job and setup_register: idempotent registration" {
   let pre = cron_list()
   each pj in pre {
     if pj.prompt == "tg_morning_tick" or pj.prompt == "tg_evening_tick" {
-      let _ = cron_remove(pj.id)
+      // №706: the id flows private (whole-struct posture) — redact bridge.
+      let _ = cron_remove(redact(pj.id, "secrets"))
     }
   }
   let off = 3.0
