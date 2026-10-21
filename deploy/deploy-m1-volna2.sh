@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kamerton M1 wave-2 deploy driver (Н2-08 + Н2-09 + mlog v0.33.1 pin, PR #68).
+# Kamerton M1 wave-2 deploy driver (Н2-08 + Н2-09 + mlog v0.33.2 pin, PR #68).
 #
 # One-shot: stop-crane -> backup -> pull -> install.sh -> env -> restart ->
 # live checks -> backup. Made for the owner running from PowerShell:
@@ -14,7 +14,10 @@
 # can be 5 or 6 depending on how the env file was born).
 set -euo pipefail
 
-EXPECTED_HEAD="60c2151bee04fbed9ee50c3d03bd72358720c69a"   # PR #68 squash on main
+# Минимально известный хороший main (PR #68). Сверка — через ancestor:
+# после будущих squash-мержей EXPECTED_HEAD остаётся предком HEAD, вопрос
+# владельцу задаётся только если сервер стоит на ЧУЖОЙ ветке/старом состоянии.
+EXPECTED_HEAD="60c2151bee04fbed9ee50c3d03bd72358720c69a"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DATA_DIR=/data/kamerton
 ENV_FILE="$DATA_DIR/env"
@@ -54,19 +57,20 @@ step "3/9 код: pull --ff-only"
 git -C "$REPO_DIR" fetch origin
 git -C "$REPO_DIR" pull --ff-only origin main
 HEAD_NOW="$(git -C "$REPO_DIR" rev-parse HEAD)"
-if [ "$HEAD_NOW" != "$EXPECTED_HEAD" ]; then
-  echo "ВНИМАНИЕ: HEAD $HEAD_NOW != ожидаемого $EXPECTED_HEAD"
-  echo "  (в main мог появиться коммит новее этого скрипта)"
+if git -C "$REPO_DIR" merge-base --is-ancestor "$EXPECTED_HEAD" "$HEAD_NOW" 2>/dev/null; then
+  echo "ok: HEAD $HEAD_NOW (содержит ожидаемый $EXPECTED_HEAD)"
+else
+  echo "ВНИМАНИЕ: HEAD $HEAD_NOW НЕ содержит ожидаемого $EXPECTED_HEAD"
+  echo "  (сервер стоит на чужой ветке или устаревшем состоянии)"
   read -r -p "продолжить деплой на $HEAD_NOW? [y/N] " ans
   [ "$ans" = "y" ] || die "остановлено владельцем"
 fi
-echo "ok: HEAD $HEAD_NOW"
 
 # --- 4/9 install.sh ---------------------------------------------------------
-step "4/9 install.sh (mlog v0.33.1 + свежий app.mlog + юниты)"
+step "4/9 install.sh (mlog v0.33.2 + свежий app.mlog + юниты)"
 sudo bash "$REPO_DIR/deploy/install.sh"
-mlog --version 2>/dev/null | grep -q "0.33.1" || die "mlog --version не показал 0.33.1 после install.sh"
-echo "ok: mlog на 0.33.1"
+mlog --version 2>/dev/null | grep -q "0.33.2" || die "mlog --version не показал 0.33.2 после install.sh"
+echo "ok: mlog на 0.33.2"
 
 # --- 5/9 env ---------------------------------------------------------------
 step "5/9 env: KAMERTON_MINIAPP_TOKEN + allowlist"
