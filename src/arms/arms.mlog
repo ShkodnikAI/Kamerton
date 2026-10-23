@@ -101,6 +101,15 @@ pattern seed_arms() -> Float {
   db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Ментальная репетиция', 'Выбери конкретный навык или предстоящее действие: выступление, разговор, движение. Первые 1–2 минуты — вживись в обстановку: где, что вокруг, кто рядом. Затем проиграй действие от начала до конца изнутри, своими глазами, в реальном темпе. Трудное место пройди отдельно 2–3 раза в исправленном варианте. Финал — одна уверенная полная прогонка без остановок. Репетиция дополняет физическую практику, а не заменяет её (Driskell, Copper и Moran, 1994).')")
   db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Фокусинг', 'Сядь удобно, 10 минут. Минута: пройди вниманием по телу — где сейчас самое заметное ощущение. 2–3 минуты: не меняй его, просто признай — здравствуй, я тебя вижу. Спроси внутри: о чём это? Не отвечай умом — жди телесного отклика, каким бы медленным он ни был. Всё, что придёт, признай без спора. Закончи вопросом: чего тебе нужно? — и спокойно выходи. Здесь ничего не надо добиваться: важно только присутствие внимания (Gendlin; Hendricks, 2002).')")
   db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Йога-нидра', 'Ляг на спину, руки чуть в стороны, глаза закрыты — держи лёгкую бодрость, не засыпай. Короткое намерение в настоящем времени, своими словами. Затем медленно пройди вниманием по телу: правая рука, левая рука, ноги, туловище, лицо. Дальше пары ощущений: тяжесть — лёгкость, тепло — прохлада. Потом просто наблюдай дыхание, не считая. В конце повтори намерение и сделай 2–3 глубоких вдоха, вставай медленно. Сжатая форма на 10 минут (Moszeik и соавт., 2022).')")
+  // Н2-12: the note-goal — ONE row, the owner's formulation VERBATIM
+  // from the concept (docs/concept-v2.md, «Нота и принцип»); the fixed
+  // id keeps the seed idempotent (INSERT OR IGNORE) across re-runs and
+  // the formulation is the OWNER's text, not the executor's invention
+  // (the naryad Шаг 0 defers the wording to the owner — the concept's
+  // own sentence IS the owner's wording). bandit_propose joins the
+  // trial to the ACTIVE note (the latest active row), so a future
+  // re-wording is a data edit, never a code change.
+  db_execute("INSERT OR IGNORE INTO note (id, body, active) VALUES (1, 'Между тем, чего я хочу, и тем, что я делаю, нет зазора — и это видно по результату.', 1)")
   let rows = query("SELECT count(*) AS n FROM arm", [])
   return rows[0].n
 }
