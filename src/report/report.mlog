@@ -88,6 +88,8 @@ schema kamerton {
   }
 }
 
+// ── APP-MIRROR-START: honesty-report-core (byte-identical to
+//    src/report/report.mlog §honesty-report-core) ─────────────────────
 // ── The honesty math ──────────────────────────────────────────────────
 
 // The bandit side: every completed trial is a bandit pick with its
@@ -195,6 +197,7 @@ pattern honesty_report_cli() -> Float {
 pattern honesty_report_chat() -> String {
   return escape_html(honesty_report_text())
 }
+// ── APP-MIRROR-END: honesty-report-core ──────────────────────────────
 
 // ── Tests ─────────────────────────────────────────────────────────────
 

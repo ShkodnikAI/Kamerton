@@ -122,6 +122,8 @@ schema kamerton {
   }
 }
 
+// ── APP-MIRROR-START: context-core (byte-identical to
+//    src/context/context.mlog §context-core) ─────────────────────────
 // ── Moon arithmetic (synodic, no external libraries) ──────────────────
 
 entity MOON_EPOCH: Float = 947182440.0
@@ -205,6 +207,7 @@ pattern read_context(trial_id: Float) -> String {
   let rows = query("SELECT trial_id, moon_phase, weather, sound_mode, sleep_quality, logged_at FROM context WHERE trial_id = ?", [trial_id])
   return rows[0].moon_phase + "|sleep_quality=" + to_string(rows[0].sleep_quality) + "|weather=" + rows[0].weather + "|sound_mode=" + rows[0].sound_mode + "|logged_at=" + rows[0].logged_at
 }
+// ── APP-MIRROR-END: context-core ─────────────────────────────────────
 
 // ── Tests (no loops; the 12 moon pins are sequential asserts) ─────────
 
