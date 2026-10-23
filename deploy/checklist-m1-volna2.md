@@ -91,9 +91,17 @@ allowlist; scheduler active; счётчик маршрутов вырос про
 
 ## 5. Телеграм-контур: Н2-01 не откатился, Н2-08 жив, Н2-09 доставляет практику
 
+- [ ] (Н2-10) В `/data/kamerton/env` есть `TELEGRAM_BOT_TOKEN=` (тот же токен,
+      что и `KAMERTON_TG_TOKEN`) и `KAMERTON_TZ_OFFSET`; существующий env
+      install.sh не перезаписывает — дописать руками и перезапустить сервис.
+      Снять факты для наряда #71: `date; timedatectl` и
+      `sqlite3 /data/kamerton/kamerton.db "SELECT trial_date, status, prediction_depth, moment_present FROM trial ORDER BY id DESC LIMIT 20; SELECT count(*) FROM response;"`.
 - [ ] Следующий утренний тик прислал пробу дня (формат: имя руки +
       строка «Практика: …» с текстом протокола группы — Н2-09;
       пустая «Нота: .» — норма, note_id в tg-контуре не проставляется).
+- [ ] Ответ владельца до 02:00 следующих суток превращается в
+      `status='completed'` (поле `moment_present=1`) после вечернего тика;
+      позже 02:00 — нет, окно пробы закрыто.
 - [ ] Ответить `p:...` — прямого подтверждения бот **не шлёт** (по коду
       send_message живёт только в пробе и отчёте); подтверждение —
       счётчики вечернего отчёта: «предсказаний ≥ 1».
@@ -104,7 +112,7 @@ allowlist; scheduler active; счётчик маршрутов вырос про
 curl -s http://127.0.0.1:8461/fire              # ← 200 fired
 sqlite3 /data/kamerton/kamerton.db \
   "SELECT trial_date, count(*) AS n FROM trial GROUP BY trial_date ORDER BY trial_date DESC LIMIT 2;"
-# ← верхняя дата = сегодня (по local_iso_date сервера), n = 1, сколько бы /fire ни было
+# ← верхняя дата = сегодня (по `owner_date` с `KAMERTON_TZ_OFFSET`, не по поясу системы), n = 1, сколько бы /fire ни было
 ```
 
 ## 6. Туннель Tailscale (ADR-0002, вариант (а)) — разовая настройка

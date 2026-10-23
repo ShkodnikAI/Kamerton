@@ -46,13 +46,14 @@ if [ ! -f "${DATA_DIR}/env" ]; then
     umask 077
     cat > "${DATA_DIR}/env" <<ENV
 KAMERTON_TG_TOKEN=
+TELEGRAM_BOT_TOKEN=
 KAMERTON_CHAT_ID=
 KAMERTON_DB=${DATA_DIR}/kamerton.db
 KAMERTON_TZ_OFFSET=3
 METALOGOS_ENV_ALLOWLIST=${ALLOWLIST}
 ENV
     chown "${RUN_AS}:${RUN_AS}" "${DATA_DIR}/env"
-    echo "      -> put KAMERTON_TG_TOKEN and KAMERTON_CHAT_ID into ${DATA_DIR}/env"
+    echo "      -> put KAMERTON_TG_TOKEN, TELEGRAM_BOT_TOKEN (the same bot token — send_message reads it from the process env) and KAMERTON_CHAT_ID into ${DATA_DIR}/env"
   fi
 else
   echo "      -> exists, left untouched"
@@ -122,6 +123,9 @@ if [ "${DRY_RUN}" != "1" ]; then
   systemctl list-timers kamerton-backup.timer --no-pager || true
   if ! grep -q '^KAMERTON_TG_TOKEN=.\+' "${DATA_DIR}/env" 2>/dev/null; then
     echo "install: KAMERTON_TG_TOKEN is empty — the Telegram cycle will fail loudly until it is filled in" >&2
+  fi
+  if ! grep -q '^TELEGRAM_BOT_TOKEN=.\+' "${DATA_DIR}/env" 2>/dev/null; then
+    echo "install: TELEGRAM_BOT_TOKEN is empty/missing — send_message degrades to the [AUDIT] stub and nothing reaches the chat" >&2
   fi
 fi
 

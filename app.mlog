@@ -413,7 +413,12 @@ pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float
 }
 // ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
 
-pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, local_date: String<public, trusted>, offset: Float) -> Unit {
+pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float) -> Unit {
+  // Н2-10: an answer belongs to the trial of the window its MESSAGE fell
+  // into (message.date, the Telegram server clock), not to the window of
+  // the tick that happens to drain it; a message without a date falls
+  // back to the tick moment. The close threshold is the end of the window
+  // (window_date of now), so an early manual /fire never closes a live trial.
   // The D2-family posture: the drain is a BARE each (db effects inside
   // the loop are the m0_row-proven shape), every diagnostic lives in
   // counters, ONE summary print after the loop. The chat filter
@@ -430,7 +435,11 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
       let text = json_get(u, "message.text", "")
       if escape_html(text) != "" {
         let ans = parse_chat_text(text)
-        let open = last_proposed_trial(local_date)
+        let mut msg_ts = json_get(u, "message.date", 0.0)
+        if msg_ts <= 0.0 {
+          msg_ts = now_ts
+        }
+        let open = last_proposed_trial(window_date(msg_ts, tz_offset_hours))
         if len(open) > 0.0 {
           let tid = open[0].id
           let applied = apply_answer(tid, ans)
@@ -466,7 +475,7 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
       let _ = kv_set("tg_offset", to_string(next_offset))
     }
   }
-  let closed = close_stale_misses(local_date)
+  let closed = close_stale_misses(window_date(now_ts, tz_offset_hours))
   let _ = send_message(chat_id, format_report(processed, closed, predictions, moments))
   print("[telegram] drain: processed=" + to_string(processed) + " closed=" + to_string(closed) + " predictions=" + to_string(predictions) + " moments=" + to_string(moments) + " skipped=" + to_string(skipped))
 }
@@ -774,21 +783,22 @@ pattern miniapp_session_get(sid: Float) -> List {
 // ── APP-MIRROR-START: telegram-core (byte-identical to
 //    src/telegram/telegram.mlog §telegram-core) ────────────────────────
 
-// Local wall-clock date of a unix timestamp, "YYYY-MM-DD" — the trial
-// date is the OWNER's date, not UTC's (the 02:00 close already lives
-// in the next local day). date_parts is chrono::Local-based
-// (probe-pinned); the assembly is manual zero-padded.
-pattern local_iso_date(unix_ts: Float) -> String {
-  let p = date_parts(unix_ts)
-  let mut mo = to_string(p.month)
-  if p.month < 10.0 {
-    mo = "0" + mo
-  }
-  let mut dd = to_string(p.day)
-  if p.day < 10.0 {
-    dd = "0" + dd
-  }
-  return to_string(p.year) + "-" + mo + "-" + dd
+// The OWNER's calendar date of a unix timestamp, "YYYY-MM-DD" (Н2-10):
+// pure UTC arithmetic over an explicit offset (hours, local = UTC +
+// offset, the same KAMERTON_TZ_OFFSET semantics the cron expressions
+// use). The system time zone of the process is NEVER consulted —
+// date_format_iso is UTC (probe-pinned under TZ=UTC/Moscow/New_York) —
+// so the trial date, the tick and the cron schedule share ONE clock.
+pattern owner_date(unix_ts: Float, tz_offset_hours: Float) -> String {
+  return substring(date_format_iso(unix_ts + tz_offset_hours * 3600.0), 0, 10)
+}
+
+// The acceptance-window date: the window of the trial of day D lasts
+// until 02:00 of D+1 (the evening tick), so the window date is the
+// owner's date of (moment - 2 h). 01:00 D+1 belongs to D; 03:30 D+1
+// belongs to D+1, whose trial may not exist yet.
+pattern window_date(unix_ts: Float, tz_offset_hours: Float) -> String {
+  return owner_date(unix_ts - 7200.0, tz_offset_hours)
 }
 
 // Fold local wall-clock minutes to the UTC cron expression for a fixed
@@ -916,7 +926,7 @@ pattern tg_morning_tick() -> Unit {
   let token = env_or("KAMERTON_TG_TOKEN", "")
   let chat_id = env_or("KAMERTON_CHAT_ID", "")
   if token != "" and chat_id != "" {
-    let today = local_iso_date(now_unix())
+    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
     let tid = bandit_propose(today, now_unix())
     let mut msg = "Библиотека пуста — предложение не сформировано (громкий ноль бандита)"
     if tid != 0.0 {
@@ -943,10 +953,9 @@ pattern tg_evening_tick() -> Unit {
   let token = env_or("KAMERTON_TG_TOKEN", "")
   let chat_id = env_or("KAMERTON_CHAT_ID", "")
   if token != "" and chat_id != "" {
-    let today = local_iso_date(now_unix())
     let offset = to_float_or(kv_get("tg_offset"), 0.0)
     let updates = fetch_updates(token, offset)
-    process_updates(updates, chat_id, today, offset)
+    process_updates(updates, chat_id, now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")), offset)
   }
   if token == "" or chat_id == "" {
     print("[telegram] KAMERTON_TG_TOKEN/KAMERTON_CHAT_ID not set — evening tick refuses loudly")
@@ -1042,7 +1051,7 @@ mlogserver {
     if tempo < 0.0 or steps < 0.0 {
       return respond_html_status("400 Bad Request", "tempo_bpm/steps_total: ожидается число не меньше 0")
     }
-    let sid = miniapp_session_open(kind, tempo, steps, local_iso_date(now_unix()), to_float_or(escape_html(query_param("arm_id")), 0.0), to_float_or(escape_html(query_param("trial_id")), 0.0))
+    let sid = miniapp_session_open(kind, tempo, steps, owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0"))), to_float_or(escape_html(query_param("arm_id")), 0.0), to_float_or(escape_html(query_param("trial_id")), 0.0))
     return respond("200 {\"id\":" + escape_html(to_string(sid)) + "}")
   }
   route "/miniapp/session/close" method=POST {
@@ -1091,7 +1100,7 @@ mlogserver {
         if rows[0].kind == "sweep" {
           let res = sweep_analyze(rows[0].step_marks)
           if res.ok == true {
-            let rec = sweep_record(sid, res, local_iso_date(now_unix()))
+            let rec = sweep_record(sid, res, owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0"))))
             // Н2-07: the accepted run fixes the LINKED trial's moment by
             // the spectral source — the winner's power fraction is the
             // honest resonance measure (ADR-0001 priority).

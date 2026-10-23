@@ -413,7 +413,12 @@ pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float
 }
 // ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
 
-pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, local_date: String<public, trusted>, offset: Float) -> Unit {
+pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float) -> Unit {
+  // Н2-10: an answer belongs to the trial of the window its MESSAGE fell
+  // into (message.date, the Telegram server clock), not to the window of
+  // the tick that happens to drain it; a message without a date falls
+  // back to the tick moment. The close threshold is the end of the window
+  // (window_date of now), so an early manual /fire never closes a live trial.
   // The D2-family posture: the drain is a BARE each (db effects inside
   // the loop are the m0_row-proven shape), every diagnostic lives in
   // counters, ONE summary print after the loop. The chat filter
@@ -430,7 +435,11 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
       let text = json_get(u, "message.text", "")
       if escape_html(text) != "" {
         let ans = parse_chat_text(text)
-        let open = last_proposed_trial(local_date)
+        let mut msg_ts = json_get(u, "message.date", 0.0)
+        if msg_ts <= 0.0 {
+          msg_ts = now_ts
+        }
+        let open = last_proposed_trial(window_date(msg_ts, tz_offset_hours))
         if len(open) > 0.0 {
           let tid = open[0].id
           let applied = apply_answer(tid, ans)
@@ -466,7 +475,7 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
       let _ = kv_set("tg_offset", to_string(next_offset))
     }
   }
-  let closed = close_stale_misses(local_date)
+  let closed = close_stale_misses(window_date(now_ts, tz_offset_hours))
   let _ = send_message(chat_id, format_report(processed, closed, predictions, moments))
   print("[telegram] drain: processed=" + to_string(processed) + " closed=" + to_string(closed) + " predictions=" + to_string(predictions) + " moments=" + to_string(moments) + " skipped=" + to_string(skipped))
 }
@@ -774,21 +783,22 @@ pattern miniapp_session_get(sid: Float) -> List {
 // ── APP-MIRROR-START: telegram-core (byte-identical to
 //    src/telegram/telegram.mlog §telegram-core) ────────────────────────
 
-// Local wall-clock date of a unix timestamp, "YYYY-MM-DD" — the trial
-// date is the OWNER's date, not UTC's (the 02:00 close already lives
-// in the next local day). date_parts is chrono::Local-based
-// (probe-pinned); the assembly is manual zero-padded.
-pattern local_iso_date(unix_ts: Float) -> String {
-  let p = date_parts(unix_ts)
-  let mut mo = to_string(p.month)
-  if p.month < 10.0 {
-    mo = "0" + mo
-  }
-  let mut dd = to_string(p.day)
-  if p.day < 10.0 {
-    dd = "0" + dd
-  }
-  return to_string(p.year) + "-" + mo + "-" + dd
+// The OWNER's calendar date of a unix timestamp, "YYYY-MM-DD" (Н2-10):
+// pure UTC arithmetic over an explicit offset (hours, local = UTC +
+// offset, the same KAMERTON_TZ_OFFSET semantics the cron expressions
+// use). The system time zone of the process is NEVER consulted —
+// date_format_iso is UTC (probe-pinned under TZ=UTC/Moscow/New_York) —
+// so the trial date, the tick and the cron schedule share ONE clock.
+pattern owner_date(unix_ts: Float, tz_offset_hours: Float) -> String {
+  return substring(date_format_iso(unix_ts + tz_offset_hours * 3600.0), 0, 10)
+}
+
+// The acceptance-window date: the window of the trial of day D lasts
+// until 02:00 of D+1 (the evening tick), so the window date is the
+// owner's date of (moment - 2 h). 01:00 D+1 belongs to D; 03:30 D+1
+// belongs to D+1, whose trial may not exist yet.
+pattern window_date(unix_ts: Float, tz_offset_hours: Float) -> String {
+  return owner_date(unix_ts - 7200.0, tz_offset_hours)
 }
 
 // Fold local wall-clock minutes to the UTC cron expression for a fixed
@@ -897,13 +907,26 @@ pattern fetch_updates(token: String, offset: Float) -> List {
 
 // ── Tests (the pure core, network-free) ───────────────────────────────
 
-test "local_iso_date is zero-padded and date-keyed" {
-  let d = local_iso_date(1791331200.0)
-  assert_eq(len(d), 10.0)
-  assert_eq(char_at(d, 4), "-")
-  assert_eq(char_at(d, 7), "-")
-  let yesterday = date_format_iso(date_parse_iso(d) - 86400.0)
-  assert_eq(len(substring(yesterday, 0, 10)), 10.0)
+test "owner_date: owner calendar date at the day boundary, any offset" {
+  // 1791331200 = 2026-10-07T00:00:00Z. The system zone is never read.
+  assert_eq(owner_date(1791331200.0, 0.0), "2026-10-07")
+  assert_eq(owner_date(1791331200.0 - 10800.0 - 1.0, 3.0), "2026-10-06")
+  assert_eq(owner_date(1791331200.0 - 10800.0, 3.0), "2026-10-07")
+  assert_eq(owner_date(1791331200.0 + 18000.0 - 1.0, -5.0), "2026-10-06")
+  assert_eq(owner_date(1791331200.0 + 18000.0, -5.0), "2026-10-07")
+  assert_eq(owner_date(1791331200.0 - 19800.0 - 1.0, 5.5), "2026-10-06")
+  assert_eq(owner_date(1791331200.0 - 19800.0, 5.5), "2026-10-07")
+}
+
+test "window_date: 01:00 of D+1 belongs to D, 03:30 of D+1 to D+1" {
+  // owner offset +3: 2026-10-07 owner 21:00 = 18:00Z
+  assert_eq(window_date(1791331200.0 + 64800.0, 3.0), "2026-10-07")
+  // 00:30 owner D+1 = 21:30Z of D
+  assert_eq(window_date(1791331200.0 + 77400.0, 3.0), "2026-10-07")
+  // 02:00 owner D+1 = 23:00Z of D: the window has just closed
+  assert_eq(window_date(1791331200.0 + 82800.0, 3.0), "2026-10-08")
+  // 03:30 owner D+1 = 00:30Z of D+1
+  assert_eq(window_date(1791331200.0 + 88200.0, 3.0), "2026-10-08")
 }
 
 test "cron_expr_for folds local minutes to UTC (MSK and fractional)" {
@@ -1111,7 +1134,7 @@ test "close_stale_misses flips only the stale proposed rows" {
 test "process_updates with an empty batch: silent drain, offset untouched" {
   ensure_schema()
   kv_set("tg_offset", "7")
-  let _ = process_updates([], "777", "2026-10-06", 7.0)
+  let _ = process_updates([], "777", 1791414000.0, 3.0, 7.0)
   assert_eq(to_float(kv_get("tg_offset")), 7.0)
 }
 
@@ -1123,7 +1146,9 @@ test "process_updates drains a fake batch end-to-end (no network)" {
   let tid = db_insert("trial", {trial_date: d, day_window: "morning", arm_id: aid, note_id: nid})
   let doc = parse_json("{\"result\":[{\"update_id\":900,\"message\":{\"chat\":{\"id\":777},\"text\":\"p:0.4\"}},{\"update_id\":901,\"message\":{\"chat\":{\"id\":777},\"text\":\"m:0.9\"}},{\"update_id\":902,\"message\":{\"chat\":{\"id\":999},\"text\":\"foreign\"}}]}")
   let updates = json_get(doc, "result", [])
-  let _ = process_updates(updates, "777", d, 0.0)
+  // no message.date in this batch: the tick moment is the fallback
+  // (owner offset 0, tick at 10:00 of the trial day)
+  let _ = process_updates(updates, "777", date_parse_iso(d) + 36000.0, 0.0, 0.0)
   assert_eq(to_float(kv_get("tg_offset")), 903.0)
   let open_rows = trial_by_id(tid)
   assert_eq(open_rows[0].prediction_depth, 0.4)
@@ -1134,6 +1159,82 @@ test "process_updates drains a fake batch end-to-end (no network)" {
   let resp_rows = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
   assert_eq(resp_rows[0].n, 1.0)
   assert_eq(open_rows[0].status, "completed")
+}
+
+// Н2-10: trial of owner day D = 2026-10-07 (offset +3). The dates of the
+// trial, of the messages and of the tick are all DIFFERENT, so a return to
+// the tick date (or to "now" for binding) turns these red.
+// owner times as UTC seconds: 21:00 D = 1791396000, 00:30 D+1 = 1791408600,
+// tick 02:00 D+1 = 1791414000, 03:30 D+1 = 1791419400.
+
+test "Н2-10 (a): answers at 21:00 D and 00:30 D+1, tick 02:00 D+1 -> completed" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "h210-a", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-07", day_window: "morning", arm_id: aid})
+  let nxt = db_insert("trial", {trial_date: "2026-10-08", day_window: "morning", arm_id: aid})
+  let doc = parse_json("{\"result\":[{\"update_id\":10,\"message\":{\"date\":1791396000,\"chat\":{\"id\":777},\"text\":\"p:0.4\"}},{\"update_id\":11,\"message\":{\"date\":1791408600,\"chat\":{\"id\":777},\"text\":\"m:0.9\"}}]}")
+  let _ = process_updates(json_get(doc, "result", []), "777", 1791414000.0, 3.0, 0.0)
+  let r = trial_by_id(tid)
+  assert_eq(r[0].prediction_depth, 0.4)
+  assert_eq(r[0].moment_value, 0.9)
+  assert_eq(r[0].status, "completed")
+  let n = trial_by_id(nxt)
+  assert_eq(n[0].status, "proposed")
+  assert_eq(n[0].moment_present, 0.0)
+}
+
+test "Н2-10 (b): no answer, tick 02:00 D+1 -> D missed, D+1 untouched" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "h210-b", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-07", day_window: "morning", arm_id: aid})
+  let nxt = db_insert("trial", {trial_date: "2026-10-08", day_window: "morning", arm_id: aid})
+  let _ = process_updates([], "777", 1791414000.0, 3.0, 0.0)
+  let r = trial_by_id(tid)
+  assert_eq(r[0].status, "missed")
+  let n = trial_by_id(nxt)
+  assert_eq(n[0].status, "proposed")
+}
+
+test "Н2-10 (c): a call inside the window (21:00 D) applies, never closes" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "h210-c", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-07", day_window: "morning", arm_id: aid})
+  let doc = parse_json("{\"result\":[{\"update_id\":20,\"message\":{\"date\":1791396000,\"chat\":{\"id\":777},\"text\":\"p:0.4\"}}]}")
+  let _ = process_updates(json_get(doc, "result", []), "777", 1791396000.0, 3.0, 0.0)
+  let r = trial_by_id(tid)
+  assert_eq(r[0].prediction_depth, 0.4)
+  assert_eq(r[0].status, "proposed")
+  // a manual /fire at 01:30 D+1 is still inside the window: no close
+  let _ = process_updates([], "777", 1791412200.0, 3.0, 0.0)
+  let r2 = trial_by_id(tid)
+  assert_eq(r2[0].status, "proposed")
+}
+
+test "Н2-10 (d): a 03:30 D+1 message with no D+1 trial is skipped, not given to D" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "h210-d", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-07", day_window: "morning", arm_id: aid})
+  let doc = parse_json("{\"result\":[{\"update_id\":30,\"message\":{\"date\":1791419400,\"chat\":{\"id\":777},\"text\":\"m:0.9\"}}]}")
+  let _ = process_updates(json_get(doc, "result", []), "777", 1791420000.0, 3.0, 0.0)
+  let r = trial_by_id(tid)
+  assert_eq(r[0].moment_present, 0.0)
+  assert_eq(r[0].status, "missed")
+  let resp = query("SELECT count(*) AS n FROM response WHERE trial_id = ?", [tid])
+  assert_eq(resp[0].n, 0.0)
+}
+
+test "Н2-10 (e): a replayed batch writes no duplicates" {
+  ensure_schema()
+  let aid = db_insert("arm", {name: "h210-e", group_name: "g", day_window: "morning", duration_min: 10.0, prior_mean: 0.6, prior_std: 0.25, active: 1})
+  let tid = db_insert("trial", {trial_date: "2026-10-07", day_window: "morning", arm_id: aid})
+  let doc = parse_json("{\"result\":[{\"update_id\":40,\"message\":{\"date\":1791396000,\"chat\":{\"id\":777},\"text\":\"p:0.4\"}},{\"update_id\":41,\"message\":{\"date\":1791408600,\"chat\":{\"id\":777},\"text\":\"m:0.9\"}}]}")
+  let ups = json_get(doc, "result", [])
+  let _ = process_updates(ups, "777", 1791414000.0, 3.0, 0.0)
+  let _ = process_updates(ups, "777", 1791414000.0, 3.0, 0.0)
+  let resp = query("SELECT count(*) AS n FROM response WHERE trial_id = ? AND kind = 'moment'", [tid])
+  assert_eq(resp[0].n, 1.0)
+  let r = trial_by_id(tid)
+  assert_eq(r[0].status, "completed")
 }
 
 test "has_job and setup_register: idempotent registration" {
