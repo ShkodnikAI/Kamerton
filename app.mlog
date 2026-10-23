@@ -413,7 +413,7 @@ pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float
 }
 // ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
 
-pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float) -> Unit {
+pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float, with_report: Bool) -> Unit {
   // Н2-10: an answer belongs to the trial of the window its MESSAGE fell
   // into (message.date, the Telegram server clock), not to the window of
   // the tick that happens to drain it; a message without a date falls
@@ -423,6 +423,9 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
   // the loop are the m0_row-proven shape), every diagnostic lives in
   // counters, ONE summary print after the loop. The chat filter
   // compares SANITIZED projections; the untrusted raw never branches.
+  // Н2-11: with_report=false silences the counters message for the
+  // 21:30 collect tick — the report stays the 02:00 closing tick's
+  // signature; the collect tick speaks only through its ONE request.
   let mut processed = 0.0
   let mut predictions = 0.0
   let mut moments = 0.0
@@ -476,7 +479,9 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
     }
   }
   let closed = close_stale_misses(window_date(now_ts, tz_offset_hours))
-  let _ = send_message(chat_id, format_report(processed, closed, predictions, moments))
+  if with_report == true {
+    let _ = send_message(chat_id, format_report(processed, closed, predictions, moments))
+  }
   print("[telegram] drain: processed=" + to_string(processed) + " closed=" + to_string(closed) + " predictions=" + to_string(predictions) + " moments=" + to_string(moments) + " skipped=" + to_string(skipped))
 }
 
@@ -499,8 +504,13 @@ pattern setup_register() -> Unit {
   // loop bodies — the stale sweep runs as a bare each, the add phase
   // runs through precomputed flags, ONE summary print after everything
   // (the probe: variant A misconverges, variant B converges).
+  // Н2-11: THREE jobs — the morning proposal (07:00), the evening
+  // collect request (21:30) and the window-closing drain (02:00); a
+  // KAMERTON_TZ_OFFSET change folds every expression and the stale
+  // sweep removes the outdated copies by prompt.
   let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
   let morning = cron_expr_for(420.0, off)
+  let collect = cron_expr_for(1290.0, off)
   let evening = cron_expr_for(120.0, off)
   let jobs = cron_list()
   // №706 (mlog 0.33.1): cron_list rows flow as private (prompt/payload
@@ -515,6 +525,9 @@ pattern setup_register() -> Unit {
     if j.prompt == "tg_morning_tick" and j.cron_expr != morning {
       let _ = cron_remove(redact(j.id, "secrets"))
     }
+    if j.prompt == "tg_collect_tick" and j.cron_expr != collect {
+      let _ = cron_remove(redact(j.id, "secrets"))
+    }
     if j.prompt == "tg_evening_tick" and j.cron_expr != evening {
       let _ = cron_remove(redact(j.id, "secrets"))
     }
@@ -522,6 +535,10 @@ pattern setup_register() -> Unit {
   let add_m = has_job(morning, "tg_morning_tick") == false
   if add_m == true {
     let _ = cron_add(morning, "tg_morning_tick")
+  }
+  let add_c = has_job(collect, "tg_collect_tick") == false
+  if add_c == true {
+    let _ = cron_add(collect, "tg_collect_tick")
   }
   let add_e = has_job(evening, "tg_evening_tick") == false
   if add_e == true {
@@ -534,7 +551,7 @@ pattern setup_register() -> Unit {
   // this suite stays green either way). The registration log is therefore
   // ONE flat summary print — the shape rig-validated clean on the full
   // setup_register body (m7full: 3/3 first-hit clean on an empty store).
-  print("[telegram] cron setup: morning=" + morning + " evening=" + evening + " jobs=" + escape_html(to_string(len(cron_list()))))
+  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " jobs=" + escape_html(to_string(len(cron_list()))))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
@@ -847,9 +864,11 @@ pattern parse_chat_text(raw_text: String) -> Struct {
 // The morning proposal message. Every dynamic fragment passes
 // escape_html — the acceptance row: DB output never reaches the chat
 // raw. Н2-09: the practice body is a third fragment — the proposal
-// must tell what to do, not just name the hand.
+// must tell what to do, not just name the hand. Н2-11: the proposal
+// names BOTH answer formats — p: now, the m: request arrives in the
+// evening collect tick.
 pattern format_proposal(arm_name: String, practice_body: String, note_body: String) -> String {
-  return "Проба дня: " + escape_html(arm_name) + ".\nПрактика: " + escape_html(practice_body) + "\nНота: " + escape_html(note_body) + ".\nОтветь предсказанием: p:0..1"
+  return "Проба дня: " + escape_html(arm_name) + ".\nПрактика: " + escape_html(practice_body) + "\nНота: " + escape_html(note_body) + ".\nОтветь предсказанием: p:0..1. Вечером придёт сбор отклика: m:0..1"
 }
 
 // The morning proposal row: arm name + optional note body + the group
@@ -867,6 +886,27 @@ pattern morning_proposal_row(tid: Float) -> List {
 // The evening report message.
 pattern format_report(processed: Float, closed: Float, predictions: Float, moments: Float) -> String {
   return "Отчёт: обработано " + escape_html(to_string(processed)) + ", закрыто пропуском " + escape_html(to_string(closed)) + ", предсказаний " + escape_html(to_string(predictions)) + ", откликов " + escape_html(to_string(moments))
+}
+
+// Н2-11: the evening collect request. ONE message per evening, sent by
+// tg_collect_tick ONLY when today's window still holds an open trial
+// with no moment (pending_collect_trial below); silence otherwise. No
+// reminders: a skip is the normal outcome, never chased (the concept's
+// load norm). The text is STATIC — no DB fragment rides in it, so
+// escape_html has nothing to lift; the wording is the proposed legend
+// (шкала m:), pending the owner's approval per the naryad Шаг 0 —
+// replaceable by this one string.
+pattern format_collect_request() -> String {
+  return "Вечерний сбор: как прошла проба? Один отклик в моменте: m:0..1 — 0 совсем не то состояние, 1 полностью оно. Пропустить можно просто не отвечая: окно закроется в 02:00."
+}
+
+// The collect-tick decision (Н2-11): the open trial of the window that
+// still lacks the moment — the request fires exactly when this returns
+// a row. The moment guard rides the response table (the ANY-moment
+// count, the same guard apply_answer and the spectral projection use):
+// a moment already given — subjective or spectral — silences the tick.
+pattern pending_collect_trial(window_date: String) -> List {
+  return query("SELECT t.id FROM trial t WHERE t.status = 'proposed' AND t.trial_date = ? AND t.arm_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM response r WHERE r.trial_id = t.id AND r.kind = 'moment') ORDER BY t.id DESC LIMIT 1", [window_date])
 }
 
 // The getUpdates URL with the offset + the long-poll timeout. The
@@ -947,7 +987,10 @@ pattern tg_morning_tick() -> Unit {
 
 // The evening tick: drain getUpdates through the boundary, close the
 // unanswered as misses (inside process_updates), report. Runs at 02:00
-// LOCAL — the acceptance window closes without manual intervention.
+// LOCAL — the acceptance window closes without manual intervention; the
+// message-date binding (Н2-10) routes every answer into its own window
+// and the close threshold ends the window of now. The counters report
+// stays THIS tick's signature: the collect tick (Н2-11) drains silently.
 pattern tg_evening_tick() -> Unit {
   ensure_schema()
   let token = env_or("KAMERTON_TG_TOKEN", "")
@@ -955,10 +998,40 @@ pattern tg_evening_tick() -> Unit {
   if token != "" and chat_id != "" {
     let offset = to_float_or(kv_get("tg_offset"), 0.0)
     let updates = fetch_updates(token, offset)
-    process_updates(updates, chat_id, now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")), offset)
+    process_updates(updates, chat_id, now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")), offset, true)
   }
   if token == "" or chat_id == "" {
     print("[telegram] KAMERTON_TG_TOKEN/KAMERTON_CHAT_ID not set — evening tick refuses loudly")
+  }
+}
+
+// The evening collect tick (Н2-11): the concept's «сбор отклика 21:30».
+// Drains getUpdates FIRST through the same boundary (the answers that
+// arrived before 21:30 land in their own windows — the same offset code
+// as the 02:00 tick), THEN asks for the moment exactly once: only when
+// today's window still holds an open trial without a moment. If the
+// moment is already given (subjective or spectral) or there is no
+// trial — silence. No reminders, no catch-up: a skip is the normal
+// outcome (the load norm), a repeated tick re-checks, never re-asks
+// about an answered trial (the pending query guards).
+pattern tg_collect_tick() -> Unit {
+  ensure_schema()
+  let token = env_or("KAMERTON_TG_TOKEN", "")
+  let chat_id = env_or("KAMERTON_CHAT_ID", "")
+  if token != "" and chat_id != "" {
+    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let offset = to_float_or(kv_get("tg_offset"), 0.0)
+    let updates = fetch_updates(token, offset)
+    process_updates(updates, chat_id, now_unix(), off, offset, false)
+    let window = window_date(now_unix(), off)
+    let pending = pending_collect_trial(window)
+    if len(pending) > 0.0 {
+      let _ = send_message(chat_id, format_collect_request())
+      print("[telegram] collect tick: moment requested for trial " + to_string(pending[0].id))
+    }
+  }
+  if token == "" or chat_id == "" {
+    print("[telegram] KAMERTON_TG_TOKEN/KAMERTON_CHAT_ID not set — collect tick refuses loudly")
   }
 }
 
