@@ -346,6 +346,12 @@ pattern apply_answer(tid: Float, ans: Struct) -> String {
       return "prediction-kept"
     }
     let _ = db_execute("UPDATE trial SET prediction_depth = ? WHERE id = ?", [ans.value, tid])
+    // Н2-13: the context row is written AT THE RESPONSE TIME (the
+    // probe-time write, the context module's decision 1) — blind until
+    // the first response row opens the read (invariant 2); the sleep
+    // sentinel -1.0 when s: has not been seen (never a fabricated 0;
+    // a later s: in the batch updates the row in place).
+    let _ = ensure_context_row(tid, 0 - 1.0)
     return "prediction"
   }
   if ans.kind == "moment" {
@@ -357,7 +363,24 @@ pattern apply_answer(tid: Float, ans: Struct) -> String {
     let _ = db_insert("response", row)
     let _ = db_execute("UPDATE trial SET moment_value = ?, moment_present = 1, moment_source = 'subjective', status = 'completed' WHERE id = ?", [ans.value, tid])
     let _ = compute_reward(tid)
+    let _ = ensure_context_row(tid, 0 - 1.0)
     return "moment"
+  }
+  // Н2-13: the optional sleep context — the value lands in the trial's
+  // context row (in place when one exists, else a fresh row); the row
+  // stays BLIND until the first response row (the read guard).
+  if ans.kind == "sleep" {
+    let rows = query("SELECT id FROM trial WHERE id = ?", [tid])
+    if len(rows) == 0.0 {
+      return "no-open-trial"
+    }
+    let ctx = query("SELECT id FROM context WHERE trial_id = ? ORDER BY id DESC LIMIT 1", [tid])
+    if len(ctx) > 0.0 {
+      let _ = db_execute("UPDATE context SET sleep_quality = ? WHERE id = ?", [ans.value, ctx[0].id])
+    } else {
+      let _ = collect_context(tid, now_unix(), ans.value)
+    }
+    return "sleep"
   }
   // Н2-12: the full-reward components (ADR-0001 — the formula is
   // closed, only the INPUTS arrive). The guard rides the presence
@@ -404,6 +427,19 @@ pattern apply_answer(tid: Float, ans: Struct) -> String {
   let joined = note + " | " + escape_html(ans.text)
   let _ = db_execute("UPDATE trial SET free_note = ? WHERE id = ?", [joined, tid])
   return "note"
+}
+
+// Н2-13: the probe-time context write, once per trial — a repeated
+// response (prediction after the moment, a note, a second drain) does
+// NOT add a second row; the sleep sentinel -1.0 means «не отвечено»
+// (the silent zero is forbidden). The blindness of the row is the
+// context module's own contract (the read guard).
+pattern ensure_context_row(tid: Float, sleep_quality: Float) -> Float {
+  let rows = query("SELECT count(*) AS n FROM context WHERE trial_id = ?", [tid])
+  if rows[0].n > 0.0 {
+    return 0.0
+  }
+  return collect_context(tid, now_unix(), sleep_quality)
 }
 
 // ── H2-07-SPECTRAL-START (byte-mirrored into app.mlog telegram-core) ────
@@ -475,6 +511,13 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
       let text = json_get(u, "message.text", "")
       if escape_html(text) != "" {
         let ans = parse_chat_text(text)
+        // Н2-13: the honesty-valve report on request — the command is
+        // answered directly, no trial routing; the text is the
+        // escape_html-wrapped SSOT report (the chat form).
+        if ans.kind == "report" {
+          let _ = send_message(chat_id, honesty_report_chat())
+          processed = processed + 1.0
+        } else {
         // Н2-12: the full-reward answers bind by the PENDING QUESTION,
         // not by the message window — the bot asks about ONE trial per
         // question kind (the kv pendings are set by the morning ask and
@@ -501,10 +544,20 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
             if msg_ts <= 0.0 {
               msg_ts = now_ts
             }
-            let open = last_proposed_trial(window_date(msg_ts, tz_offset_hours))
-            if len(open) > 0.0 {
-              tid = open[0].id
-              routed = true
+            if ans.kind == "sleep" {
+              // The sleep note binds to the window's trial in ANY
+              // status (the completed trial's day context arrives late).
+              let open = latest_window_trial(window_date(msg_ts, tz_offset_hours))
+              if len(open) > 0.0 {
+                tid = open[0].id
+                routed = true
+              }
+            } else {
+              let open = last_proposed_trial(window_date(msg_ts, tz_offset_hours))
+              if len(open) > 0.0 {
+                tid = open[0].id
+                routed = true
+              }
             }
           }
         }
@@ -531,11 +584,15 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
           if applied == "note" {
             processed = processed + 1.0
           }
+          if applied == "sleep" {
+            processed = processed + 1.0
+          }
           if applied == "no-open-trial" {
             skipped = skipped + 1.0
           }
         } else {
           skipped = skipped + 1.0
+        }
         }
       } else {
         skipped = skipped + 1.0
@@ -582,10 +639,13 @@ pattern setup_register() -> Unit {
   // collect request (21:30) and the window-closing drain (02:00); a
   // KAMERTON_TZ_OFFSET change folds every expression and the stale
   // sweep removes the outdated copies by prompt.
+  // Н2-13: the FOURTH job — the honesty valve's weekly report
+  // (Monday 09:30 local).
   let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
   let morning = cron_expr_for(420.0, off)
   let collect = cron_expr_for(1290.0, off)
   let evening = cron_expr_for(120.0, off)
+  let weekly = cron_expr_for(570.0, off)
   let jobs = cron_list()
   // №706 (mlog 0.33.1): cron_list rows flow as private (prompt/payload
   // are user-authored content — the №689 whole-struct fail-closed
@@ -605,6 +665,9 @@ pattern setup_register() -> Unit {
     if j.prompt == "tg_evening_tick" and j.cron_expr != evening {
       let _ = cron_remove(redact(j.id, "secrets"))
     }
+    if j.prompt == "tg_weekly_tick" and j.cron_expr != weekly {
+      let _ = cron_remove(redact(j.id, "secrets"))
+    }
   }
   let add_m = has_job(morning, "tg_morning_tick") == false
   if add_m == true {
@@ -618,6 +681,10 @@ pattern setup_register() -> Unit {
   if add_e == true {
     let _ = cron_add(evening, "tg_evening_tick")
   }
+  let add_w = has_job(weekly, "tg_weekly_tick") == false
+  if add_w == true {
+    let _ = cron_add(weekly, "tg_weekly_tick")
+  }
   // VM defect #52 (minimal repro m6b): TWO print-ifs reading flags after
   // executed effect-call if-bodies miscompile on the serve VM lane — the
   // first /setup against an EMPTY store throws [TYPE_MISMATCH] Struct Eq
@@ -625,7 +692,7 @@ pattern setup_register() -> Unit {
   // this suite stays green either way). The registration log is therefore
   // ONE flat summary print — the shape rig-validated clean on the full
   // setup_register body (m7full: 3/3 first-hit clean on an empty store).
-  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " jobs=" + escape_html(to_string(len(cron_list()))))
+  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " jobs=" + escape_html(to_string(len(cron_list()))))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
@@ -928,6 +995,19 @@ pattern cron_expr_for(local_minutes: Float, tz_offset_hours: Float) -> String {
   return to_string(mm) + " " + to_string(hh) + " * * *"
 }
 
+// Н2-13: the weekly report DAY guard. The cron store accepts only
+// 5-field expressions (probe-pinned: a dow field answers
+// [CRON_JOB_FAILED] expects a 5-field expression), so the weekly job
+// is registered DAILY at 09:30 local and the tick self-guards on the
+// local weekday: date_parts.weekday is 0-based from Monday
+// (probe-pinned: 2026-10-23, a Friday, carries weekday=4) — Monday = 0.
+// A daily fire that sends once a week; the alternative does not exist
+// in the cron subsystem (declared loudly).
+pattern is_weekly_report_day(now_ts: Float) -> Bool {
+  let p = date_parts(now_ts)
+  return p.weekday == 0.0
+}
+
 // Parse one chat text into the protocol answer. Returns
 // {kind: "prediction"|"moment"|"note", value: Float, text: String}.
 // to_float fails LOUD on garbage (the m0_row precedent) — a malformed
@@ -971,6 +1051,23 @@ pattern parse_chat_text(raw_text: String) -> Struct {
       return {kind: "note", value: 0.0, text: text}
     }
     return {kind: "action", value: v, text: text}
+  }
+  // Н2-13: the optional sleep context (s:0..1) — the ONLY source of
+  // sleep_quality in the Telegram circuit; when it is absent the value
+  // is NOT fabricated (the silent zero is forbidden — the -1 sentinel
+  // stands for «не отвечено», declared in the PR).
+  if starts_with(text, "s:") {
+    let rest = trim(substring(text, 2, len(text)))
+    let v = to_float_or(rest, 0 - 1.0)
+    if v < 0.0 {
+      return {kind: "note", value: 0.0, text: text}
+    }
+    return {kind: "sleep", value: v, text: text}
+  }
+  // Н2-13: the honesty-valve report on request (the proposed word;
+  // both the Russian and the latin form map to one kind).
+  if starts_with(text, "отчёт") or starts_with(text, "report") {
+    return {kind: "report", value: 0.0, text: text}
   }
   return {kind: "note", value: 0.0, text: text}
 }
@@ -1030,6 +1127,14 @@ pattern pending_collect_trial(window_date: String) -> List {
 // about a silent window would presuppose a practice that never was.
 // Unanswered components stay ABSENT (present flag 0, ADR-0001) — the
 // silence is never rewritten into a zero.
+// Н2-13: the sleep context binds to the window's LATEST trial in ANY
+// status — a completed trial (the practice done, the sleep note about
+// that day arrives late) must still accept it; a missed one too (the
+// row stays blind — the read guard keys on response rows).
+pattern latest_window_trial(window_date: String) -> List {
+  return query("SELECT id FROM trial WHERE trial_date = ? AND arm_id IS NOT NULL ORDER BY id DESC LIMIT 1", [window_date])
+}
+
 pattern pending_next_day_trial(window_date: String) -> List {
   return query("SELECT t.id FROM trial t WHERE t.status = 'completed' AND t.trial_date = ? AND t.arm_id IS NOT NULL AND t.next_day_present = 0 ORDER BY t.id DESC LIMIT 1", [window_date])
 }
@@ -1083,6 +1188,204 @@ pattern fetch_updates(token: String, offset: Float) -> List {
   return []
 }
 // ── APP-MIRROR-END: telegram-core
+
+// ── APP-MIRROR-START: context-core (byte-identical to
+//    src/context/context.mlog §context-core) ─────────────────────────
+// ── Moon arithmetic (synodic, no external libraries) ──────────────────
+
+entity MOON_EPOCH: Float = 947182440.0
+entity SYNODIC: Float = 29.530588853
+
+// Age of the moon in days, [0, SYNODIC). The language has no modulo:
+// `x - to_int(x/syn)*syn` is fmod for positive x (truncating to_int),
+// identical to the reference implementation's double math.
+pattern moon_age(unix: Float) -> Float {
+  let diff_days = (unix - MOON_EPOCH) / 86400.0
+  let cycles = to_int(diff_days / SYNODIC)
+  return diff_days - cycles * SYNODIC
+}
+
+// Eight equal sectors of syn/8 starting AT the new moon (age 0):
+// new [0, 3.6913), waxing_crescent [3.6913, 7.3826), first_quarter
+// [7.3826, 11.0740), waxing_gibbous [11.0740, 14.7653), full
+// [14.7653, 18.4566), waning_gibbous [18.4566, 22.1479), last_quarter
+// [22.1479, 25.8392), waning_crescent [25.8392, 29.5306).
+// age < SYNODIC by construction, so to_int lands in 0..7.
+pattern moon_phase_name(age: Float) -> String {
+  let sector = to_int(age / (SYNODIC / 8.0))
+  if sector < 1 { return "new_moon" }
+  if sector < 2 { return "waxing_crescent" }
+  if sector < 3 { return "first_quarter" }
+  if sector < 4 { return "waxing_gibbous" }
+  if sector < 5 { return "full_moon" }
+  if sector < 6 { return "waning_gibbous" }
+  if sector < 7 { return "last_quarter" }
+  if sector < 8 { return "waning_crescent" }
+  return "new_moon"
+}
+
+// Synodic day 1..30 (age 0.0 -> day 1; age 29.5 -> day 30; the wrap to
+// day 1 happens through moon_age at the synodic boundary).
+pattern moon_day(age: Float) -> Float {
+  return to_int(age) + 1.0
+}
+
+// The stored form: BOTH the phase and the synodic day in one
+// machine-readable string (the context table has no moon-day column;
+// decision 4 above). Pinned by a test.
+pattern moon_record(unix: Float) -> String {
+  let age = moon_age(unix)
+  return "phase=" + moon_phase_name(age) + "|day=" + to_string(moon_day(age))
+}
+
+// ── Day window (concept schedule; decision 5) ─────────────────────────
+
+// morning = local 07:00..21:29, evening = 21:30..06:59. Flat guard
+// chain — no nested-if returns (the Н1-06 §2 lesson). The UTC instant
+// stays UTC; only the display window folds through tz_offset.
+pattern day_window_for(unix: Float, tz_offset: Float) -> String {
+  let local = unix + tz_offset * 3600.0
+  let day_sec = local - to_int(local / 86400.0) * 86400.0
+  let hour_frac = day_sec / 3600.0
+  if hour_frac < 7.0 { return "evening" }
+  if hour_frac < 21.5 { return "morning" }
+  return "evening"
+}
+
+// ── Blind logging (инвариант 2; decision 1) ───────────────────────────
+
+// Writes the context row ALWAYS (at probe time) and returns the row id.
+// weather/sound_mode stay empty in wave 1 (no weather feed, no sound
+// modes in the arm space — the M3 reserve); the columns exist in the
+// store schema and future providers fill them without a migration.
+pattern collect_context(trial_id: Float, now: Float, sleep_quality: Float) -> Float {
+  let rec = moon_record(now)
+  return db_insert("context", {trial_id: trial_id, moon_phase: rec, weather: "", sound_mode: "", sleep_quality: sleep_quality})
+}
+
+// The ONLY read API. Blind (returns "") until a response row exists for
+// the trial — decision 1. After the response the full record opens:
+// "<moon_phase>|sleep_quality=<v>|weather=<w>|sound_mode=<s>|logged_at=<ts>"
+// (moon_phase itself is "phase=…|day=…"). The consumers branch on the
+// empty string — the one loud blindness contract.
+pattern read_context(trial_id: Float) -> String {
+  let resp = query("SELECT count(*) AS n FROM response WHERE trial_id = ?", [trial_id])
+  if resp[0].n < 1.0 { return "" }
+  let rows = query("SELECT trial_id, moon_phase, weather, sound_mode, sleep_quality, logged_at FROM context WHERE trial_id = ?", [trial_id])
+  return rows[0].moon_phase + "|sleep_quality=" + to_string(rows[0].sleep_quality) + "|weather=" + rows[0].weather + "|sound_mode=" + rows[0].sound_mode + "|logged_at=" + rows[0].logged_at
+}
+// ── APP-MIRROR-END: context-core ─────────────────────────────────────
+
+// ── APP-MIRROR-START: honesty-report-core (byte-identical to
+//    src/report/report.mlog §honesty-report-core) ─────────────────────
+// ── The honesty math ──────────────────────────────────────────────────
+
+// The bandit side: every completed trial is a bandit pick with its
+// realized reward. The population variance form is declared (decision 2).
+// Returns the map {n, m, se} — the reward mean and its SE over the
+// completed picks.
+pattern bandit_side() -> map {
+  let rows = query("SELECT count(*) AS n, avg(reward) AS m, avg(reward * reward) AS m2 FROM trial WHERE status = 'completed'", [])
+  let n = to_float_or(to_string(rows[0].n), 0.0)
+  let m = to_float_or(to_string(rows[0].m), 0.0)
+  let m2 = to_float_or(to_string(rows[0].m2), 0.0)
+  let mut var = m2 - m * m
+  if var < 0.0 { let var = 0.0 }
+  let mut se = 0.0
+  if n > 0.0 {
+    let se = sqrt(var / n)
+  }
+  return {n: n, m: m, se: se}
+}
+
+// The random-choice baseline: the unweighted mean of the per-arm mean
+// rewards (decision 1). Returns the map {arms, m, se} — the arm count
+// and the baseline mean with its SE across arm means.
+pattern random_baseline() -> map {
+  let rows = query("SELECT count(*) AS arms, avg(m) AS m, avg(m * m) AS m2 FROM (SELECT arm_id, avg(reward) AS m FROM trial WHERE status = 'completed' GROUP BY arm_id)", [])
+  let k = to_float_or(to_string(rows[0].arms), 0.0)
+  let m = to_float_or(to_string(rows[0].m), 0.0)
+  let m2 = to_float_or(to_string(rows[0].m2), 0.0)
+  let mut var = m2 - m * m
+  if var < 0.0 { let var = 0.0 }
+  let mut se = 0.0
+  if k > 0.0 {
+    let se = sqrt(var / k)
+  }
+  return {arms: k, m: m, se: se}
+}
+
+// A number in the report form: rounded to hundredths, no long tails.
+pattern fmt2(x: Float) -> String {
+  return to_string(round(x * 100.0) / 100.0)
+}
+
+// The verdict (decision 3). The band edges mb ∓ 1.96·se_b are compared
+// against the baseline constant.
+pattern honesty_verdict() -> String {
+  let b = bandit_side()
+  if b.n < 1.0 { return "сигнала нет — данных нет (completed=0)" }
+  let r = random_baseline()
+  let lo = b.m - 1.96 * b.se
+  let hi = b.m + 1.96 * b.se
+  if lo > r.m { return "выигрыш есть — бандит лучше случайного выбора" }
+  if hi < r.m { return "выигрыша нет — хуже случайного выбора" }
+  return "сигнала нет — выигрыш над случайным выбором не выявлен"
+}
+
+// The gain line: expected [low; high], all three present — no point
+// estimate is ever printed alone (the acceptance row).
+pattern gain_line() -> String {
+  let b = bandit_side()
+  let r = random_baseline()
+  let lo = b.m - 1.96 * b.se - r.m
+  let hi = b.m + 1.96 * b.se - r.m
+  return "gain: expected=" + fmt2(b.m - r.m) + " [low=" + fmt2(lo) + "; high=" + fmt2(hi) + "] (95% approx)"
+}
+
+// Misses per arm — one aggregate line (decision 4): the fraction of
+// missed trials per arm, every arm, SQL-carried order.
+pattern misses_line() -> String {
+  let rows = query("SELECT group_concat(t.g || ': ' || t.miss || '/' || t.n || ' (' || t.pct || '%)', '; ') AS s FROM (SELECT arm.name AS g, CAST(sum(CASE WHEN trial.status = 'missed' THEN 1 ELSE 0 END) AS INT) AS miss, CAST(count(*) AS INT) AS n, CAST(CAST(sum(CASE WHEN trial.status = 'missed' THEN 1 ELSE 0 END) AS REAL) * 100.0 / count(*) AS INT) AS pct FROM trial JOIN arm ON arm.id = trial.arm_id GROUP BY arm.name ORDER BY arm.name) AS t", [])
+  if to_string(rows[0].s) == "" { return "misses: (нет проб)" }
+  return "misses: " + to_string(rows[0].s)
+}
+
+// Moment sources, SEPARATE per source (ADR-0001 — no silent mixing):
+// count and mean per source; the default empty source is listed as
+// "(пусто)" so a silent default can never hide.
+pattern source_lines() -> String {
+  let rows = query("SELECT group_concat(CASE WHEN t.src = '' THEN '(пусто)' ELSE t.src END || ': n=' || CAST(t.n AS INT) || ' avg=' || CAST(ROUND(t.m, 2) AS TEXT), '; ') AS s FROM (SELECT moment_source AS src, count(*) AS n, avg(moment_value) AS m FROM trial WHERE moment_present = 1 GROUP BY moment_source ORDER BY moment_source) AS t", [])
+  if to_string(rows[0].s) == "" { return "moment sources: (нет момент-откликов)" }
+  return "moment sources: " + to_string(rows[0].s)
+}
+
+// The SSOT report text. The chat and CLI forms live in
+// src/report/report.mlog (the mirror half of this naryad) and are
+// derived from THIS text — one source, two presentations.
+pattern honesty_report_text() -> String {
+  let head = "honesty report\nverdict: " + honesty_verdict()
+  let b = bandit_side()
+  let r = random_baseline()
+  let counts = "\ncompleted=" + to_string(round(b.n)) + " trials over " + to_string(round(r.arms)) + " arms"
+  return head + counts + "\n" + gain_line() + "\n" + misses_line() + "\n" + source_lines()
+}
+
+// ── The presentation forms ────────────────────────────────────────────
+
+// CLI: print the report to stdout. The assigned-call discipline keeps
+// the bare-call defect class (D2/№612) away by construction.
+pattern honesty_report_cli() -> Float {
+  let text = honesty_report_text()
+  print(text)
+  return 1.0
+}
+
+// Chat: the escape_html-wrapped SSOT text — chat-ready, no raw output.
+pattern honesty_report_chat() -> String {
+  return escape_html(honesty_report_text())
+}
+// ── APP-MIRROR-END: honesty-report-core ──────────────────────────────
 // ── The two cron ticks (the naryad: "два cron-тика в одном .mlog") ────
 
 // The morning tick: propose an arm through the bandit core, write the
@@ -1196,6 +1499,29 @@ pattern tg_collect_tick() -> Unit {
   }
 }
 
+// The weekly honesty-valve report (Н2-13): once a week, Monday
+// morning local — verdict, the gain range, the miss fractions per arm,
+// the moment sources separately. Read-only: no drain, no trial writes;
+// the text is the escape_html-wrapped SSOT report (the chat form).
+// The proposed frequency (the naryad Шаг 0): a daily verdict provokes
+// peeking; the weekly one does not.
+pattern tg_weekly_tick() -> Unit {
+  ensure_schema()
+  let token = env_or("KAMERTON_TG_TOKEN", "")
+  let chat_id = env_or("KAMERTON_CHAT_ID", "")
+  if token != "" and chat_id != "" {
+    // The daily fire, the weekly send: the guard is the local Monday
+    // (is_weekly_report_day); other days the fire is a silent no-op.
+    if is_weekly_report_day(now_unix()) == true {
+      let _ = send_message(chat_id, honesty_report_chat())
+      print("[telegram] weekly tick: honesty report sent")
+    }
+  }
+  if token == "" or chat_id == "" {
+    print("[telegram] KAMERTON_TG_TOKEN/KAMERTON_CHAT_ID not set — weekly tick refuses loudly")
+  }
+}
+
 // ── The idempotent registration + the serve surface ───────────────────
 
 
@@ -1237,6 +1563,13 @@ mlogserver {
     return respond("200 fired")
   }
 
+  // Н2-13: the honesty-valve report on request (localhost/tailnet —
+  // the same trust posture as /setup /jobs /fire; the text is the
+  // escape_html-wrapped SSOT report — the chat form is chat-ready).
+  route "/report" method=GET {
+    ensure_schema()
+    return respond("200 " + honesty_report_chat())
+  }
   // ── Mini App (Н2-03): the page and the practice-session journal ──────
   // ADR-0002 variant (а), private tunnel: the page reaches the phone
   // inside the owner's network. Authorization: the allowlisted

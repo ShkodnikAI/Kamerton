@@ -43,6 +43,9 @@ fail = 0
 MIRRORS = {
     "arms-seed": [REPO + "/src/arms/arms.mlog", FILES["app"], FILES["tg"]],
     "miniapp-core": [REPO + "/src/miniapp/miniapp.mlog", FILES["app"], FILES["tg"]],
+    # Н2-13: слепой контекст и клапан честности в рабочем приложении.
+    "context-core": [REPO + "/src/context/context.mlog", FILES["app"], FILES["tg"]],
+    "honesty-report-core": [REPO + "/src/report/report.mlog", FILES["app"], FILES["tg"]],
 }
 for name, paths in MIRRORS.items():
     bs = [block(read(p), name) for p in paths]
