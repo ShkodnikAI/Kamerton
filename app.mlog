@@ -359,6 +359,43 @@ pattern apply_answer(tid: Float, ans: Struct) -> String {
     let _ = compute_reward(tid)
     return "moment"
   }
+  // Н2-12: the full-reward components (ADR-0001 — the formula is
+  // closed, only the INPUTS arrive). The guard rides the presence
+  // flag (fill an untouched default exactly once — the prediction
+  // precedent); the reward RECOMPUTES as the normalized weighted sum
+  // of the present components on every new one, idempotently. A late
+  // component on a closed (missed/completed) trial is legal: the flag
+  // flips, the reward recomputes, the status stays as the window left
+  // it (no backdating — the bandit's own predicate decides what
+  // counts).
+  if ans.kind == "next_day" {
+    let rows = query("SELECT next_day_present FROM trial WHERE id = ?", [tid])
+    if len(rows) == 0.0 {
+      return "no-open-trial"
+    }
+    if rows[0].next_day_present == 1.0 {
+      return "next_day-kept"
+    }
+    let row = {trial_id: tid, kind: "next_day", depth: ans.value, details: "telegram nd:"}
+    let _ = db_insert("response", row)
+    let _ = db_execute("UPDATE trial SET next_day_value = ?, next_day_present = 1 WHERE id = ?", [ans.value, tid])
+    let _ = compute_reward(tid)
+    return "next_day"
+  }
+  if ans.kind == "action" {
+    let rows = query("SELECT action_present FROM trial WHERE id = ?", [tid])
+    if len(rows) == 0.0 {
+      return "no-open-trial"
+    }
+    if rows[0].action_present == 1.0 {
+      return "action-kept"
+    }
+    let row = {trial_id: tid, kind: "action", depth: ans.value, details: "telegram act:"}
+    let _ = db_insert("response", row)
+    let _ = db_execute("UPDATE trial SET action_value = ?, action_present = 1 WHERE id = ?", [ans.value, tid])
+    let _ = compute_reward(tid)
+    return "action"
+  }
   let rows2 = query("SELECT free_note FROM trial WHERE id = ?", [tid])
   let mut note = ""
   if len(rows2) > 0.0 {
@@ -438,13 +475,40 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
       let text = json_get(u, "message.text", "")
       if escape_html(text) != "" {
         let ans = parse_chat_text(text)
-        let mut msg_ts = json_get(u, "message.date", 0.0)
-        if msg_ts <= 0.0 {
-          msg_ts = now_ts
+        // Н2-12: the full-reward answers bind by the PENDING QUESTION,
+        // not by the message window — the bot asks about ONE trial per
+        // question kind (the kv pendings are set by the morning ask and
+        // cleared on a successful write), so «ответ о вчерашней пробе»
+        // and «о трёхдневной давности» never cross. A spontaneous
+        // answer with no pending question is skipped, never guessed.
+        let mut tid = 0.0
+        let mut routed = false
+        if ans.kind == "next_day" {
+          let p = to_float_or(kv_get("nd_pending_trial"), 0.0)
+          if p > 0.0 {
+            tid = p
+            routed = true
+          }
+        } else {
+          if ans.kind == "action" {
+            let p2 = to_float_or(kv_get("act_pending_trial"), 0.0)
+            if p2 > 0.0 {
+              tid = p2
+              routed = true
+            }
+          } else {
+            let mut msg_ts = json_get(u, "message.date", 0.0)
+            if msg_ts <= 0.0 {
+              msg_ts = now_ts
+            }
+            let open = last_proposed_trial(window_date(msg_ts, tz_offset_hours))
+            if len(open) > 0.0 {
+              tid = open[0].id
+              routed = true
+            }
+          }
         }
-        let open = last_proposed_trial(window_date(msg_ts, tz_offset_hours))
-        if len(open) > 0.0 {
-          let tid = open[0].id
+        if routed == true {
           let applied = apply_answer(tid, ans)
           if applied == "prediction" {
             predictions = predictions + 1.0
@@ -453,6 +517,16 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
           if applied == "moment" {
             moments = moments + 1.0
             processed = processed + 1.0
+          }
+          if applied == "next_day" {
+            moments = moments + 1.0
+            processed = processed + 1.0
+            let _ = kv_set("nd_pending_trial", "0")
+          }
+          if applied == "action" {
+            moments = moments + 1.0
+            processed = processed + 1.0
+            let _ = kv_set("act_pending_trial", "0")
           }
           if applied == "note" {
             processed = processed + 1.0
@@ -656,6 +730,17 @@ pattern bandit_propose(trial_date: String, seed: Float) -> Float {
   if len(arm) == 0.0 {
     return 0.0
   }
+  // Н2-12: the proposal carries the ACTIVE note's id — the «Нота:»
+  // line stops being permanently empty (the trial joins note by id in
+  // morning_proposal_row). No note row — the key stays absent (SQL
+  // NULL default), never a fabricated 0 (the FK-target row does not
+  // exist); two branches instead of a nullable field in one struct
+  // (the language has no nullable struct fields).
+  let note = query("SELECT id FROM note WHERE active = 1 ORDER BY id DESC LIMIT 1", [])
+  if len(note) > 0.0 {
+    let row = {trial_date: trial_date, day_window: arm[0].day_window, arm_id: pick.arm_id, note_id: note[0].id}
+    return db_insert("trial", row)
+  }
   let row = {trial_date: trial_date, day_window: arm[0].day_window, arm_id: pick.arm_id}
   return db_insert("trial", row)
 }
@@ -722,6 +807,16 @@ pattern seed_arms() -> Float {
   db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Ментальная репетиция', 'Выбери конкретный навык или предстоящее действие: выступление, разговор, движение. Первые 1–2 минуты — вживись в обстановку: где, что вокруг, кто рядом. Затем проиграй действие от начала до конца изнутри, своими глазами, в реальном темпе. Трудное место пройди отдельно 2–3 раза в исправленном варианте. Финал — одна уверенная полная прогонка без остановок. Репетиция дополняет физическую практику, а не заменяет её (Driskell, Copper и Moran, 1994).')")
   db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Фокусинг', 'Сядь удобно, 10 минут. Минута: пройди вниманием по телу — где сейчас самое заметное ощущение. 2–3 минуты: не меняй его, просто признай — здравствуй, я тебя вижу. Спроси внутри: о чём это? Не отвечай умом — жди телесного отклика, каким бы медленным он ни был. Всё, что придёт, признай без спора. Закончи вопросом: чего тебе нужно? — и спокойно выходи. Здесь ничего не надо добиваться: важно только присутствие внимания (Gendlin; Hendricks, 2002).')")
   db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES ('Йога-нидра', 'Ляг на спину, руки чуть в стороны, глаза закрыты — держи лёгкую бодрость, не засыпай. Короткое намерение в настоящем времени, своими словами. Затем медленно пройди вниманием по телу: правая рука, левая рука, ноги, туловище, лицо. Дальше пары ощущений: тяжесть — лёгкость, тепло — прохлада. Потом просто наблюдай дыхание, не считая. В конце повтори намерение и сделай 2–3 глубоких вдоха, вставай медленно. Сжатая форма на 10 минут (Moszeik и соавт., 2022).')")
+  // Н2-12: the note-goal — ONE row, the owner's formulation VERBATIM
+  // from the concept (docs/concept-v2.md, «Нота и принцип»); the fixed
+  // id keeps the seed idempotent (INSERT OR IGNORE) across re-runs and
+  // the formulation is the OWNER's text, not the executor's invention
+  // (the naryad Шаг 0 defers the wording to the owner — the concept's
+  // own sentence IS the owner's wording). bandit_propose joins the
+  // trial to the ACTIVE note (the latest active row), so a future
+  // re-wording is a data edit, never a code change.
+  db_execute("CREATE TABLE IF NOT EXISTS note (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))")
+  db_execute("INSERT OR IGNORE INTO note (id, body, active) VALUES (1, 'Между тем, чего я хочу, и тем, что я делаю, нет зазора — и это видно по результату.', 1)")
   let rows = query("SELECT count(*) AS n FROM arm", [])
   return rows[0].n
 }
@@ -858,6 +953,25 @@ pattern parse_chat_text(raw_text: String) -> Struct {
     }
     return {kind: "moment", value: v, text: text}
   }
+  // Н2-12: the full-reward protocol — «сдвиг через сутки» (nd:) и
+  // «действие в сторону ноты за 72 часа» (act:). The same -1 sentinel:
+  // garbage degrades to a note, never to a fabricated component value.
+  if starts_with(text, "nd:") {
+    let rest = trim(substring(text, 3, len(text)))
+    let v = to_float_or(rest, 0 - 1.0)
+    if v < 0.0 {
+      return {kind: "note", value: 0.0, text: text}
+    }
+    return {kind: "next_day", value: v, text: text}
+  }
+  if starts_with(text, "act:") {
+    let rest = trim(substring(text, 4, len(text)))
+    let v = to_float_or(rest, 0 - 1.0)
+    if v < 0.0 {
+      return {kind: "note", value: 0.0, text: text}
+    }
+    return {kind: "action", value: v, text: text}
+  }
   return {kind: "note", value: 0.0, text: text}
 }
 
@@ -868,7 +982,7 @@ pattern parse_chat_text(raw_text: String) -> Struct {
 // names BOTH answer formats — p: now, the m: request arrives in the
 // evening collect tick.
 pattern format_proposal(arm_name: String, practice_body: String, note_body: String) -> String {
-  return "Проба дня: " + escape_html(arm_name) + ".\nПрактика: " + escape_html(practice_body) + "\nНота: " + escape_html(note_body) + ".\nОтветь предсказанием: p:0..1. Вечером придёт сбор отклика: m:0..1"
+  return "Проба дня: " + escape_html(arm_name) + ".\nПрактика: " + escape_html(practice_body) + "\nНота: " + escape_html(note_body) + "\nОтветь предсказанием: p:0..1. Вечером придёт сбор отклика: m:0..1"
 }
 
 // The morning proposal row: arm name + optional note body + the group
@@ -907,6 +1021,31 @@ pattern format_collect_request() -> String {
 // a moment already given — subjective or spectral — silences the tick.
 pattern pending_collect_trial(window_date: String) -> List {
   return query("SELECT t.id FROM trial t WHERE t.status = 'proposed' AND t.trial_date = ? AND t.arm_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM response r WHERE r.trial_id = t.id AND r.kind = 'moment') ORDER BY t.id DESC LIMIT 1", [window_date])
+}
+
+// Н2-12: the full-reward question helpers. The asks ride the morning
+// tick (D+1 asks «сдвиг» about D's trial, D+3 asks «действие» about
+// D's trial — ADR-0001's 72-hour component). Only COMPLETED trials are
+// asked about: the moment arrived, the practice is confirmed — asking
+// about a silent window would presuppose a practice that never was.
+// Unanswered components stay ABSENT (present flag 0, ADR-0001) — the
+// silence is never rewritten into a zero.
+pattern pending_next_day_trial(window_date: String) -> List {
+  return query("SELECT t.id FROM trial t WHERE t.status = 'completed' AND t.trial_date = ? AND t.arm_id IS NOT NULL AND t.next_day_present = 0 ORDER BY t.id DESC LIMIT 1", [window_date])
+}
+
+pattern pending_action_trial(window_date: String) -> List {
+  return query("SELECT t.id FROM trial t WHERE t.status = 'completed' AND t.trial_date = ? AND t.arm_id IS NOT NULL AND t.action_present = 0 ORDER BY t.id DESC LIMIT 1", [window_date])
+}
+
+// The question texts (STATIC — proposed wording, pending the owner's
+// approval per the naryad Шаг 0; replaceable by these one strings).
+pattern format_next_day_question() -> String {
+  return "Сдвиг после вчерашней пробы? Один ответ: nd:0..1 (0 — никакого сдвига, 1 — явный)"
+}
+
+pattern format_action_question() -> String {
+  return "Действие в сторону ноты за 72 часа? Один ответ: act:0..1 (0 — не было, 1 — было и двигает)"
 }
 
 // The getUpdates URL with the offset + the long-poll timeout. The
@@ -966,7 +1105,8 @@ pattern tg_morning_tick() -> Unit {
   let token = env_or("KAMERTON_TG_TOKEN", "")
   let chat_id = env_or("KAMERTON_CHAT_ID", "")
   if token != "" and chat_id != "" {
-    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let today = owner_date(now_unix(), off)
     let tid = bandit_propose(today, now_unix())
     let mut msg = "Библиотека пуста — предложение не сформировано (громкий ноль бандита)"
     if tid != 0.0 {
@@ -976,6 +1116,27 @@ pattern tg_morning_tick() -> Unit {
       } else {
         msg = "Проба дня (trial #" + to_string(tid) + ")"
       }
+    }
+    // Н2-12: the full-reward asks ride the morning message — the D+1
+    // «сдвиг» about yesterday's COMPLETED trial and the D+3 «действие»
+    // about the trial of three days ago. Each ask pins its trial into
+    // the kv pending (the answer binds by the pending — one trial per
+    // question kind, never ambiguous); a successful write clears it.
+    // Only completed trials are asked about (the moment confirmed the
+    // practice); an unanswered component stays absent, never a zero.
+    let yesterday = owner_date(now_unix() - 86400.0, off)
+    let nd = pending_next_day_trial(yesterday)
+    if len(nd) > 0.0 {
+      let _ = kv_set("nd_pending_trial", to_string(nd[0].id))
+      msg = msg + "\n" + format_next_day_question()
+      print("[telegram] morning tick asks next_day about trial " + to_string(nd[0].id))
+    }
+    let three_ago = owner_date(now_unix() - 259200.0, off)
+    let act = pending_action_trial(three_ago)
+    if len(act) > 0.0 {
+      let _ = kv_set("act_pending_trial", to_string(act[0].id))
+      msg = msg + "\n" + format_action_question()
+      print("[telegram] morning tick asks action about trial " + to_string(act[0].id))
     }
     let _ = send_message(chat_id, msg)
     print("[telegram] morning tick proposed trial " + to_string(tid))
