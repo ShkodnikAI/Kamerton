@@ -106,6 +106,36 @@ schema kamerton {
     closed_at: String default(""),
     created_at: String default(now())
   }
+
+  table slot {
+    id: Int primary_key auto_increment,
+    name: String,
+    max_active: Int default("3"),
+    created_at: String default(now())
+  }
+
+  table consent {
+    id: Int primary_key auto_increment,
+    scope: String,
+    revoked: Int default("0"),
+    source: String default(""),
+    created_at: String default(now())
+  }
+
+  table practice_protocol {
+    id: Int primary_key auto_increment,
+    arm_id: Int references(arm.id),
+    slot: String default(""),
+    safety_class: String default("A"),
+    requires_consent: Int default("0"),
+    max_hold_sec: Float default("0.0"),
+    session_min: Float default("10.0"),
+    steps_json: String default("[]"),
+    series_json: String default(""),
+    contraindications: String default(""),
+    source: String default(""),
+    created_at: String default(now())
+  }
 }
 
 // The reward scale is [0,1]; 0.25 is the assumed observation noise of a
@@ -172,6 +202,16 @@ pattern arm_posterior(arm_id: Float, prior_mean: Float, prior_std: Float) -> Lis
 
 // ── Pick ────────────────────────────────────────────────────────────────
 
+// Н3-01: the candidate set of every decision. An ACTIVE hand with a
+// protocol that requires consent is a candidate only while the consent
+// row of its safety class exists (scope 'class:<X>', not revoked) —
+// forced exploration draws from THIS list too, so a class-C practice is
+// never assigned without the record (invariant 5 floor untouched: the 20%
+// is spread over the eligible hands).
+pattern eligible_arms() -> List {
+  return query("SELECT a.id AS id, a.name AS name, a.prior_mean AS prior_mean, a.prior_std AS prior_std FROM arm a LEFT JOIN practice_protocol p ON p.arm_id = a.id WHERE a.active = 1 AND (p.arm_id IS NULL OR p.requires_consent = 0 OR EXISTS (SELECT 1 FROM consent c WHERE c.scope = 'class:' || p.safety_class AND c.revoked = 0)) ORDER BY a.id", [])
+}
+
 // One bandit decision. Pure with respect to the database: nothing is
 // written here, the proposal is recorded by bandit_propose.
 // Returns {arm_id, mode, theta}: mode is "explore" (forced round-robin
@@ -179,7 +219,7 @@ pattern arm_posterior(arm_id: Float, prior_mean: Float, prior_std: Float) -> Lis
 // "empty" (no active arms; arm_id 0.0 — the caller must surface this
 // loudly, it is a deployment error, not a valid choice).
 pattern bandit_pick(seed: Float) -> Struct {
-  let arms = query("SELECT id, name, prior_mean, prior_std FROM arm WHERE active = 1 ORDER BY id", [])
+  let arms = eligible_arms()
   let k = len(arms)
   if k == 0.0 {
     return {arm_id: 0.0, mode: "empty", theta: 0.0}
@@ -504,4 +544,46 @@ test "bandit table declarations match the store's (column pin)" {
   assert_contains(note[0].s, "body TEXT")
   assert_contains(trial[0].s, "REFERENCES note(id)")
   assert_contains(trial[0].s, "REFERENCES arm(id)")
+}
+
+test "Н3-01: a class-C hand is never picked without consent, forced exploration included" {
+  // prior 0.9 +- 0.01: Thompson would favour it overwhelmingly, so any
+  // leak through the candidate filter shows up at once.
+  let cid = db_insert("arm", {name: "h301-class-c", group_name: "g", day_window: "morning", duration_min: 5.0, prior_mean: 0.9, prior_std: 0.01, active: 1})
+  let _ = db_insert("practice_protocol", {arm_id: cid, slot: "breath", safety_class: "C", requires_consent: 1, steps_json: "[]", series_json: ""})
+  let mut i = 0.0
+  let mut hits = 0.0
+  let mut explores = 0.0
+  while i < 20.0 {
+    let pick = bandit_pick(300.0 + i)
+    if pick.arm_id == cid {
+      hits = hits + 1.0
+    }
+    if pick.mode == "explore" {
+      explores = explores + 1.0
+    }
+    let _ = db_insert("trial", {trial_date: "2032-03-01", day_window: "morning", arm_id: pick.arm_id})
+    i = i + 1.0
+  }
+  assert_eq(hits, 0.0)
+  assert_eq(explores >= 3.0, true)
+  // the consent record opens the hand to the candidate set; a revoked one closes it again
+  let _ = db_insert("consent", {scope: "class:C", source: "test"})
+  let mut seen = 0.0
+  let el = eligible_arms()
+  each e in el {
+    if e.id == cid {
+      seen = seen + 1.0
+    }
+  }
+  assert_eq(seen, 1.0)
+  let _ = db_execute("UPDATE consent SET revoked = 1 WHERE scope = 'class:C'", [])
+  let mut seen2 = 0.0
+  let el2 = eligible_arms()
+  each e2 in el2 {
+    if e2.id == cid {
+      seen2 = seen2 + 1.0
+    }
+  }
+  assert_eq(seen2, 0.0)
 }

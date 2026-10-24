@@ -270,3 +270,14 @@ test "the practice_session DDL literal is idempotent (replay twice)" {
   let rows = query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'practice_session'", [])
   assert_eq(rows[0].n, 1.0)
 }
+
+test "Н3-01: a free session writes no trial, no response — the bandit and the valve never see it" {
+  let before = query("SELECT (SELECT count(*) FROM trial) AS t, (SELECT count(*) FROM response) AS r", [])
+  let sid = miniapp_session_open("free", 6.0, 12.0, "2032-04-01", 0.0, 0.0)
+  assert_eq(sid > 0.0, true)
+  let rows = miniapp_session_get(sid)
+  assert_eq(rows[0].kind, "free")
+  let after = query("SELECT (SELECT count(*) FROM trial) AS t, (SELECT count(*) FROM response) AS r", [])
+  assert_eq(after[0].t, before[0].t)
+  assert_eq(after[0].r, before[0].r)
+}

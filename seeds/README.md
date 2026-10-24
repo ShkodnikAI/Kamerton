@@ -41,3 +41,15 @@ interpreter runs exactly one iteration of a loop placed inside a
 pattern body (declared loudly per AGENTS §2 — minimal repro in the
 Н1-04 PR). A per-arm verification test pins every unrolled row to the
 entity list, so the unrolled copy cannot drift silently.
+
+## Каталог дыхательных практик (Н3-01)
+
+`practices.json` — операторское зеркало машинного списка `kamerton_protocols`
+(сид `seed_catalog()` в `src/arms/arms.mlog`); совпадение побайтно закреплено
+тестом. 8 практик AERIS v5.0: диафрагмальное (класс A), 4-7-8, квадратное,
+нади шодхана, ситали (B), Бутейко, кумбхака, капалабхати (C). Все руки каталога
+стартуют НЕактивными. Новая практика — одна запись (в этом списке или `INSERT`
+через `sqlite3` в `arm`, `practice_protocol`, `practice_text`), без правки кода.
+Интенсивности шагов и тексты утверждены владельцем 2026-10-24.
+Приоры широкие (0,45 ± 0,20); источник — только проверенный (Zaccaro et al.
+2018, обзор медленного дыхания) либо «нет источника: широкий приор».

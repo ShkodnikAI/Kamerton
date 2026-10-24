@@ -187,3 +187,40 @@ CREATE INDEX IF NOT EXISTS idx_response_trial ON response(trial_id);
 CREATE INDEX IF NOT EXISTS idx_context_trial ON context(trial_id);
 CREATE INDEX IF NOT EXISTS idx_candidate_name ON candidate(name);
 CREATE INDEX IF NOT EXISTS idx_arm_active ON arm(active);
+
+-- ── Н3-01: the practice catalog as data (additive) ──────────────────────
+-- slot: a named group of simultaneous practices; max_active is the cap on
+-- ACTIVE hands in it (the owner rule of 2026-10-23: 3).
+CREATE TABLE IF NOT EXISTS slot (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    max_active INTEGER DEFAULT '3',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+-- consent: one row per safety class the owner agreed to (scope
+-- 'class:A' | 'class:B' | 'class:C'); revoked = 1 withdraws it.
+CREATE TABLE IF NOT EXISTS consent (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT,
+    revoked INTEGER DEFAULT '0',
+    source TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+-- practice_protocol: the protocol of one hand (arm). steps_json =
+-- [{phase, sec, intensity 0..1, cue}], series_json = {reps, rest_sec};
+-- the cycle count is derived from session_min, never stored. The
+-- instruction text lives in practice_text (by arm.group_name).
+CREATE TABLE IF NOT EXISTS practice_protocol (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    arm_id INTEGER REFERENCES arm(id),
+    slot TEXT DEFAULT '',
+    safety_class TEXT DEFAULT 'A',
+    requires_consent INTEGER DEFAULT '0',
+    max_hold_sec REAL DEFAULT '0.0',
+    session_min REAL DEFAULT '10.0',
+    steps_json TEXT DEFAULT '[]',
+    series_json TEXT DEFAULT '',
+    contraindications TEXT DEFAULT '',
+    source TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);
