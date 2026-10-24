@@ -98,6 +98,9 @@ pins = [
     ("practice_session", "CREATE TABLE IF NOT EXISTS practice_session (id INTEGER"),
     ("sweep_result",     "CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER"),
     ("practice_text",    "CREATE TABLE IF NOT EXISTS practice_text (id INTEGER"),
+    ("slot",             "CREATE TABLE IF NOT EXISTS slot (id INTEGER"),
+    ("consent",          "CREATE TABLE IF NOT EXISTS consent (id INTEGER"),
+    ("practice_protocol", "CREATE TABLE IF NOT EXISTS practice_protocol (id INTEGER"),
 ]
 for table, pin_a in pins:
     pin_m = "CREATE TABLE IF NOT EXISTS " + table + " ("

@@ -135,6 +135,9 @@ pattern ensure_schema() -> Unit {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_session (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT DEFAULT 'pacer', arm_id INTEGER REFERENCES arm(id), trial_id INTEGER REFERENCES trial(id), tempo_bpm REAL DEFAULT '0.0', steps_total INTEGER DEFAULT '0', steps_done INTEGER DEFAULT '0', step_marks TEXT DEFAULT '', rr_json TEXT DEFAULT '', rr_source TEXT DEFAULT '', session_date TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS sweep_result (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER REFERENCES practice_session(id), result_date TEXT DEFAULT '', resonance_bpm REAL DEFAULT '0.0', peak_freq_bpm REAL DEFAULT '0.0', power_fraction REAL DEFAULT '0.0', p_value REAL DEFAULT '1.0', steps_valid INTEGER DEFAULT '0', steps_total INTEGER DEFAULT '0', prev_resonance_bpm REAL DEFAULT '0.0', freq_delta_bpm REAL DEFAULT '0.0', share_ratio REAL DEFAULT '0.0', verdict TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_text (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS slot (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, max_active INTEGER DEFAULT '3', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS consent (id INTEGER PRIMARY KEY AUTOINCREMENT, scope TEXT, revoked INTEGER DEFAULT '0', source TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_protocol (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), slot TEXT DEFAULT '', safety_class TEXT DEFAULT 'A', requires_consent INTEGER DEFAULT '0', max_hold_sec REAL DEFAULT '0.0', session_min REAL DEFAULT '10.0', steps_json TEXT DEFAULT '[]', series_json TEXT DEFAULT '', contraindications TEXT DEFAULT '', source TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   ensure_indexes()
 }
 
@@ -744,8 +747,18 @@ pattern arm_posterior(arm_id: Float, prior_mean: Float, prior_std: Float) -> Lis
   return [mean, sd, wsum]
 }
 
+// Н3-01: the candidate set of every decision. An ACTIVE hand with a
+// protocol that requires consent is a candidate only while the consent
+// row of its safety class exists (scope 'class:<X>', not revoked) —
+// forced exploration draws from THIS list too, so a class-C practice is
+// never assigned without the record (invariant 5 floor untouched: the 20%
+// is spread over the eligible hands).
+pattern eligible_arms() -> List {
+  return query("SELECT a.id AS id, a.name AS name, a.prior_mean AS prior_mean, a.prior_std AS prior_std FROM arm a LEFT JOIN practice_protocol p ON p.arm_id = a.id WHERE a.active = 1 AND (p.arm_id IS NULL OR p.requires_consent = 0 OR EXISTS (SELECT 1 FROM consent c WHERE c.scope = 'class:' || p.safety_class AND c.revoked = 0)) ORDER BY a.id", [])
+}
+
 pattern bandit_pick(seed: Float) -> Struct {
-  let arms = query("SELECT id, name, prior_mean, prior_std FROM arm WHERE active = 1 ORDER BY id", [])
+  let arms = eligible_arms()
   let k = len(arms)
   if k == 0.0 {
     return {arm_id: 0.0, mode: "empty", theta: 0.0}
@@ -886,6 +899,207 @@ pattern seed_arms() -> Float {
   db_execute("INSERT OR IGNORE INTO note (id, body, active) VALUES (1, 'Между тем, чего я хочу, и тем, что я делаю, нет зазора — и это видно по результату.', 1)")
   let rows = query("SELECT count(*) AS n FROM arm", [])
   return rows[0].n
+}
+
+// ── Н3-01: the practice CATALOG as data ─────────────────────────────────
+// A practice is a ROW (arm + practice_protocol + practice_text), never
+// code: a ninth practice is one more record — in this list for the seed,
+// or one INSERT through a plain sqlite3 client (invariant 6). The engine
+// reads the steps, it does not know the practices.
+//
+// Protocol format: steps = [{phase, sec, intensity 0..1, cue}] with the
+// phases inhale | hold | exhale | pause (the hold after an exhale) |
+// forced_exhale; series = {reps, rest_sec} — one SERIES is `reps` passes
+// over the steps followed by `rest_sec` of ordinary breathing (reps 1,
+// rest 0 = a plain endless cycle). The number of cycles is DERIVED from
+// session_min (protocol_cycles) and never stored: the AERIS durations
+// disagree with "steps x cycles" (4-7-8: 4 cycles x 19 s = 76 s against a
+// declared 5 min), so a stored cycle count would lie.
+//
+// Safety classes (owner consent per class lives in the consent table):
+//   A — no holds, no pauses, no forced breathing;
+//   B — holds/pauses up to 8 s (max_hold_sec is the declared ceiling the
+//       session engine may only SHORTEN);
+//   C — long holds or pauses (> 8 s), forced breathing. requires_consent = 1:
+//       never assigned — forced exploration included — until the consent
+//       row of the class exists.
+// The class follows the DATA, not the label: AERIS lists nadi shodhana and
+// sitali as "no holds", yet both carry 4-5 s holds, so they are class B.
+// Initial priors are WIDE (0.45 +- 0.20): only slow breathing in general
+// has a verified review, no technique here has its own source.
+entity kamerton_protocols: List = [
+  {name: "breath-diaphragmatic", group_name: "Дыхание: диафрагмальное", slot: "breath", day_window: "morning", safety_class: "A", requires_consent: 0.0, max_hold_sec: 0.0, session_min: 5.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "Zaccaro et al. 2018 (Front Hum Neurosci 12:353, doi:10.3389/fnhum.2018.00353): систематический обзор медленного дыхания (<=10 вдохов/мин) в целом; конкретная техника в обзоре не оценивалась — широкий приор",
+   contraindications: "",
+   instruction: "Сядь или ляг удобно, одна рука на животе. Вдох носом 5 секунд — живот поднимается под рукой, грудь почти неподвижна. Выдох 5 секунд — живот мягко опускается. Без усилия, ровно. Сбился — просто вернись к счёту. Около 6 циклов в минуту.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "вдох носом, живот расширяется"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "выдох, живот втягивается"}
+   ]},
+  {name: "breath-four-seven-eight", group_name: "Дыхание: 4-7-8", slot: "breath", day_window: "morning", safety_class: "B", requires_consent: 0.0, max_hold_sec: 7.0, session_min: 5.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Кончик языка за верхними зубами. Вдох носом на 4, задержка на 7, выдох через рот со звуком на 8. Если задержка в 7 секунд трудна — укороти пропорционально, но сохрани соотношение 4:7:8. Остановись сразу при головокружении.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 4.0, intensity: 0.5, cue: "вдох носом"},
+     {phase: "hold", sec: 7.0, intensity: 0.2, cue: "задержка"},
+     {phase: "exhale", sec: 8.0, intensity: 0.7, cue: "выдох ртом со звуком"}
+   ]},
+  {name: "breath-box", group_name: "Дыхание: квадратное дыхание", slot: "breath", day_window: "morning", safety_class: "B", requires_consent: 0.0, max_hold_sec: 4.0, session_min: 5.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Четыре равные стороны квадрата: вдох 4, задержка 4, выдох 4, пауза 4. Дыши носом, плечи расслаблены. Если задержки трудны — укороти все стороны поровну.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 4.0, intensity: 0.4, cue: "вдох"},
+     {phase: "hold", sec: 4.0, intensity: 0.2, cue: "задержка"},
+     {phase: "exhale", sec: 4.0, intensity: 0.4, cue: "выдох"},
+     {phase: "pause", sec: 4.0, intensity: 0.1, cue: "пауза после выдоха"}
+   ]},
+  {name: "breath-alternate-nostril", group_name: "Дыхание: поочерёдное дыхание ноздрями (нади шодхана)", slot: "breath", day_window: "morning", safety_class: "B", requires_consent: 0.0, max_hold_sec: 4.0, session_min: 5.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Большим пальцем правой руки закрой правую ноздрю, вдох левой на 4. Закрой обе, задержка 4. Открой правую, выдох на 4, пауза 4. Вдох правой на 4, закрой обе, задержка 4, открой левую, выдох 4, пауза 4. Это один полный цикл.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 4.0, intensity: 0.3, cue: "вдох левой ноздрёй"},
+     {phase: "hold", sec: 4.0, intensity: 0.2, cue: "задержка"},
+     {phase: "exhale", sec: 4.0, intensity: 0.3, cue: "выдох правой ноздрёй"},
+     {phase: "pause", sec: 4.0, intensity: 0.1, cue: "пауза"},
+     {phase: "inhale", sec: 4.0, intensity: 0.3, cue: "вдох правой ноздрёй"},
+     {phase: "hold", sec: 4.0, intensity: 0.2, cue: "задержка"},
+     {phase: "exhale", sec: 4.0, intensity: 0.3, cue: "выдох левой ноздрёй"},
+     {phase: "pause", sec: 4.0, intensity: 0.1, cue: "пауза"}
+   ]},
+  {name: "breath-sitali", group_name: "Дыхание: ситали (через свёрнутый язык)", slot: "breath", day_window: "morning", safety_class: "B", requires_consent: 0.0, max_hold_sec: 5.0, session_min: 5.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Сверни язык трубочкой и выступи им чуть за губы (если не получается — зубы сомкнуты, губы приоткрыты). Вдох через эту трубочку на 5, задержка на 5, выдох через нос на 5.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 5.0, intensity: 0.4, cue: "вдох через свёрнутый язык"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "задержка"},
+     {phase: "exhale", sec: 5.0, intensity: 0.4, cue: "выдох через нос"}
+   ]},
+  {name: "breath-buteyko-basic", group_name: "Дыхание: Бутейко (базовое)", slot: "breath", day_window: "morning", safety_class: "C", requires_consent: 1.0, max_hold_sec: 10.0, session_min: 7.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Дыхание максимально лёгкое и малое, только носом. Вдох 3, выдох 4, затем пауза после выдоха на 10 секунд, затем снова вдох 3 и выдох 4. Пауза не должна быть борьбой: при сильном желании вдохнуть — вдохни сразу и вернись к лёгкому ритму.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 3.0, intensity: 0.2, cue: "лёгкий вдох носом"},
+     {phase: "exhale", sec: 4.0, intensity: 0.2, cue: "лёгкий выдох"},
+     {phase: "pause", sec: 10.0, intensity: 0.0, cue: "пауза после выдоха, нос зажат при необходимости"},
+     {phase: "inhale", sec: 3.0, intensity: 0.2, cue: "лёгкий вдох носом"},
+     {phase: "exhale", sec: 4.0, intensity: 0.2, cue: "лёгкий выдох"}
+   ]},
+  {name: "breath-kumbhaka-advanced", group_name: "Дыхание: кумбхака (продвинутая)", slot: "breath", day_window: "morning", safety_class: "C", requires_consent: 1.0, max_hold_sec: 15.0, session_min: 10.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Вдох на 5, задержка на 15, выдох на 8, пауза на 5. Только сидя. Задержка без напряжения лица и горла. При любом дискомфорте, головокружении или дрожи — прекрати задержку сразу и дыши свободно.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "inhale", sec: 5.0, intensity: 0.5, cue: "вдох носом"},
+     {phase: "hold", sec: 15.0, intensity: 0.2, cue: "задержка на вдохе"},
+     {phase: "exhale", sec: 8.0, intensity: 0.5, cue: "выдох"},
+     {phase: "pause", sec: 5.0, intensity: 0.1, cue: "пауза после выдоха"}
+   ]},
+  {name: "breath-kapalabhati", group_name: "Дыхание: капалабхати", slot: "breath", day_window: "morning", safety_class: "C", requires_consent: 1.0, max_hold_sec: 0.0, session_min: 5.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "нет источника: широкий приор",
+   contraindications: "",
+   instruction: "Сидя, спина прямая. Резкий выдох носом за счёт сокращения живота, вдох происходит сам. Серия — 30 циклов, затем пауза 30 секунд обычного дыхания; всего три серии. При головокружении остановись и дыши спокойно.",
+   series: {reps: 30.0, rest_sec: 30.0},
+   steps: [
+     {phase: "forced_exhale", sec: 1.0, intensity: 1.0, cue: "резкий выдох животом"},
+     {phase: "inhale", sec: 1.0, intensity: 0.3, cue: "пассивный вдох"}
+   ]}
+]
+
+// Seed the catalog. Idempotent: UNIQUE indexes + INSERT OR IGNORE. Every
+// catalog arm starts INACTIVE (active = 0): the catalog is wider than the
+// active set, and activate_arm() admits a hand into its slot (at most
+// max_active per slot — the owner rule of 2026-10-23, 3 per slot).
+// Consent rows record the owner's decision as DATA, one per class:
+// chat 2026-10-23 ("Ты честно предупреждаешь, я честно даю добро") and
+// chat 2026-10-24 (no contraindications declared) — Kamerton issue #75.
+pattern seed_catalog() -> Float {
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_arm_name_unique ON arm(name)", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_protocol_arm_unique ON practice_protocol(arm_id)", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_slot_name_unique ON slot(name)", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_consent_scope_unique ON consent(scope)", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_text (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_practice_text_group_unique ON practice_text(group_name)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('breath', 3)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:A', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
+  let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:B', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
+  let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:C', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
+  let mut n = 0.0
+  each p in kamerton_protocols {
+    let _ = db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std, active) VALUES (?, ?, ?, ?, ?, ?, 0)", [p.name, p.group_name, p.day_window, p.session_min, p.prior_mean, p.prior_std])
+    let _ = db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES (?, ?)", [p.group_name, p.instruction])
+    let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, max_hold_sec, session_min, steps_json, series_json, contraindications, source) SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM arm WHERE name = ?", [p.slot, p.safety_class, p.requires_consent, p.max_hold_sec, p.session_min, json_encode(p.steps), json_encode(p.series), p.contraindications, p.source, p.name])
+    n = n + 1.0
+  }
+  return n
+}
+
+// Seconds of ONE series unit (reps passes over the steps + the rest).
+pattern protocol_unit_sec(arm_id: Float) -> Float {
+  let rows = query("SELECT steps_json, series_json FROM practice_protocol WHERE arm_id = ?", [arm_id])
+  if len(rows) == 0.0 {
+    return 0.0
+  }
+  let steps = parse_json(rows[0].steps_json)
+  let series = parse_json(rows[0].series_json)
+  let mut cycle = 0.0
+  each s in steps {
+    cycle = cycle + s.sec
+  }
+  return series.reps * cycle + series.rest_sec
+}
+
+// The number of whole units that fit in session_min — DERIVED, never
+// stored (0 for an unknown arm or an empty protocol).
+pattern protocol_cycles(arm_id: Float) -> Float {
+  let unit = protocol_unit_sec(arm_id)
+  if unit <= 0.0 {
+    return 0.0
+  }
+  let rows = query("SELECT session_min FROM practice_protocol WHERE arm_id = ?", [arm_id])
+  return to_float(to_int(rows[0].session_min * 60.0 / unit))
+}
+
+// Admit a hand into the active set. A hand with a protocol belongs to a
+// slot: the slot cap (max_active, default 3) refuses a fourth active
+// hand LOUDLY ("slot-full") — nothing is changed. A hand without a
+// protocol (the wave-1 methodologies) is not slotted: no cap applies.
+// Returns "ok" | "unknown-arm" | "slot-full".
+pattern activate_arm(arm_id: Float) -> String {
+  let arm = query("SELECT id FROM arm WHERE id = ?", [arm_id])
+  if len(arm) == 0.0 {
+    return "unknown-arm"
+  }
+  let prot = query("SELECT slot FROM practice_protocol WHERE arm_id = ?", [arm_id])
+  if len(prot) > 0.0 {
+    let cap_rows = query("SELECT max_active FROM slot WHERE name = ?", [prot[0].slot])
+    let mut cap = 3.0
+    if len(cap_rows) > 0.0 {
+      cap = to_float(cap_rows[0].max_active)
+    }
+    let used = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 1 AND a.id != ?", [prot[0].slot, arm_id])
+    if used[0].n >= cap {
+      return "slot-full"
+    }
+  }
+  let _ = db_execute("UPDATE arm SET active = 1 WHERE id = ?", [arm_id])
+  return "ok"
+}
+
+pattern deactivate_arm(arm_id: Float) -> Float {
+  let _ = db_execute("UPDATE arm SET active = 0 WHERE id = ?", [arm_id])
+  return 1.0
 }
 
 // ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────
@@ -2172,4 +2386,17 @@ test "the projection carries the declared priority over an earlier subjective ro
   assert_eq(len(resp), 2.0)
   assert_contains(resp[0].details, "telegram")
   assert_contains(resp[1].details, "spectral")
+}
+
+test "Н3-01: ensure_schema declares the catalog tables and a replay is a no-op" {
+  ensure_schema()
+  ensure_schema()
+  let p = query("SELECT sql AS s FROM sqlite_master WHERE name = 'practice_protocol'", [])
+  assert_contains(p[0].s, "steps_json TEXT DEFAULT '[]'")
+  assert_contains(p[0].s, "requires_consent INTEGER DEFAULT '0'")
+  assert_contains(p[0].s, "REFERENCES arm(id)")
+  let s = query("SELECT sql AS s FROM sqlite_master WHERE name = 'slot'", [])
+  assert_contains(s[0].s, "max_active INTEGER DEFAULT '3'")
+  let c = query("SELECT sql AS s FROM sqlite_master WHERE name = 'consent'", [])
+  assert_contains(c[0].s, "revoked INTEGER DEFAULT '0'")
 }
