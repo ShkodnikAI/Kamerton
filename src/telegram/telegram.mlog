@@ -657,7 +657,9 @@ pattern setup_register() -> Unit {
   // "secrets") sheds the label and passes the id string through
   // unchanged (probe-pinned on 0.33.1: real ids are "cron_<ts>_<n>"
   // strings, the value survives byte-exact); the
-  // derived count in the summary print rides the escape_html bridge.
+  // derived count in the summary print rides the redact bridge
+  // (№781, mlog 0.34.0: escape_html restores integrity only and no
+  // longer declassifies — redact "secrets" is the legal path down).
   each j in jobs {
     if j.prompt == "tg_morning_tick" and j.cron_expr != morning {
       let _ = cron_remove(redact(j.id, "secrets"))
@@ -695,7 +697,7 @@ pattern setup_register() -> Unit {
   // this suite stays green either way). The registration log is therefore
   // ONE flat summary print — the shape rig-validated clean on the full
   // setup_register body (m7full: 3/3 first-hit clean on an empty store).
-  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " jobs=" + escape_html(to_string(len(cron_list()))))
+  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " jobs=" + redact(to_string(len(cron_list())), "secrets"))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
@@ -1391,8 +1393,15 @@ pattern fetch_updates(token: String, offset: Float) -> List {
     attempt = attempt + 1.0
     let r = try http_get(url, 40.0)
     // Sanitize-then-decide: escape_html restores integrity trust
-    // (Sanitized = public/trusted); the raw label never branches.
+    // (the №716 contract — the raw untrusted flag never decides,
+    // probe-pinned since 0.30.0). The wrapped guard shape is not
+    // provable by the №802 flow pass — the value read inside the
+    // branch carries the sanctioned suppression with the reason.
     if escape_html(to_string(r.ok)) == "true" {
+      // allow(unchecked_result): r.value is read only behind the
+      // escape_html(to_string(r.ok)) == "true" decision above — the
+      // sanitize-then-decide bridge restores integrity before the
+      // branch; the obfuscated guard is deliberate (№802, ADR-0198).
       return json_get(parse_json(to_string(r.value)), "result", [])
     }
     if attempt < 3.0 {

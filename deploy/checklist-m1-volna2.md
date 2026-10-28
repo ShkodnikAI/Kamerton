@@ -48,7 +48,7 @@ sudo bash ~/src/kamerton/deploy/install.sh          # ← идемпотенте
 ```
 
 `install.sh` переложит свежий `app.mlog` в `/data/kamerton/`, env-файл
-**не тронет** («exists, left untouched»), mlog v0.33.2 подтвердит пин
+**не тронет** («exists, left untouched»), mlog v0.34.0 подтвердит пин
 по SHA256, юнит сервиса перегенерирует идентично.
 
 ## 3. Env: KAMERTON_MINIAPP_TOKEN + allowlist (руки, деплой-заметка Н2-03)
