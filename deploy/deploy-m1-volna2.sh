@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kamerton M1 wave-2 deploy driver (Н2-08 + Н2-09 + mlog v0.33.2 pin, PR #68).
+# Kamerton M1 wave-2 deploy driver (Н2-08 + Н2-09 + mlog v0.34.0 pin, PR #68/#69).
 #
 # One-shot: stop-crane -> backup -> pull -> install.sh -> env -> restart ->
 # live checks -> backup. Made for the owner running from PowerShell:
@@ -14,10 +14,10 @@
 # can be 5 or 6 depending on how the env file was born).
 set -euo pipefail
 
-# Минимально известный хороший main (PR #68). Сверка — через ancestor:
+# Минимально известный хороший main (пост-Н3-01, PR #84). Сверка — через ancestor:
 # после будущих squash-мержей EXPECTED_HEAD остаётся предком HEAD, вопрос
 # владельцу задаётся только если сервер стоит на ЧУЖОЙ ветке/старом состоянии.
-EXPECTED_HEAD="60c2151bee04fbed9ee50c3d03bd72358720c69a"
+EXPECTED_HEAD="c2d56edb88020a21e736dd320c998106307e090f"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DATA_DIR=/data/kamerton
 ENV_FILE="$DATA_DIR/env"
@@ -67,10 +67,10 @@ else
 fi
 
 # --- 4/9 install.sh ---------------------------------------------------------
-step "4/9 install.sh (mlog v0.33.2 + свежий app.mlog + юниты)"
+step "4/9 install.sh (mlog v0.34.0 + свежий app.mlog + юниты)"
 sudo bash "$REPO_DIR/deploy/install.sh"
-mlog --version 2>/dev/null | grep -q "0.33.2" || die "mlog --version не показал 0.33.2 после install.sh"
-echo "ok: mlog на 0.33.2"
+mlog --version 2>/dev/null | grep -q "0.34.0" || die "mlog --version не показал 0.34.0 после install.sh"
+echo "ok: mlog на 0.34.0"
 
 # --- 5/9 env ---------------------------------------------------------------
 step "5/9 env: KAMERTON_MINIAPP_TOKEN + allowlist"
@@ -119,13 +119,15 @@ curl -fsS http://127.0.0.1:8461/fire >/dev/null
 curl -fsS http://127.0.0.1:8461/fire >/dev/null
 echo "ok: /fire x2 приняты (200 fired)"
 PT="$(sqlite3 "$DB" 'SELECT count(*) FROM practice_text;')"
-[ "$PT" = "5" ] || die "practice_text=$PT, ожидалось 5"
+[ "$PT" -ge 5 ] || die "practice_text=$PT — сид практик не загрузился (ожидалось >= 5; каталог Н3-01 расширил сид — точный счёт не инвариант)"
+PTEMPTY="$(sqlite3 "$DB" "SELECT count(*) FROM practice_text WHERE body = '' OR body IS NULL;")"
+[ "$PTEMPTY" = "0" ] || die "пустые practice_text: $PTEMPTY — Н2-09 нарушен"
 TRIALS="$(sqlite3 "$DB" 'SELECT trial_date, count(*) AS n FROM trial GROUP BY trial_date ORDER BY trial_date DESC LIMIT 2;')"
 echo "trial по датам (верхняя = сегодня):"
 echo "$TRIALS"
 DUPES="$(sqlite3 "$DB" 'SELECT count(*) FROM (SELECT trial_date FROM trial GROUP BY trial_date HAVING count(*) > 1);')"
 [ "$DUPES" = "0" ] || die "есть даты с n>1 — страж Н2-08 нарушен"
-echo "ok: practice_text=5, trial n=1 за каждую дату (Н2-08 держит)"
+echo "ok: practice_text=$PT (каталог Н3-01), пустых тел 0 (Н2-09), trial n=1 за каждую дату (Н2-08 держит)"
 
 # --- 8/9 backup after ---------------------------------------------------------
 step "8/9 бэкап после"
@@ -141,7 +143,7 @@ step "9/9 сводка для чата"
   cat "$DATA_DIR/rollback-point.txt"
   echo "--- trial ---"
   echo "$TRIALS"
-  echo "--- practice_text rows: $PT ---"
+  echo "--- practice_text rows: $PT (empty: $PTEMPTY) ---"
   echo "--- journalctl -n 40 ---"
   echo "$LOG"
 } > "$REPORT"
