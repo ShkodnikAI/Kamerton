@@ -692,7 +692,11 @@ pattern setup_register() -> Unit {
   // this suite stays green either way). The registration log is therefore
   // ONE flat summary print — the shape rig-validated clean on the full
   // setup_register body (m7full: 3/3 first-hit clean on an empty store).
-  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " jobs=" + escape_html(to_string(len(cron_list()))))
+  // mlog 0.34.1: print is a №316-class sink requiring public clearance;
+  // the env-derived window strings carry 'private, trusted' — the
+  // sanctioned redact bridge (№689) sheds the label, the value passes
+  // through unchanged (probe-pinned on v0.34.1).
+  print(redact("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " jobs=" + escape_html(to_string(len(cron_list()))), "secrets"))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
@@ -1176,10 +1180,14 @@ pattern fetch_updates(token: String, offset: Float) -> List {
   while attempt < 3.0 {
     attempt = attempt + 1.0
     let r = try http_get(url, 40.0)
-    // Sanitize-then-decide: escape_html restores integrity trust
-    // (Sanitized = public/trusted); the raw label never branches.
-    if escape_html(to_string(r.ok)) == "true" {
-      return json_get(parse_json(to_string(r.value)), "result", [])
+    // mlog 0.34.1: the guard is ct_eq over to_string(r.ok) — constant-time
+    // equality is the sanctioned anti-injection decision (№806): the
+    // untrusted try outcome never decides a bare if. The same-line
+    // allow(unchecked_result) covers the analyzer gap (the guard proof is
+    // not carried into the while body; probe-pinned on v0.34.1) — the
+    // value is read ONLY when ct_eq admitted the branch (r.ok == "true").
+    if ct_eq(to_string(r.ok), "true") {
+      return json_get(parse_json(to_string(r.value)), "result", []) // allow(unchecked_result): ct_eq guard admits .value only on r.ok == "true"
     }
     if attempt < 3.0 {
       sleep(15.0)

@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install pinned mlog (v0.33.2, SHA256-verified)
+      - name: Install pinned mlog (v0.34.1, SHA256-verified)
         run: |
-          MLOG_TAG="v0.33.2"
-          MLOG_SHA="48b9816737665b8270bc268606926faba29d8094df838651a7e605b2ef4a7802"
+          MLOG_TAG="v0.34.1"
+          MLOG_SHA="fdac4152f073de38566ad6dff87f5e82ea58cd21a12bb9d845abff8b0d670852"
           base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
           curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
           echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
@@ -50,10 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install pinned mlog (v0.33.2, SHA256-verified)
+      - name: Install pinned mlog (v0.34.1, SHA256-verified)
         run: |
-          MLOG_TAG="v0.33.2"
-          MLOG_SHA="48b9816737665b8270bc268606926faba29d8094df838651a7e605b2ef4a7802"
+          MLOG_TAG="v0.34.1"
+          MLOG_SHA="fdac4152f073de38566ad6dff87f5e82ea58cd21a12bb9d845abff8b0d670852"
           base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
           curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
           echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
@@ -79,10 +79,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install pinned mlog (v0.33.2, SHA256-verified)
+      - name: Install pinned mlog (v0.34.1, SHA256-verified)
         run: |
-          MLOG_TAG="v0.33.2"
-          MLOG_SHA="48b9816737665b8270bc268606926faba29d8094df838651a7e605b2ef4a7802"
+          MLOG_TAG="v0.34.1"
+          MLOG_SHA="fdac4152f073de38566ad6dff87f5e82ea58cd21a12bb9d845abff8b0d670852"
           base="https://github.com/ShkodnikAI/Metalogos-/releases/download/${MLOG_TAG}"
           curl -fsSL -o /tmp/mlog "${base}/mlog-linux-x86_64"
           echo "${MLOG_SHA}  /tmp/mlog" | sha256sum -c -
