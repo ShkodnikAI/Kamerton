@@ -101,6 +101,12 @@
 // the §2 declaration below), so the app's tests live in
 // src/telegram/telegram.mlog against a literal in-memory db and the
 // byte-identical mirror blocks; app.mlog stays the serve canon.
+// mlog 0.38.0 (ADR-0203 §2.4, №845): the tests in this file exercise
+// send_message through the mirrored chat cycle — the minimum
+// allow_carrier permit on this test entrypoint (the same single
+// carrier as app.mlog; cron_run stays refusing — see the note there,
+// Kamerton issue #91).
+profile capability { allow_carrier: "send_message" }
 db { url: "sqlite::memory:" }
 
 // The KV store carries the getUpdates offset AND the cron job store;
