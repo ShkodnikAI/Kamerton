@@ -15,11 +15,14 @@
 // the wall clock — any divergence between the lanes is the defect №594
 // guards against ("the system decides one thing and reports another").
 //
-// CI runs check/audit per tracked file, so this sample must stay clean;
-// it carries no test blocks (the verification is the serve run recorded
-// in the naryad worklog). The cron expression "* * * * *" makes the
-// scheduler re-fire every minute — the same value every time, which is
-// itself the determinism observation.
+// CI runs check/audit per tracked file, so this sample must stay clean.
+// The verification of the BYTE parity itself remains the serve run
+// recorded in the naryad worklog; since the owner ruling 01.11
+// (Kamerton#90) the file ALSO carries the two mandate test blocks at the
+// bottom — the 0.38.0 approval arc (№861) for the manual-fire carrier.
+// The cron expression "* * * * *" makes the scheduler re-fire every
+// minute — the same value every time, which is itself the determinism
+// observation.
 
 // The pure chain under parity test. Seeded, effect-free apart from the
 // shared PRNG stream the seed resets.
@@ -80,7 +83,13 @@ pattern fire_job(raw: String<public, trusted>) -> String {
     return "rejected"
   }
   let fired = cron_run(id)
-  if fired < 0.0 {
+  // 0.38.0: cron_run returns CronRunResult {executed, id, status} — the
+  // 0.34 numeric failure probe (fired < 0.0) is a runtime TYPE_MISMATCH
+  // against the struct (probed 01.11). The bridge keeps the same
+  // semantics on the executed count: a well-shaped id of a missing job
+  // answers status "not_found", executed 0 (probed) — not executed is
+  // rejected, exactly what the negative return meant on 0.34.
+  if fired.executed < 1.0 {
     return "rejected"
   }
   return "ok"
@@ -103,7 +112,49 @@ mlogserver {
   // response is an acknowledgement, the tick file is the observable.
   route "/cron-fire" method=GET {
     let raw = query_param("id")
+    // 0.38.0 №861 (ADR-0205 §2.6): cron_run is the human-oversight
+    // carrier — the manual fire crosses the approval gate. The operator
+    // opening the address is the human decision, the mandate is issued
+    // HERE, ttl 60 s, this request (the same posture as app.mlog /fire;
+    // owner ruling 01.11, Kamerton#90 p.2 — in this test sample the
+    // actor is "test"). Without this issue the route answers 500
+    // IRREVERSIBLE_NO_GRANT — probed 01.11, the refusal is BEFORE the
+    // action and names the remedy surface.
+    approval_issue("test", "carrier:cron_run", 60)
     let status = fire_job(raw)
     respond("200 accepted")
   }
+}
+
+// ── The 0.38.0 approval arc (№861) for the manual-fire carrier ────────
+// Owner ruling 01.11 (Kamerton#90 p.2): the mandate is issued in the
+// test itself (actor "test"), plus the negative. The gate refuses
+// BEFORE the action (ADR-0205 §2.6) and the refusal ABORTS the executing
+// lane — so a literal no-mandate cron_run call cannot sit in a green
+// test block (№120 test blocks carry no expect-failure attribute;
+// upstream naryad_861 pins the literal refusal via unwrap_err in Rust,
+// both backends). The mlog-expressible half of the negative control is
+// the mandate LIFECYCLE (issue → revoke — the №860 negative control (б)):
+// the previously live mandate stops covering the carrier. The literal
+// no-mandate refusal is observed on the serve lane (probed 01.11: a
+// mandate-free fire answers 500 IRREVERSIBLE_NO_GRANT, the refusal names
+// the remedy) and is pinned upstream — recorded in the naryad worklog,
+// deliberately NOT re-created here as a permanently-refusing route.
+test "the live test mandate lets cron_run queue (request → approve → execute)" {
+  let job = cron_add("* * * * *", "parity_tick_target")
+  approval_issue("test", "carrier:cron_run", 60)
+  let fired = cron_run(job.id)
+  assert_eq(fired.status, "queued")
+  assert_eq(fired.executed, 1.0)
+}
+
+test "negative control: a revoked mandate stops covering the carrier (№861 б)" {
+  // Revoke-first: the mandate store is process-wide, the positive block
+  // above may have left its 60 s mandate behind — this control owns
+  // exactly one, whatever the runner order (revoke of an empty store is
+  // a no-op 0, probed 01.11).
+  approval_revoke("carrier:cron_run")
+  let m = approval_issue("test", "carrier:cron_run", 60)
+  assert_eq(m.revoked, false)
+  assert_eq(approval_revoke("carrier:cron_run"), 1.0)
 }

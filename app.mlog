@@ -103,13 +103,14 @@
 // byte-identical mirror blocks; app.mlog stays the serve canon.
 // mlog 0.38.0 (ADR-0203 §2.4, №845): the sharp-set carriers refuse
 // before the run without an explicit permit. The ONLY sharp carrier
-// this program calls is send_message (5 call sites, the chat cycle) —
-// the minimum allow_carrier permit, on the entrypoint. Nothing else is
-// permitted «just in case»: exec/http_post/tts_send and the rest are
-// never called here. cron_run (/fire) is deliberately NOT permitted —
-// 0.38.0 puts it under HUMAN_OVERSIGHT (№861): it stays refusing
-// IRREVERSIBLE_NO_GRANT until the owner issues a live human mandate
-// (approval_issue — Kamerton issue #91, the owner directive p.6).
+// this program calls is send_message (the chat cycle: 5 call sites in
+// the app canon, 2 in this mirrored test file) — the minimum
+// allow_carrier permit, on the entrypoint. Nothing else is permitted
+// «just in case». cron_run is deliberately NOT permitted by the
+// profile: 0.38.0 puts it under HUMAN_OVERSIGHT (№861) — the manual
+// fire carries its own LIVE mandate (approval_issue in /fire, owner
+// ruling 01.11, Kamerton#90). [byte-identical to the telegram mirror —
+// verify-mirrors pins the prefix; the sole allowed delta is db-url]
 profile capability { allow_carrier: "send_message" }
 db { url: env("KAMERTON_DB") }
 
@@ -1791,6 +1792,13 @@ mlogserver {
   // a repeated fire re-shows today's trial instead of a second one.
   route "/fire" method=GET {
     let jobs = cron_list()
+    // 0.38.0 №861 (ADR-0205 §2.6): cron_run is the human-oversight
+    // carrier — the manual fire crosses the approval gate. The operator
+    // opening the address IS the human decision (owner ruling 01.11,
+    // Kamerton#90 p.1): the mandate is issued HERE, ttl 60 s, and the
+    // app calls cron_run nowhere else (grep-pinned, #90 p.4 — no
+    // env-var ttl, no monthly renewal).
+    approval_issue("operator:/fire", "carrier:cron_run", 60)
     each j in jobs {
       // №706: the id flows private (whole-struct posture) — redact bridge.
       let _ = cron_run(redact(j.id, "secrets"))
