@@ -101,6 +101,17 @@
 // the §2 declaration below), so the app's tests live in
 // src/telegram/telegram.mlog against a literal in-memory db and the
 // byte-identical mirror blocks; app.mlog stays the serve canon.
+// mlog 0.38.0 (ADR-0203 §2.4, №845): the sharp-set carriers refuse
+// before the run without an explicit permit. The ONLY sharp carrier
+// this program calls is send_message (the chat cycle: 5 call sites in
+// the app canon, 2 in this mirrored test file) — the minimum
+// allow_carrier permit, on the entrypoint. Nothing else is permitted
+// «just in case». cron_run is deliberately NOT permitted by the
+// profile: 0.38.0 puts it under HUMAN_OVERSIGHT (№861) — the manual
+// fire carries its own LIVE mandate (approval_issue in /fire, owner
+// ruling 01.11, Kamerton#90). [byte-identical to the telegram mirror —
+// verify-mirrors pins the prefix; the sole allowed delta is db-url]
+profile capability { allow_carrier: "send_message" }
 db { url: "sqlite::memory:" }
 
 // The KV store carries the getUpdates offset AND the cron job store;
