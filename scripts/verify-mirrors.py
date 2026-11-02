@@ -39,6 +39,33 @@ def block(text, name):
 
 fail = 0
 
+# ── 0. bandit-core: ротационный фрагмент Н3-06 байт-в-байт в трёх файлах ──
+# Канон — src/bandit/bandit.mlog (фрагмент от «// ── Н3-06: slot rotation»
+# до «// ── Test fixtures»); в app.mlog и src/telegram/telegram.mlog тот же
+# фрагмент стоит непосредственно перед «// ── APP-MIRROR-END: bandit-core»
+# (синхронизатор — scripts/n3-06-mirror.py, Н3-06).
+def bandit_fragment(text, end_anchor):
+    m = re.search(r"(// ── Н3-06: slot rotation.*?)\n" + re.escape(end_anchor), text, re.S)
+    if not m:
+        return None
+    return m.group(1).rstrip("\n") + "\n"
+
+canon_bandit = read(FILES.get("bandit", REPO + "/src/bandit/bandit.mlog"))
+mb = re.search(r"(// ── Н3-06: slot rotation.*?)\n// ── Test fixtures", canon_bandit, re.S)
+if not mb:
+    print("FAIL bandit-core: ротационный фрагмент Н3-06 в каноне не найден")
+    fail = 1
+else:
+    canon_frag = mb.group(1).rstrip("\n") + "\n"
+    ok_b = True
+    for name in (FILES["app"], FILES["tg"]):
+        frag = bandit_fragment(read(name), "// ── APP-MIRROR-END: bandit-core")
+        if frag != canon_frag:
+            print("FAIL bandit-core: фрагмент в %s не байт-равен канону" % name)
+            ok_b = False
+    if ok_b:
+        print("OK bandit-core: Н3-06 фрагмент байт-равен в трёх файлах (%d байт)" % len(canon_frag))
+
 # ── 1. arms-seed и miniapp-core байт-в-байт в трёх экземплярах ──────────
 MIRRORS = {
     "arms-seed": [REPO + "/src/arms/arms.mlog", FILES["app"], FILES["tg"]],

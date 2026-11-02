@@ -838,6 +838,176 @@ pattern bandit_propose(trial_date: String, seed: Float) -> Float {
   let row = {trial_date: trial_date, day_window: arm[0].day_window, arm_id: pick.arm_id}
   return db_insert("trial", row)
 }
+
+
+
+// ── Н3-06: slot rotation (ADR-0003, принят 2026-10-24: 25 / 0,10 / 0,90 / 14 / 90)
+//
+// Once a day, in the morning tick BEFORE the proposal. Per slot:
+//   - the slot is evaluated only while it is FULLY staffed (active ==
+//     max_active — the owner's chosen set is in place; an incomplete slot
+//     means the owner has not chosen yet, nothing is changed silently) and,
+//     for `methods`, the Н3-05 armed cap (the owner's confirm event);
+//   - the 14-day window is open (no rotate-off of this slot in the last
+//     14 days — at most ONE replacement per slot per 14 days);
+//   - for every ACTIVE hand with >= 25 completed trials (at least one
+//     present reward component, same filter as the posterior): the
+//     probability that its mean is BELOW the best hand of the slot by
+//     >= 0.10, over the Normal posterior estimates (the difference of two
+//     independent posteriors is Normal with the combined variance);
+//   - the WEAKEST such hand (the largest probability) is retired ONLY if
+//     a replacement candidate exists — the slot is never emptied;
+//   - the candidate: the next catalog hand of the slot by prior_mean DESC,
+//     then id ASC, admitted by its safety class consent, and NOT in the
+//     90-day rotation cooldown (a hand retired by the rotation returns as
+//     a candidate not earlier than 90 days).
+// Every decision (retire + admit) is journaled with the numbers of the
+// criterion (actor 'rotation'); the owner can undo manually at any time
+// (deactivate/activate — the manual path writes its own journal rows).
+// Forced exploration is untouched: the rotation only moves the active
+// flags; the exploration floor draws over the active set as before.
+// The thresholds 14/90 live in the SQL literals below (datetime('now',
+// '-N days')), consistent with the journal created_at format; the
+// mutation checks flip those literals.
+entity rotation_obs_min: Float = 25.0
+entity rotation_gap: Float = 0.10
+entity rotation_prob: Float = 0.90
+
+// Normal CDF via the Abramowitz–Stegun 7.1.26 erf approximation
+// (|error| < 1.5e-7 — far below the 0.90 decision threshold).
+pattern normal_cdf(x: Float) -> Float {
+  if x < 0.0 {
+    return 1.0 - normal_cdf(0.0 - x)
+  }
+  let z = x / 1.4142135623730951
+  let t = 1.0 / (1.0 + 0.3275911 * z)
+  let poly = ((((1.061405429 * t + (0.0 - 1.453152027)) * t + 1.421413741) * t + (0.0 - 0.284496736)) * t + 0.254829592) * t
+  let y = 1.0 - poly * exp(0.0 - z * z)
+  return 0.5 * (1.0 + y)
+}
+
+// P(mu_best - mu_i >= rotation_gap) for two independent Gaussian
+// posteriors: the difference is Normal(mean_best - mean_i, combined sd).
+pattern rotation_gap_prob(mean_i: Float, sd_i: Float, mean_best: Float, sd_best: Float) -> Float {
+  let delta = mean_best - mean_i
+  let sd = sqrt(sd_i * sd_i + sd_best * sd_best)
+  if sd <= 0.0 {
+    if delta >= rotation_gap {
+      return 1.0
+    }
+    return 0.0
+  }
+  return normal_cdf((delta - rotation_gap) / sd)
+}
+
+// Completed trials with at least one present reward component — the SAME
+// observation filter as the posterior (ADR-0003 point 1).
+pattern rotation_obs_count(arm_id: Float) -> Float {
+  let rows = query("SELECT count(*) AS n FROM trial WHERE arm_id = ? AND status = 'completed' AND (moment_present = 1 OR next_day_present = 1 OR action_present = 1)", [arm_id])
+  return rows[0].n
+}
+
+// The slot is ready for rotation: fully staffed (the owner's chosen set
+// is in place) and — for `methods` — the Н3-05 armed cap (the owner's
+// confirm event exists in the journal).
+pattern rotation_slot_ready(slot_name: String) -> Bool {
+  let cap_rows = query("SELECT max_active AS cap FROM slot WHERE name = ?", [slot_name])
+  if len(cap_rows) == 0.0 {
+    return false
+  }
+  let cap = to_float(cap_rows[0].cap)
+  let act_rows = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 1", [slot_name])
+  if act_rows[0].n < cap {
+    return false
+  }
+  if slot_name == "methods" {
+    let armed = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'methods-cap-armed'", [])
+    if armed[0].n == 0.0 {
+      return false
+    }
+  }
+  return true
+}
+
+// The 14-day window: no rotate-off of this slot in the last 14 days.
+pattern rotation_window_open(slot_name: String) -> Bool {
+  let rows = query("SELECT count(*) AS n FROM arm_journal j JOIN practice_protocol p ON p.arm_id = j.arm_id WHERE p.slot = ? AND j.action = 'rotate-off' AND j.created_at >= datetime('now', '-14 days')", [slot_name])
+  return rows[0].n == 0.0
+}
+
+// The next catalog hand of the slot: prior_mean DESC, then id ASC; not
+// active; admitted by its safety class (the same consent filter as the
+// bandit candidates); not in the 90-day rotation cooldown. Returns the
+// arm id, or 0 when no candidate is admissible.
+pattern rotation_candidate(slot_name: String) -> Float {
+  let rows = query("SELECT a.id AS id FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 0 AND (p.requires_consent = 0 OR EXISTS (SELECT 1 FROM consent c WHERE c.scope = 'class:' || p.safety_class AND c.revoked = 0)) AND NOT EXISTS (SELECT 1 FROM arm_journal j WHERE j.action = 'rotate-off' AND j.arm_id = a.id AND j.created_at >= datetime('now', '-90 days')) ORDER BY a.prior_mean DESC, a.id ASC LIMIT 1", [slot_name])
+  if len(rows) == 0.0 {
+    return 0.0
+  }
+  return rows[0].id
+}
+
+// The rotation itself: at most ONE replacement per slot per run (the
+// weakest hand only), the windows and cooldowns enforced, every decision
+// journaled with the numbers. Returns the number of replacements made.
+pattern rotate_slots() -> Float {
+  let slots = query("SELECT DISTINCT p.slot AS slot FROM practice_protocol p WHERE p.slot != '' ORDER BY p.slot", [])
+  let mut replaced = 0.0
+  each s in slots {
+    let slot_name = s.slot
+    let ready = rotation_slot_ready(slot_name)
+    let window = rotation_window_open(slot_name)
+    if ready == true and window == true {
+      let act = query("SELECT a.id AS id, a.prior_mean AS pm, a.prior_std AS ps FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 1 ORDER BY a.id", [slot_name])
+      let mut best_mean = 0.0 - 1.0
+      let mut best_sd = 1.0
+      each a in act {
+        let post = arm_posterior(a.id, a.pm, a.ps)
+        if post[0] > best_mean {
+          best_mean = post[0]
+          best_sd = post[1]
+        }
+      }
+      let mut worst_id = 0.0
+      let mut worst_prob = 0.0
+      let mut worst_mean = 0.0
+      let mut worst_sd = 0.0
+      let mut worst_n = 0.0
+      each a2 in act {
+        let n = rotation_obs_count(a2.id)
+        if n >= rotation_obs_min {
+          let post2 = arm_posterior(a2.id, a2.pm, a2.ps)
+          let prob = rotation_gap_prob(post2[0], post2[1], best_mean, best_sd)
+          if prob >= rotation_prob and prob > worst_prob {
+            worst_id = a2.id
+            worst_prob = prob
+            worst_mean = post2[0]
+            worst_sd = post2[1]
+            worst_n = n
+          }
+        }
+      }
+      if worst_id > 0.0 {
+        // a replacement happens ONLY with an admissible candidate —
+        // the slot is never emptied
+        let cand = rotation_candidate(slot_name)
+        if cand > 0.0 {
+          let detail = "n=" + to_string(worst_n) + " mean=" + to_string(worst_mean) + " sd=" + to_string(worst_sd) + " best_mean=" + to_string(best_mean) + " best_sd=" + to_string(best_sd) + " gap=" + to_string(rotation_gap) + " prob=" + to_string(worst_prob)
+          let _ = db_execute("UPDATE arm SET active = 0 WHERE id = ?", [worst_id])
+          let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES ('rotation', ?, 'arm-off')", [worst_id])
+          let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES ('rotation', ?, 'rotate-off', ?)", [worst_id, detail])
+          let cand_row = query("SELECT prior_mean AS pm FROM arm WHERE id = ?", [cand])
+          let _ = db_execute("UPDATE arm SET active = 1 WHERE id = ?", [cand])
+          let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES ('rotation', ?, 'arm-on')", [cand])
+          let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES ('rotation', ?, 'rotate-on', ?)", [cand, "prior_mean=" + to_string(cand_row[0].pm)])
+          replaced = replaced + 1.0
+        }
+      }
+    }
+  }
+  return replaced
+}
+
 // ── APP-MIRROR-END: bandit-core
 // ── APP-MIRROR-START: arms-seed (byte-identical to
 //    src/arms/arms.mlog §arms-seed) ─────────────────────────────────────
@@ -1726,6 +1896,18 @@ pattern tg_morning_tick() -> Unit {
   if token != "" and chat_id != "" {
     let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
     let today = owner_date(now_unix(), off)
+    // Н3-06: the slot rotation (ADR-0003) runs BEFORE the proposal —
+    // the morning pick sees the freshly rotated set. The rotation is
+    // self-gating: an incomplete slot (the owner's set not chosen yet)
+    // and the methods slot without the Н3-05 armed cap stay untouched;
+    // the 14-day window and the 90-day cooldown ride the journal. Every
+    // decision is journaled with its numbers (actor 'rotation'); the
+    // forced exploration floor is untouched. A count above zero is
+    // printed for the audit trail.
+    let rotated = rotate_slots()
+    if rotated > 0.0 {
+      print("[rotation] " + to_string(rotated) + " slot replacement(s)")
+    }
     let tid = bandit_propose(today, now_unix())
     let mut msg = "Библиотека пуста — предложение не сформировано (громкий ноль бандита)"
     if tid != 0.0 {
