@@ -281,3 +281,35 @@ CREATE TABLE IF NOT EXISTS practice_profile (
     created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_arm_unique ON practice_profile(arm_id);
+
+-- day_plan: the practices chosen for a date (Н4-03) — the bandit's
+-- recommendation (the experiment of the day) and the owner's free
+-- picks (free sessions, outside the reward path). UNIQUE(plan_date,
+-- arm_id) is the idempotent-add backstop; source is 'recommendation'
+-- or 'owner', status is 'planned'/'done' with done_at next to it.
+CREATE TABLE IF NOT EXISTS day_plan (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_date TEXT,
+    arm_id INTEGER REFERENCES arm(id),
+    ord INTEGER DEFAULT '0',
+    source TEXT DEFAULT 'owner',
+    status TEXT DEFAULT 'planned',
+    done_at TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_day_plan_date_arm_unique ON day_plan(plan_date, arm_id);
+
+-- free_journal: the free-session diary (Н4-03) — mood 0..1 and the
+-- note of the day, OUTSIDE the reward path (no trial, no response;
+-- the posterior cannot see it). arm_id is NULL when the entry carries
+-- no practice link (the chat journal; the Mini App one binds the plan
+-- row of the same day).
+CREATE TABLE IF NOT EXISTS free_journal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    journal_date TEXT,
+    arm_id INTEGER REFERENCES arm(id),
+    mood REAL DEFAULT '0.0',
+    note TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_journal_date ON free_journal(journal_date);
