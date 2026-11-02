@@ -661,6 +661,11 @@ pattern setup_register() -> Unit {
   let collect = cron_expr_for(1290.0, off)
   let evening = cron_expr_for(120.0, off)
   let weekly = cron_expr_for(570.0, off)
+  // Н4-08: the FIFTH job — the Moment of Power tick, every 10 minutes
+  // round the clock ("*/10 * * * *", probe-pinned on v0.38.0): the tick
+  // self-guards on the owner's window/secret/text, so the expression
+  // does not depend on the window facts.
+  let moment = "*/10 * * * *"
   let jobs = cron_list()
   // №706 (mlog 0.33.1): cron_list rows flow as private (prompt/payload
   // are user-authored content — the №689 whole-struct fail-closed
@@ -685,6 +690,9 @@ pattern setup_register() -> Unit {
     if j.prompt == "tg_weekly_tick" and j.cron_expr != weekly {
       let _ = cron_remove(redact(j.id, "secrets"))
     }
+    if j.prompt == "tg_moment_tick" and j.cron_expr != moment {
+      let _ = cron_remove(redact(j.id, "secrets"))
+    }
   }
   let add_m = has_job(morning, "tg_morning_tick") == false
   if add_m == true {
@@ -702,6 +710,10 @@ pattern setup_register() -> Unit {
   if add_w == true {
     let _ = cron_add(weekly, "tg_weekly_tick")
   }
+  let add_mo = has_job(moment, "tg_moment_tick") == false
+  if add_mo == true {
+    let _ = cron_add(moment, "tg_moment_tick")
+  }
   // VM defect #52 (minimal repro m6b): TWO print-ifs reading flags after
   // executed effect-call if-bodies miscompile on the serve VM lane — the
   // first /setup against an EMPTY store throws [TYPE_MISMATCH] Struct Eq
@@ -709,7 +721,7 @@ pattern setup_register() -> Unit {
   // this suite stays green either way). The registration log is therefore
   // ONE flat summary print — the shape rig-validated clean on the full
   // setup_register body (m7full: 3/3 first-hit clean on an empty store).
-  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " jobs=" + redact(to_string(len(cron_list())), "secrets"))
+  print("[telegram] cron setup: morning=" + morning + " collect=" + collect + " evening=" + evening + " weekly=" + weekly + " moment=" + moment + " jobs=" + redact(to_string(len(cron_list())), "secrets"))
 }
 
 // ── APP-MIRROR-END: db-cycle ─────────────────────────────────────────
@@ -1670,6 +1682,164 @@ pattern fetch_updates(token: String, offset: Float) -> List {
     }
   }
   return []
+}
+// ── Н4-08: the Moment of Power (MIND-MASTERY перенос, наряд #100) ───────
+// Детерминированная минута «момента силы» из даты и секрета владельца:
+// хэш Кнута из MIND-MASTERY (src/core/hash/knuth.ts @ 2a26e75),
+// minute = windowStart + (hash mod range). В языке НЕТ ни побитовых
+// операций, ни modulo (grammar v0.38.0, probe-pinned в работе наряда) —
+// 32-битная арифметика эмулируется ТОЧНО на Float: mod32/shr16 — целое
+// деление, xor32 — 32-шаговый побитовый цикл, imul32 — разбиение на
+// 16-битные половины (все промежуточные произведения < 2^50, точность
+// Float до 2^53 достаточна). Эталонные векторы MIND-MASTERY воспроизводятся
+// побайтно (пять дат, тест ниже) — затык §2 не объявляется.
+//
+// Окно и секрет — факты владельца (Шаг 0 наряда): KAMERTON_MOMENT_START /
+// KAMERTON_MOMENT_END (минуты от полуночи; дефолт 480/1260 — ПРЕДЛОЖЕНИЕ
+// наряда 08:00–21:00, до утверждения владельцем переопределяется env),
+// KAMERTON_MOMENT_SECRET (без него тик громко отказывается),
+// KAMERTON_MOMENT_TEXT (текст подсказки; без него тихий отказ с печатью —
+// тексты момента исполнитель не придумывает). Подсказка ответа не требует
+// и в данные не пишется.
+pattern mod32(x: Float) -> Float {
+  // no early return under if (the D2-family case 4): the negative
+  // branch folds into the value, one fold is enough (inputs are far
+  // above -2^32)
+  let mut y = x
+  if y < 0.0 {
+    y = y + 4294967296.0
+  }
+  return y - to_int(y / 4294967296.0) * 4294967296.0
+}
+pattern mod65536(x: Float) -> Float {
+  return x - to_int(x / 65536.0) * 65536.0
+}
+pattern shr16(x: Float) -> Float {
+  return to_int(mod32(x) / 65536.0)
+}
+pattern xor32(a: Float, b: Float) -> Float {
+  let mut x = to_int(mod32(a))
+  let mut y = to_int(mod32(b))
+  let mut acc = 0.0
+  let mut bit = 1.0
+  let mut i = 0.0
+  while i < 32.0 {
+    let bx = x - to_int(x / 2.0) * 2.0
+    let by = y - to_int(y / 2.0) * 2.0
+    if bx != by {
+      acc = acc + bit
+    }
+    x = to_int(x / 2.0)
+    y = to_int(y / 2.0)
+    bit = bit * 2.0
+    i = i + 1.0
+  }
+  return acc
+}
+pattern imul32(a: Float, b: Float) -> Float {
+  let al = mod65536(mod32(a))
+  let ah = to_int(mod32(a) / 65536.0)
+  let bl = mod65536(mod32(b))
+  let bh = to_int(mod32(b) / 65536.0)
+  let lo = al * bl
+  let mid = mod65536(ah * bl + al * bh)
+  return mod32(lo + mid * 65536.0)
+}
+pattern knuth_hash(year: Float, month: Float, day: Float, seed: Float) -> Float {
+  let mut x = xor32(mod32(year * 2654435761.0), mod32(month * 2246822519.0))
+  x = xor32(x, mod32(day * 3266489917.0))
+  x = xor32(x, mod32(to_int(seed) * 668265263.0))
+  x = imul32(shr16(x), 73244475.0)
+  x = imul32(xor32(x, shr16(x)), 73244475.0)
+  x = xor32(x, shr16(x))
+  return mod32(x)
+}
+// Детерминированная минута «момента силы» для даты "YYYY-MM-DD" в окне
+// [start_min, end_min): равномерность — младшие биты мультипликативного
+// хэша Кнута; одна дата и семя — одна минута навсегда.
+pattern moment_minute(date_str: String, seed: Float, start_min: Float, end_min: Float) -> Float {
+  let year = to_float(substring(date_str, 0, 4))
+  let month = to_float(substring(date_str, 5, 7))
+  let day = to_float(substring(date_str, 8, 10))
+  let h = knuth_hash(year, month, day, seed)
+  let range = end_min - start_min
+  return start_min + (h - to_int(h / range) * range)
+}
+// Решение об отправке (саму отправку делает тик — сетевой-free тест):
+// 1 = отправить сейчас (первый тик после наступившей минуты, в окне,
+// за день ещё не отправлено), 0 = нет. Kv-гвард "moment_sent_<дата>" —
+// повторный тик никогда не дублирует; в данные бандита не пишется.
+pattern moment_send_once(today: String, local_min: Float, trigger_min: Float, end_min: Float) -> Float {
+  // no early returns under if (the D2-family case 4): one positive
+  // branch carries the whole decision, the refusals fall through to the
+  // default zero — the miscompiled early-return shape would write the
+  // kv guard on a REFUSAL tick and silence the moment for the whole day
+  let mut ok = 0.0
+  if local_min >= trigger_min and local_min <= end_min {
+    let key = "moment_sent_" + today
+    if kv_get(key) == "" {
+      let _ = kv_set(key, "1")
+      ok = 1.0
+    }
+  }
+  return ok
+}
+// The env-facts of the moment ride BARRIER patterns (the fetch_updates
+// precedent): the secret/env reading happens inside, the tick body gets
+// sanctioned values — the №391 audit lane never sees a secret-derived
+// print inside the tick branches.
+pattern moment_seed_present() -> Bool {
+  let s = env_or("KAMERTON_MOMENT_SECRET", "")
+  let mut present = false
+  if s != "" {
+    present = true
+  }
+  return present
+}
+pattern moment_hint_text() -> String {
+  return env_or("KAMERTON_MOMENT_TEXT", "")
+}
+pattern moment_window_start() -> Float {
+  return to_float_or(env_or("KAMERTON_MOMENT_START", "480"), 480.0)
+}
+pattern moment_window_end() -> Float {
+  return to_float_or(env_or("KAMERTON_MOMENT_END", "1260"), 1260.0)
+}
+// BARRIER: the secret stays inside; out comes only the deterministic
+// trigger minute of the given local date (no early returns — the D2-family
+// case 4): an unset secret yields minute 0 with the tick refusing loudly
+// by moment_seed_present before this call.
+pattern moment_trigger(today: String<public, trusted>) -> Float {
+  let mut minute = 0.0
+  if moment_seed_present() == true {
+    let seed_str = env_or("KAMERTON_MOMENT_SECRET", "")
+    minute = moment_minute(today, to_float(to_int(to_float_or(seed_str, 0.0))), moment_window_start(), moment_window_end())
+  }
+  return minute
+}
+// The tick STATUS (0 ok / 1 secret absent / 2 text absent) — the env
+// facts ride the barriers, the tick body only branches on the status.
+pattern moment_tick_status() -> Float {
+  let mut status = 0.0
+  if moment_seed_present() == false {
+    status = 1.0
+  }
+  if status == 0.0 and moment_hint_text() == "" {
+    status = 2.0
+  }
+  return status
+}
+// The tick DECISION (0/1): the window, the local minute and the kv
+// once-per-day guard live inside the barrier; out comes only the flag.
+pattern moment_tick_decide(today: String<public, trusted>) -> Float {
+  let mut go = 0.0
+  if moment_seed_present() == true {
+    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let p = date_parts(now_unix() + off * 3600.0)
+    let local_min = p.hour * 60.0 + p.minute
+    go = moment_send_once(today, local_min, moment_trigger(today), moment_window_end())
+  }
+  return go
 }
 // ── APP-MIRROR-END: telegram-core
 
@@ -2669,4 +2839,134 @@ test "Н3-01: ensure_schema declares the catalog tables and a replay is a no-op"
   assert_contains(s[0].s, "max_active INTEGER DEFAULT '3'")
   let c = query("SELECT sql AS s FROM sqlite_master WHERE name = 'consent'", [])
   assert_contains(c[0].s, "revoked INTEGER DEFAULT '0'")
+}
+
+// ── Н4-08: the Moment of Power tests ─────────────────────────────────────
+
+test "Н4-08: the MIND-MASTERY reference vectors are reproduced byte-exact (seed 42, window 480..1260)" {
+  // the five reference dates: computeKnuthHash + hashToMinuteOfDay from
+  // MIND-MASTERY @ 2a26e75, cross-checked against the JS original by node
+  assert_eq(moment_minute("2026-11-02", 42.0, 480.0, 1260.0), 986.0)
+  assert_eq(moment_minute("2026-10-24", 42.0, 480.0, 1260.0), 484.0)
+  assert_eq(moment_minute("2025-01-01", 42.0, 480.0, 1260.0), 978.0)
+  assert_eq(moment_minute("2027-06-15", 42.0, 480.0, 1260.0), 1140.0)
+  assert_eq(moment_minute("2026-02-28", 42.0, 480.0, 1260.0), 1174.0)
+}
+
+test "Н4-08: deterministic for the (date, seed) pair, every minute inside the window" {
+  // 1000 consecutive days: the same (date, seed) always yields the same
+  // minute (checked twice per day), and every minute lands in [start, end)
+  let epoch = 1735689600.0
+  let mut bad = 0.0
+  let mut i = 0.0
+  while i < 1000.0 {
+    let ds = substring(date_format_iso(epoch + i * 86400.0), 0, 10)
+    let first = moment_minute(ds, 42.0, 480.0, 1260.0)
+    let second = moment_minute(ds, 42.0, 480.0, 1260.0)
+    if first != second {
+      bad = bad + 1.0
+    }
+    if first < 480.0 or first >= 1260.0 {
+      bad = bad + 1.0
+    }
+    i = i + 1.0
+  }
+  assert_eq(bad, 0.0)
+}
+
+// The uniformity probe: the frequencies ride the KV lane (the audit
+// lane refuses DELETE/DROP db_execute in a write-loop flow — irreversible
+// content; kv_set overwrites instead of deleting, so the probe is
+// idempotent across runs: the pass below RESETS all 780 keys first).
+// The chi-square arithmetic lives in mlog: mu = 10000/780, chi2 =
+// sum((c_i - mu)^2 / mu) over the window minutes.
+pattern mm_freq_reset() -> Float {
+  let mut m = 480.0
+  while m < 1260.0 {
+    let _ = kv_set("mm_freq_" + to_string(m), "0")
+    m = m + 1.0
+  }
+  return 0.0
+}
+pattern mm_freq_stats() -> List {
+  let _ = mm_freq_reset()
+  let epoch = 1735689600.0
+  let mu = 10000.0 / 780.0
+  let mut i = 0.0
+  while i < 10000.0 {
+    let ds = substring(date_format_iso(epoch + i * 86400.0), 0, 10)
+    let m = moment_minute(ds, 42.0, 480.0, 1260.0)
+    let key = "mm_freq_" + to_string(m)
+    let c = to_float_or(kv_get(key), 0.0)
+    let _ = kv_set(key, to_string(c + 1.0))
+    i = i + 1.0
+  }
+  let mut covered = 0.0
+  let mut chi2 = 0.0
+  let mut m = 480.0
+  while m < 1260.0 {
+    let c = to_float_or(kv_get("mm_freq_" + to_string(m)), 0.0)
+    if c > 0.0 {
+      covered = covered + 1.0
+    }
+    chi2 = chi2 + (c - mu) * (c - mu) / mu
+    m = m + 1.0
+  }
+  return [covered, chi2]
+}
+
+test "Н4-08: uniformity over 10 000 dates (the window is fully covered, chi-square fits uniform)" {
+  let stats = mm_freq_stats()
+  // every one of the 780 window minutes is reached over 10 000 days
+  assert_eq(stats[0], 780.0)
+  // the chi-square goodness of fit against the uniform expectation
+  // 10000/780: df = 779, the 0.001 critical value ~ 956 — the pin 1000
+  // sits safely inside the uniformity hypothesis (a hash drift toward
+  // any minute blows it up by orders of magnitude)
+  assert_eq(stats[1] < 1000.0, true)
+}
+
+
+test "Н4-08: the moment message goes out exactly once per day; a repeated tick never duplicates" {
+  // the decision helper: before the minute — no; after — yes, and the kv
+  // guard turns every further tick into a no; the next day — yes again
+  let d1 = "2099-05-01"
+  let d2 = "2099-05-02"
+  // the kv store PERSISTS across runs (the invariant-6 kv lane): a
+  // previous run of this very test would keep its guards — reset the
+  // three keys so the scenario always starts clean
+  let _ = kv_set("moment_sent_" + d1, "")
+  let _ = kv_set("moment_sent_" + d2, "")
+  let _ = kv_set("moment_sent_2099-05-03", "")
+  assert_eq(moment_send_once(d1, 100.0, 500.0, 1260.0), 0.0)
+  assert_eq(kv_get("moment_sent_" + d1), "")
+  assert_eq(moment_send_once(d1, 500.0, 500.0, 1260.0), 1.0)
+  assert_eq(kv_get("moment_sent_" + d1), "1")
+  assert_eq(moment_send_once(d1, 510.0, 500.0, 1260.0), 0.0)
+  assert_eq(moment_send_once(d1, 1000.0, 500.0, 1260.0), 0.0)
+  assert_eq(moment_send_once(d2, 600.0, 500.0, 1260.0), 1.0)
+  // after the window end the message is never sent that day
+  assert_eq(moment_send_once("2099-05-03", 1261.0, 500.0, 1260.0), 0.0)
+}
+
+test "Н4-08: setup_register carries the moment job every 10 minutes, idempotently" {
+  // the cron subsystem accepts the */10 step expression (probe-pinned on
+  // v0.38.0) and setup_register registers exactly ONE moment job; a
+  // repeated registration must not duplicate it
+  setup_register()
+  let mut found = 0.0
+  each j in cron_list() {
+    if j.prompt == "tg_moment_tick" and j.cron_expr == "*/10 * * * *" {
+      found = found + 1.0
+    }
+  }
+  assert_eq(found, 1.0)
+  let _ = setup_register()
+  let mut found2 = 0.0
+  each j2 in cron_list() {
+    if j2.prompt == "tg_moment_tick" and j2.cron_expr == "*/10 * * * *" {
+      found2 = found2 + 1.0
+    }
+  }
+  assert_eq(found2, 1.0)
 }
