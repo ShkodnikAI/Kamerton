@@ -224,3 +224,12 @@ CREATE TABLE IF NOT EXISTS practice_protocol (
     source TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS arm_journal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor TEXT DEFAULT '',
+    arm_id INTEGER REFERENCES arm(id),
+    action TEXT DEFAULT '',
+    detail TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+);

@@ -280,4 +280,20 @@ test "Н3-01: a free session writes no trial, no response — the bandit and the
   let after = query("SELECT (SELECT count(*) FROM trial) AS t, (SELECT count(*) FROM response) AS r", [])
   assert_eq(after[0].t, before[0].t)
   assert_eq(after[0].r, before[0].r)
+  // Н3-05: a free session of a CHOSEN catalog practice (arm_id > 0) —
+  // the hand is linked into practice_session (the manual run is
+  // visible to the owner) and writes NO trial, NO response: the bandit
+  // and the honesty valve never see a manual session, chosen or not.
+  let _ = db_execute("INSERT INTO arm (name, group_name, day_window) VALUES ('miniapp-free-chosen', 'test', 'morning')", [])
+  let chosen_rows = query("SELECT last_insert_rowid() AS id", [])
+  let chosen = chosen_rows[0].id
+  let before2 = query("SELECT (SELECT count(*) FROM trial) AS t, (SELECT count(*) FROM response) AS r", [])
+  let sid2 = miniapp_session_open("free", 0.0, 0.0, "2032-04-01", chosen, 0.0)
+  assert_eq(sid2 > 0.0, true)
+  let rows2 = miniapp_session_get(sid2)
+  assert_eq(rows2[0].kind, "free")
+  assert_eq(rows2[0].arm_id, chosen)
+  let after2 = query("SELECT (SELECT count(*) FROM trial) AS t, (SELECT count(*) FROM response) AS r", [])
+  assert_eq(after2[0].t, before2[0].t)
+  assert_eq(after2[0].r, before2[0].r)
 }

@@ -101,6 +101,7 @@ pins = [
     ("slot",             "CREATE TABLE IF NOT EXISTS slot (id INTEGER"),
     ("consent",          "CREATE TABLE IF NOT EXISTS consent (id INTEGER"),
     ("practice_protocol", "CREATE TABLE IF NOT EXISTS practice_protocol (id INTEGER"),
+    ("arm_journal",     "CREATE TABLE IF NOT EXISTS arm_journal (id INTEGER"),
 ]
 for table, pin_a in pins:
     pin_m = "CREATE TABLE IF NOT EXISTS " + table + " ("
