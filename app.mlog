@@ -149,6 +149,7 @@ pattern ensure_schema() -> Unit {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS slot (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, max_active INTEGER DEFAULT '3', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS consent (id INTEGER PRIMARY KEY AUTOINCREMENT, scope TEXT, revoked INTEGER DEFAULT '0', source TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_protocol (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), slot TEXT DEFAULT '', safety_class TEXT DEFAULT 'A', requires_consent INTEGER DEFAULT '0', max_hold_sec REAL DEFAULT '0.0', session_min REAL DEFAULT '10.0', steps_json TEXT DEFAULT '[]', series_json TEXT DEFAULT '', contraindications TEXT DEFAULT '', source TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS arm_journal (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT DEFAULT '', arm_id INTEGER REFERENCES arm(id), action TEXT DEFAULT '', detail TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   ensure_indexes()
 }
 
@@ -1045,31 +1046,57 @@ pattern seed_catalog() -> Float {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_text (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_practice_text_group_unique ON practice_text(group_name)", [])
   let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('breath', 3)", [])
+  // Н3-05: the `methods` slot row — the wave-1 methodologies get their
+  // own slot with the same rule (the cap of 3, the owner's decision of
+  // 2026-10-24). The row RECORDS the cap; the cap takes FORCE only
+  // after the owner's confirmed choice (the journal event — see
+  // arm_methods_cap_confirm): until then the slot stays uncapped and
+  // no silent state change happens (the wave-1 hands stay active, as
+  // seeded; nothing is deactivated behind the owner's back).
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('methods', 3)", [])
   let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:A', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
   let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:B', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
   let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:C', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
-  let mut n = 0.0
   each p in kamerton_protocols {
     let _ = db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std, active) VALUES (?, ?, ?, ?, ?, ?, 0)", [p.name, p.group_name, p.day_window, p.session_min, p.prior_mean, p.prior_std])
     let _ = db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES (?, ?)", [p.group_name, p.instruction])
     let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, max_hold_sec, session_min, steps_json, series_json, contraindications, source) SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM arm WHERE name = ?", [p.slot, p.safety_class, p.requires_consent, p.max_hold_sec, p.session_min, json_encode(p.steps), json_encode(p.series), p.contraindications, p.source, p.name])
-    n = n + 1.0
   }
-  return n
+  // Н3-05: the ten wave-1 methodologies join the `methods` slot as
+  // DATA — one practice_protocol row per arm with EMPTY steps (these
+  // are instruction methods, not breath phases: no steps, no series),
+  // the seat's own literature source (the machine SSOT list above —
+  // the arm table has no source column), safety class A (no holds, no
+  // pauses, no forced breathing — nothing to consent beyond the
+  // existing class:A row), session_min = the arm's own duration. The
+  // arms stay ACTIVE (the wave-1 state is not silently changed). The
+  // return value is the FULL protocol count in the store (breath +
+  // methods) — the honest seed-completeness number, pinned by tests.
+  each a in kamerton_arms {
+    let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, max_hold_sec, session_min, steps_json, series_json, contraindications, source) SELECT id, 'methods', 'A', 0, 0, ?, ?, '', '', ? FROM arm WHERE name = ?", [a.duration_min, json_encode([]), a.source, a.name])
+  }
+  let rows = query("SELECT count(*) AS n FROM practice_protocol", [])
+  return rows[0].n
 }
 
 // Seconds of ONE series unit (reps passes over the steps + the rest).
+// Н3-05: an EMPTY series_json (the methods rows — instruction methods
+// with no steps and no series) means one plain pass over the steps and
+// no rest — no fabricated multiplication, never a parse error.
 pattern protocol_unit_sec(arm_id: Float) -> Float {
   let rows = query("SELECT steps_json, series_json FROM practice_protocol WHERE arm_id = ?", [arm_id])
   if len(rows) == 0.0 {
     return 0.0
   }
   let steps = parse_json(rows[0].steps_json)
-  let series = parse_json(rows[0].series_json)
   let mut cycle = 0.0
   each s in steps {
     cycle = cycle + s.sec
   }
+  if rows[0].series_json == "" {
+    return cycle
+  }
+  let series = parse_json(rows[0].series_json)
   return series.reps * cycle + series.rest_sec
 }
 
@@ -1087,9 +1114,16 @@ pattern protocol_cycles(arm_id: Float) -> Float {
 // Admit a hand into the active set. A hand with a protocol belongs to a
 // slot: the slot cap (max_active, default 3) refuses a fourth active
 // hand LOUDLY ("slot-full") — nothing is changed. A hand without a
-// protocol (the wave-1 methodologies) is not slotted: no cap applies.
-// Returns "ok" | "unknown-arm" | "slot-full".
-pattern activate_arm(arm_id: Float) -> String {
+// protocol (possible only before the Н3-05 methods seed) is not
+// slotted: no cap applies.
+//
+// Н3-05: the `methods` cap takes force ONLY after the owner's
+// confirmed choice (arm_methods_cap_confirm — the journal event
+// 'methods-cap-armed'); until then the slot stays uncapped (the owner
+// explores the set). Every admission and every refusal is JOURNALED
+// with its actor (who, when via created_at, what) — no silent state
+// change. Returns "ok" | "unknown-arm" | "slot-full".
+pattern activate_arm(arm_id: Float, actor: String) -> String {
   let arm = query("SELECT id FROM arm WHERE id = ?", [arm_id])
   if len(arm) == 0.0 {
     return "unknown-arm"
@@ -1101,18 +1135,64 @@ pattern activate_arm(arm_id: Float) -> String {
     if len(cap_rows) > 0.0 {
       cap = to_float(cap_rows[0].max_active)
     }
+    let mut enforce = true
+    if prot[0].slot == "methods" {
+      let armed = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'methods-cap-armed'", [])
+      if armed[0].n == 0.0 {
+        enforce = false
+      }
+    }
     let used = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 1 AND a.id != ?", [prot[0].slot, arm_id])
-    if used[0].n >= cap {
+    if enforce == true and used[0].n >= cap {
+      let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES (?, ?, 'arm-on-refused', 'slot-full')", [actor, arm_id])
       return "slot-full"
     }
   }
   let _ = db_execute("UPDATE arm SET active = 1 WHERE id = ?", [arm_id])
+  let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES (?, ?, 'arm-on')", [actor, arm_id])
   return "ok"
 }
 
-pattern deactivate_arm(arm_id: Float) -> Float {
+// Retire a hand from the active set — always allowed (the cap limits
+// admissions, not retirements), journaled with its actor.
+pattern deactivate_arm(arm_id: Float, actor: String) -> Float {
   let _ = db_execute("UPDATE arm SET active = 0 WHERE id = ?", [arm_id])
+  let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES (?, ?, 'arm-off')", [actor, arm_id])
   return 1.0
+}
+
+// Н3-05 (задача 4): the OWNER's confirmation of the `methods` active
+// set — the cap recorded in the slot row takes force ONLY here, via
+// the journal event 'methods-cap-armed' (derived, no flag column, no
+// env var). Requires EXACTLY three active methods hands (the owner's
+// choice of three): fewer — "less-than-three", more — "over-three";
+// either is a loud refusal, nothing is written, the state does not
+// change. The actor is the owner-facing surface's label (the chat
+// command, the Mini App session, a documented operator identity) —
+// never fabricated by the app. Returns "ok" | "less-than-three" |
+// "over-three".
+pattern arm_methods_cap_confirm(actor: String) -> String {
+  let rows = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'methods' AND a.active = 1", [])
+  let n = rows[0].n
+  if n < 3.0 {
+    return "less-than-three"
+  }
+  if n > 3.0 {
+    return "over-three"
+  }
+  let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES (?, NULL, 'methods-cap-armed', 'cap=3 enforced')", [actor])
+  return "ok"
+}
+
+// Н3-05 (задача 2): the catalog listing for ANY owner-facing surface
+// (chat commands or the Mini App screen — the surface choice is the
+// owner's, the data shape is not): every hand by slot with its state
+// and safety class. Order: methods (the wave-1 set) first, breath
+// next, unslotted hands last (possible only before the methods seed);
+// ids ascending inside each group. A plain sqlite3 client reads the
+// same rows through the same joins (invariant 6).
+pattern arms_catalog() -> List {
+  return query("SELECT a.id AS id, a.name AS name, a.group_name AS group_name, a.day_window AS day_window, a.active AS active, p.slot AS slot, p.safety_class AS safety_class, s.max_active AS max_active FROM arm a LEFT JOIN practice_protocol p ON p.arm_id = a.id LEFT JOIN slot s ON s.name = p.slot ORDER BY CASE WHEN p.slot IS NULL THEN 2 WHEN p.slot = 'methods' THEN 0 ELSE 1 END, a.id", [])
 }
 
 // ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────

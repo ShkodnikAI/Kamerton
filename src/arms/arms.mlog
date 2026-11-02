@@ -67,6 +67,22 @@ schema kamerton {
     source: String default(""),
     created_at: String default(now())
   }
+
+  // Н3-05: the journal of EVERY active-set change (who, when, what) —
+  // a plain sqlite3 client reads it (invariant 6). The `methods` cap
+  // "in force" is DERIVED from this journal (the owner's
+  // 'methods-cap-armed' event), never from a mutable flag column: the
+  // owner's choice is a recorded event, not a silent bit. arm_id is
+  // NULL for the cap event (no hand involved) — the CASE form keeps
+  // NULL truthful under the enforced-references replay (№611).
+  table arm_journal {
+    id: Int primary_key auto_increment,
+    actor: String default(""),
+    arm_id: Int references(arm.id),
+    action: String default(""),
+    detail: String default(""),
+    created_at: String default(now())
+  }
 }
 
 // ── APP-MIRROR-START: arms-seed (byte-identical to
@@ -276,31 +292,57 @@ pattern seed_catalog() -> Float {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_text (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT, body TEXT, active INTEGER DEFAULT '1', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_practice_text_group_unique ON practice_text(group_name)", [])
   let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('breath', 3)", [])
+  // Н3-05: the `methods` slot row — the wave-1 methodologies get their
+  // own slot with the same rule (the cap of 3, the owner's decision of
+  // 2026-10-24). The row RECORDS the cap; the cap takes FORCE only
+  // after the owner's confirmed choice (the journal event — see
+  // arm_methods_cap_confirm): until then the slot stays uncapped and
+  // no silent state change happens (the wave-1 hands stay active, as
+  // seeded; nothing is deactivated behind the owner's back).
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('methods', 3)", [])
   let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:A', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
   let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:B', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
   let _ = db_execute("INSERT OR IGNORE INTO consent (scope, source) VALUES ('class:C', 'владелец: чат 2026-10-23, issue #75 (согласие классов A, B, C); противопоказаний нет (чат 2026-10-24)')", [])
-  let mut n = 0.0
   each p in kamerton_protocols {
     let _ = db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std, active) VALUES (?, ?, ?, ?, ?, ?, 0)", [p.name, p.group_name, p.day_window, p.session_min, p.prior_mean, p.prior_std])
     let _ = db_execute("INSERT OR IGNORE INTO practice_text (group_name, body) VALUES (?, ?)", [p.group_name, p.instruction])
     let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, max_hold_sec, session_min, steps_json, series_json, contraindications, source) SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM arm WHERE name = ?", [p.slot, p.safety_class, p.requires_consent, p.max_hold_sec, p.session_min, json_encode(p.steps), json_encode(p.series), p.contraindications, p.source, p.name])
-    n = n + 1.0
   }
-  return n
+  // Н3-05: the ten wave-1 methodologies join the `methods` slot as
+  // DATA — one practice_protocol row per arm with EMPTY steps (these
+  // are instruction methods, not breath phases: no steps, no series),
+  // the seat's own literature source (the machine SSOT list above —
+  // the arm table has no source column), safety class A (no holds, no
+  // pauses, no forced breathing — nothing to consent beyond the
+  // existing class:A row), session_min = the arm's own duration. The
+  // arms stay ACTIVE (the wave-1 state is not silently changed). The
+  // return value is the FULL protocol count in the store (breath +
+  // methods) — the honest seed-completeness number, pinned by tests.
+  each a in kamerton_arms {
+    let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, max_hold_sec, session_min, steps_json, series_json, contraindications, source) SELECT id, 'methods', 'A', 0, 0, ?, ?, '', '', ? FROM arm WHERE name = ?", [a.duration_min, json_encode([]), a.source, a.name])
+  }
+  let rows = query("SELECT count(*) AS n FROM practice_protocol", [])
+  return rows[0].n
 }
 
 // Seconds of ONE series unit (reps passes over the steps + the rest).
+// Н3-05: an EMPTY series_json (the methods rows — instruction methods
+// with no steps and no series) means one plain pass over the steps and
+// no rest — no fabricated multiplication, never a parse error.
 pattern protocol_unit_sec(arm_id: Float) -> Float {
   let rows = query("SELECT steps_json, series_json FROM practice_protocol WHERE arm_id = ?", [arm_id])
   if len(rows) == 0.0 {
     return 0.0
   }
   let steps = parse_json(rows[0].steps_json)
-  let series = parse_json(rows[0].series_json)
   let mut cycle = 0.0
   each s in steps {
     cycle = cycle + s.sec
   }
+  if rows[0].series_json == "" {
+    return cycle
+  }
+  let series = parse_json(rows[0].series_json)
   return series.reps * cycle + series.rest_sec
 }
 
@@ -318,9 +360,16 @@ pattern protocol_cycles(arm_id: Float) -> Float {
 // Admit a hand into the active set. A hand with a protocol belongs to a
 // slot: the slot cap (max_active, default 3) refuses a fourth active
 // hand LOUDLY ("slot-full") — nothing is changed. A hand without a
-// protocol (the wave-1 methodologies) is not slotted: no cap applies.
-// Returns "ok" | "unknown-arm" | "slot-full".
-pattern activate_arm(arm_id: Float) -> String {
+// protocol (possible only before the Н3-05 methods seed) is not
+// slotted: no cap applies.
+//
+// Н3-05: the `methods` cap takes force ONLY after the owner's
+// confirmed choice (arm_methods_cap_confirm — the journal event
+// 'methods-cap-armed'); until then the slot stays uncapped (the owner
+// explores the set). Every admission and every refusal is JOURNALED
+// with its actor (who, when via created_at, what) — no silent state
+// change. Returns "ok" | "unknown-arm" | "slot-full".
+pattern activate_arm(arm_id: Float, actor: String) -> String {
   let arm = query("SELECT id FROM arm WHERE id = ?", [arm_id])
   if len(arm) == 0.0 {
     return "unknown-arm"
@@ -332,18 +381,64 @@ pattern activate_arm(arm_id: Float) -> String {
     if len(cap_rows) > 0.0 {
       cap = to_float(cap_rows[0].max_active)
     }
+    let mut enforce = true
+    if prot[0].slot == "methods" {
+      let armed = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'methods-cap-armed'", [])
+      if armed[0].n == 0.0 {
+        enforce = false
+      }
+    }
     let used = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 1 AND a.id != ?", [prot[0].slot, arm_id])
-    if used[0].n >= cap {
+    if enforce == true and used[0].n >= cap {
+      let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES (?, ?, 'arm-on-refused', 'slot-full')", [actor, arm_id])
       return "slot-full"
     }
   }
   let _ = db_execute("UPDATE arm SET active = 1 WHERE id = ?", [arm_id])
+  let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES (?, ?, 'arm-on')", [actor, arm_id])
   return "ok"
 }
 
-pattern deactivate_arm(arm_id: Float) -> Float {
+// Retire a hand from the active set — always allowed (the cap limits
+// admissions, not retirements), journaled with its actor.
+pattern deactivate_arm(arm_id: Float, actor: String) -> Float {
   let _ = db_execute("UPDATE arm SET active = 0 WHERE id = ?", [arm_id])
+  let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES (?, ?, 'arm-off')", [actor, arm_id])
   return 1.0
+}
+
+// Н3-05 (задача 4): the OWNER's confirmation of the `methods` active
+// set — the cap recorded in the slot row takes force ONLY here, via
+// the journal event 'methods-cap-armed' (derived, no flag column, no
+// env var). Requires EXACTLY three active methods hands (the owner's
+// choice of three): fewer — "less-than-three", more — "over-three";
+// either is a loud refusal, nothing is written, the state does not
+// change. The actor is the owner-facing surface's label (the chat
+// command, the Mini App session, a documented operator identity) —
+// never fabricated by the app. Returns "ok" | "less-than-three" |
+// "over-three".
+pattern arm_methods_cap_confirm(actor: String) -> String {
+  let rows = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'methods' AND a.active = 1", [])
+  let n = rows[0].n
+  if n < 3.0 {
+    return "less-than-three"
+  }
+  if n > 3.0 {
+    return "over-three"
+  }
+  let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES (?, NULL, 'methods-cap-armed', 'cap=3 enforced')", [actor])
+  return "ok"
+}
+
+// Н3-05 (задача 2): the catalog listing for ANY owner-facing surface
+// (chat commands or the Mini App screen — the surface choice is the
+// owner's, the data shape is not): every hand by slot with its state
+// and safety class. Order: methods (the wave-1 set) first, breath
+// next, unslotted hands last (possible only before the methods seed);
+// ids ascending inside each group. A plain sqlite3 client reads the
+// same rows through the same joins (invariant 6).
+pattern arms_catalog() -> List {
+  return query("SELECT a.id AS id, a.name AS name, a.group_name AS group_name, a.day_window AS day_window, a.active AS active, p.slot AS slot, p.safety_class AS safety_class, s.max_active AS max_active FROM arm a LEFT JOIN practice_protocol p ON p.arm_id = a.id LEFT JOIN slot s ON s.name = p.slot ORDER BY CASE WHEN p.slot IS NULL THEN 2 WHEN p.slot = 'methods' THEN 0 ELSE 1 END, a.id", [])
 }
 
 // ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────
@@ -439,24 +534,32 @@ test "unrolled seed matches the kamerton_arms list per arm" {
 test "Н3-01 catalog: eight practices, a replay is a no-op, every source is non-empty" {
   seed_arms()
   let first = seed_catalog()
-  assert_eq(first, 8.0)
+  // Н3-05: the full protocol count is 18 — 8 breath + 10 methods rows
+  assert_eq(first, 18.0)
   let _ = seed_catalog()
   let n = query("SELECT count(*) AS n FROM practice_protocol", [])
-  assert_eq(n[0].n, 8.0)
+  assert_eq(n[0].n, 18.0)
   let arms = query("SELECT count(*) AS n FROM arm WHERE name LIKE 'breath-%' AND name NOT LIKE 'breath-resonance-%'", [])
   assert_eq(arms[0].n, 8.0)
+  let methods = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods'", [])
+  assert_eq(methods[0].n, 10.0)
   let empty = query("SELECT count(*) AS n FROM practice_protocol WHERE source = '' OR source IS NULL", [])
   assert_eq(empty[0].n, 0.0)
-  // every catalog hand starts INACTIVE and joins a non-empty instruction text
-  let active = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE a.active = 1", [])
+  // every BREATH catalog hand starts INACTIVE; the wave-1 methods hands
+  // keep their seeded ACTIVE state (no silent state change — Н3-05)
+  let active = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'breath' AND a.active = 1", [])
   assert_eq(active[0].n, 0.0)
+  let active_methods = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'methods' AND a.active = 1", [])
+  assert_eq(active_methods[0].n, 10.0)
   let texts = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id JOIN practice_text t ON t.group_name = a.group_name WHERE t.body != ''", [])
-  assert_eq(texts[0].n, 8.0)
+  assert_eq(texts[0].n, 18.0)
 }
 
-test "Н3-01 catalog: cycles are DERIVED from session_min and fit it, for every practice" {
+test "Н3-01 catalog: cycles are DERIVED from session_min and fit it, for every breath practice" {
   seed_catalog()
-  let rows = query("SELECT arm_id, session_min FROM practice_protocol ORDER BY arm_id", [])
+  // the `methods` rows carry EMPTY steps by design (instruction methods,
+  // not breath phases) — the cycle arithmetic applies to breath only
+  let rows = query("SELECT arm_id, session_min FROM practice_protocol WHERE steps_json != '[]' ORDER BY arm_id", [])
   assert_eq(len(rows), 8.0)
   let mut bad = 0.0
   each r in rows {
@@ -476,11 +579,19 @@ test "Н3-01 catalog: cycles are DERIVED from session_min and fit it, for every 
   let k = query("SELECT arm_id FROM practice_protocol WHERE steps_json LIKE '%forced_exhale%'", [])
   assert_eq(protocol_unit_sec(k[0].arm_id), 90.0)
   assert_eq(protocol_cycles(k[0].arm_id), 3.0)
+  // Н3-05: an empty-steps `methods` protocol yields ZERO — never a
+  // fabricated cycle count
+  let m = query("SELECT arm_id FROM practice_protocol WHERE slot = 'methods' ORDER BY arm_id LIMIT 1", [])
+  assert_eq(protocol_unit_sec(m[0].arm_id), 0.0)
+  assert_eq(protocol_cycles(m[0].arm_id), 0.0)
 }
 
 test "Н3-01 catalog: the safety class follows the DATA (holds, pauses, forced breathing)" {
   seed_catalog()
-  let rows = query("SELECT arm_id, safety_class, requires_consent, max_hold_sec, steps_json FROM practice_protocol ORDER BY arm_id", [])
+  // the breath slot only — the `methods` rows are class A with EMPTY
+  // steps by design (they carry no breathing phases at all; pinned
+  // separately by the Н3-05 slot test below)
+  let rows = query("SELECT arm_id, safety_class, requires_consent, max_hold_sec, steps_json FROM practice_protocol WHERE slot = 'breath' ORDER BY arm_id", [])
   let mut bad = 0.0
   let mut count_a = 0.0
   let mut count_c = 0.0
@@ -536,24 +647,24 @@ test "Н3-01 catalog: the safety class follows the DATA (holds, pauses, forced b
 test "Н3-01 slots: a fourth active hand is refused, a freed place admits it, unslotted hands are uncapped" {
   seed_catalog()
   let ids = query("SELECT arm_id FROM practice_protocol WHERE slot = 'breath' ORDER BY arm_id", [])
-  assert_eq(activate_arm(ids[0].arm_id), "ok")
-  assert_eq(activate_arm(ids[1].arm_id), "ok")
-  assert_eq(activate_arm(ids[2].arm_id), "ok")
-  assert_eq(activate_arm(ids[3].arm_id), "slot-full")
+  assert_eq(activate_arm(ids[0].arm_id, "test-н3-01"), "ok")
+  assert_eq(activate_arm(ids[1].arm_id, "test-н3-01"), "ok")
+  assert_eq(activate_arm(ids[2].arm_id, "test-н3-01"), "ok")
+  assert_eq(activate_arm(ids[3].arm_id, "test-н3-01"), "slot-full")
   let off = query("SELECT active FROM arm WHERE id = ?", [ids[3].arm_id])
   assert_eq(off[0].active, 0.0)
   // a re-activation of an already active hand does not count itself twice
-  assert_eq(activate_arm(ids[0].arm_id), "ok")
-  let _ = deactivate_arm(ids[0].arm_id)
-  assert_eq(activate_arm(ids[3].arm_id), "ok")
-  assert_eq(activate_arm(ids[0].arm_id), "slot-full")
-  // a wave-1 hand (no protocol) is not slotted: the cap does not apply
+  assert_eq(activate_arm(ids[0].arm_id, "test-н3-01"), "ok")
+  let _ = deactivate_arm(ids[0].arm_id, "test-н3-01")
+  assert_eq(activate_arm(ids[3].arm_id, "test-н3-01"), "ok")
+  assert_eq(activate_arm(ids[0].arm_id, "test-н3-01"), "slot-full")
+  // a hand without a protocol is not slotted: the cap does not apply
   let legacy = query("SELECT id FROM arm WHERE name = 'woop-morning'", [])
-  assert_eq(activate_arm(legacy[0].id), "ok")
-  assert_eq(activate_arm(999999.0), "unknown-arm")
-  let _ = deactivate_arm(ids[1].arm_id)
-  let _ = deactivate_arm(ids[2].arm_id)
-  let _ = deactivate_arm(ids[3].arm_id)
+  assert_eq(activate_arm(legacy[0].id, "test-н3-01"), "ok")
+  assert_eq(activate_arm(999999.0, "test-н3-01"), "unknown-arm")
+  let _ = deactivate_arm(ids[1].arm_id, "test-н3-01")
+  let _ = deactivate_arm(ids[2].arm_id, "test-н3-01")
+  let _ = deactivate_arm(ids[3].arm_id, "test-н3-01")
 }
 
 test "Н3-01 catalog: a ninth practice is ONE data record, no code change" {
@@ -577,4 +688,142 @@ test "Н3-01 consent: one data row per class, recorded with its source" {
   let _ = seed_catalog()
   let again = query("SELECT count(*) AS n FROM consent", [])
   assert_eq(again[0].n, 3.0)
+}
+
+// ── Н3-05: the methods slot, the active-set control, the journal ────────
+// ORDER MATTERS on the shared test database: the "BEFORE the confirm"
+// test must run BEFORE the confirm-arming test (the cap, once armed by
+// the owner's confirm event, stays armed — that is the design, there is
+// no silent disarm). The catalog-listing test runs first on purpose: it
+// pins the freshly-seeded, deterministic state.
+
+test "Н3-05 methods slot: ten wave-1 hands join the slot with empty steps and their own sources" {
+  seed_arms()
+  seed_catalog()
+  let slot_rows = query("SELECT count(*) AS n FROM slot WHERE name = 'methods' AND max_active = 3", [])
+  assert_eq(slot_rows[0].n, 1.0)
+  // every methods protocol: empty steps, no series, class A, no consent
+  // needed, its own literature source, one-to-one with its arm row
+  let empty_steps = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods' AND (steps_json != '[]' OR series_json != '')", [])
+  assert_eq(empty_steps[0].n, 0.0)
+  let class_a = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods' AND safety_class = 'A' AND requires_consent = 0 AND max_hold_sec = 0", [])
+  assert_eq(class_a[0].n, 10.0)
+  let src = query("SELECT count(*) AS n FROM practice_protocol p JOIN arm a ON a.id = p.arm_id WHERE p.slot = 'methods' AND p.source != ''", [])
+  assert_eq(src[0].n, 10.0)
+  let joined = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'methods'", [])
+  assert_eq(joined[0].n, 10.0)
+}
+
+test "Н3-05: the catalog listing carries slot, state and class for every hand" {
+  // runs right after the seed tests, BEFORE any activation test; the
+  // store may already carry the Н3-01 "ninth practice" data row, so the
+  // ABSOLUTE count is pinned by the seed tests (18) and this test pins
+  // the SHAPE: the slot order, the state and the class fields
+  seed_catalog()
+  let cat = arms_catalog()
+  assert_eq(len(cat) >= 18.0, true)
+  // methods first, breath next (the ORDER BY contract of arms_catalog)
+  assert_eq(cat[0].slot, "methods")
+  assert_eq(cat[0].active, 1.0)
+  assert_eq(cat[0].safety_class, "A")
+  assert_eq(cat[0].max_active, 3.0)
+  assert_eq(cat[len(cat) - 1.0].slot, "breath")
+  assert_eq(cat[len(cat) - 1.0].active, 0.0)
+  let mut breath_active = 0.0
+  let mut methods_active = 0.0
+  let mut methods_count = 0.0
+  each c in cat {
+    if c.slot == "breath" {
+      breath_active = breath_active + c.active
+    }
+    if c.slot == "methods" {
+      methods_active = methods_active + c.active
+      methods_count = methods_count + 1.0
+    }
+  }
+  assert_eq(breath_active, 0.0)
+  assert_eq(methods_active, 10.0)
+  assert_eq(methods_count, 10.0)
+}
+
+test "Н3-05: BEFORE the owner's confirm the methods cap is recorded but not enforced" {
+  seed_catalog()
+  let ids = query("SELECT p.arm_id AS arm_id FROM practice_protocol p JOIN arm a ON a.id = p.arm_id WHERE p.slot = 'methods' ORDER BY p.arm_id", [])
+  // a clean slate: the wave-1 hands are ACTIVE by seed — retire all ten
+  // (assignment-body loop, the D2-safe shape) so the admissions below
+  // are real admissions, not no-ops on already-active hands
+  each id in ids {
+    let _ = deactivate_arm(id.arm_id, "test-н3-05-cleanup")
+  }
+  // four admissions in a row — no refusal while the cap is not armed
+  assert_eq(activate_arm(ids[0].arm_id, "test-н3-05"), "ok")
+  assert_eq(activate_arm(ids[1].arm_id, "test-н3-05"), "ok")
+  assert_eq(activate_arm(ids[2].arm_id, "test-н3-05"), "ok")
+  assert_eq(activate_arm(ids[3].arm_id, "test-н3-05"), "ok")
+  let on = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'arm-on' AND arm_id = ?", [ids[3].arm_id])
+  assert_eq(on[0].n, 1.0)
+  each id2 in ids {
+    let _ = deactivate_arm(id2.arm_id, "test-н3-05")
+  }
+  let armed = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'methods-cap-armed'", [])
+  assert_eq(armed[0].n, 0.0)
+}
+
+test "Н3-05: the owner's confirm arms the cap; the fourth methods hand is refused slot-full" {
+  seed_catalog()
+  let ids = query("SELECT p.arm_id AS arm_id FROM practice_protocol p JOIN arm a ON a.id = p.arm_id WHERE p.slot = 'methods' ORDER BY p.arm_id", [])
+  // a clean slate again (the previous test retired its hands, the seed
+  // active state of ids 4..9 may persist — retire everything once)
+  each id0 in ids {
+    let _ = deactivate_arm(id0.arm_id, "test-н3-05-cleanup")
+  }
+  // exactly three active methods hands required — loud refusals otherwise
+  assert_eq(arm_methods_cap_confirm("test-н3-05"), "less-than-three")
+  let _ = activate_arm(ids[0].arm_id, "test-н3-05")
+  let _ = activate_arm(ids[1].arm_id, "test-н3-05")
+  assert_eq(arm_methods_cap_confirm("test-н3-05"), "less-than-three")
+  // over-three: a fourth hand rides in while the cap is unarmed (the
+  // owner is exploring), the confirm refuses to arm an untrimmed set
+  let _ = activate_arm(ids[2].arm_id, "test-н3-05")
+  let _ = activate_arm(ids[3].arm_id, "test-н3-05")
+  assert_eq(arm_methods_cap_confirm("test-н3-05"), "over-three")
+  let armed0 = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'methods-cap-armed'", [])
+  assert_eq(armed0[0].n, 0.0)
+  // the owner trims to three — the confirm arms the cap, ONE journal event
+  let _ = deactivate_arm(ids[3].arm_id, "test-н3-05")
+  assert_eq(arm_methods_cap_confirm("test-н3-05"), "ok")
+  let armed = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'methods-cap-armed'", [])
+  assert_eq(armed[0].n, 1.0)
+  // the fourth hand is refused LOUDLY, its state unchanged
+  assert_eq(activate_arm(ids[3].arm_id, "test-н3-05"), "slot-full")
+  let refused = query("SELECT count(*) AS n FROM arm_journal WHERE action = 'arm-on-refused' AND arm_id = ?", [ids[3].arm_id])
+  assert_eq(refused[0].n, 1.0)
+  // a freed place admits the fourth hand again
+  let _ = deactivate_arm(ids[0].arm_id, "test-н3-05")
+  assert_eq(activate_arm(ids[3].arm_id, "test-н3-05"), "ok")
+}
+
+test "Н3-05: the journal records who, when and what — readable by a plain sqlite3 client" {
+  // the BREATH slot: its cap is always in force, so the refusal case
+  // is reproducible here without depending on the methods-cap arming
+  // order of the tests above
+  seed_catalog()
+  let ids = query("SELECT arm_id FROM practice_protocol WHERE slot = 'breath' ORDER BY arm_id", [])
+  assert_eq(activate_arm(ids[0].arm_id, "journal-probe"), "ok")
+  assert_eq(activate_arm(ids[1].arm_id, "journal-probe"), "ok")
+  assert_eq(activate_arm(ids[2].arm_id, "journal-probe"), "ok")
+  assert_eq(activate_arm(ids[3].arm_id, "journal-probe"), "slot-full")
+  let _ = deactivate_arm(ids[0].arm_id, "journal-probe")
+  // WHO: the actor rides every row; WHEN: created_at is never empty;
+  // WHAT: the action (+ the detail on refusals)
+  let when = query("SELECT count(*) AS n FROM arm_journal WHERE actor = 'journal-probe' AND created_at = ''", [])
+  assert_eq(when[0].n, 0.0)
+  let plain = query("SELECT action, created_at FROM arm_journal WHERE actor = 'journal-probe' AND detail = '' ORDER BY id", [])
+  assert_eq(len(plain), 4.0)
+  assert_eq(plain[0].action, "arm-on")
+  assert_eq(plain[3].action, "arm-off")
+  let refused = query("SELECT action, detail FROM arm_journal WHERE actor = 'journal-probe' AND detail != '' ORDER BY id", [])
+  assert_eq(len(refused), 1.0)
+  assert_eq(refused[0].action, "arm-on-refused")
+  assert_eq(refused[0].detail, "slot-full")
 }
