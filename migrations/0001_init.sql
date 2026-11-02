@@ -233,3 +233,51 @@ CREATE TABLE IF NOT EXISTS arm_journal (
     detail TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- Н4-02: the MIND-MASTERY script catalog. ALTER TABLE is in the
+-- forbidden destructive DDL class (№325): new columns cannot be added
+-- to the existing tables, so the scenario data rides three NEW tables.
+-- practice_segment: the ordered scenario of one hand — voice segments
+-- and silences (kind 'voice' | 'silence'); text_key joins
+-- practice_script (empty for silence); layer_json carries the sound
+-- layer parameters ({file, sha256, ...} for voice, '{}' for silence).
+-- The derived protocol type "guided" = the presence of segments
+-- (protocol_kind(), src/arms/arms.mlog); a cycle protocol keeps its
+-- steps_json, an instruction method keeps steps_json = '[]'.
+CREATE TABLE IF NOT EXISTS practice_segment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    arm_id INTEGER REFERENCES arm(id),
+    ord INTEGER DEFAULT '0',
+    kind TEXT DEFAULT '',
+    text_key TEXT DEFAULT '',
+    sec REAL DEFAULT '0.0',
+    phase TEXT DEFAULT '',
+    layer_json TEXT DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_segment_arm_ord_unique ON practice_segment(arm_id, ord);
+
+-- practice_script: the SSOT-backed texts (seeds/mm/scripts.json, the
+-- voiced segments) plus the author's method description per practice
+-- (<id>.about — an author TEXT, not a proof; it never touches the prior).
+CREATE TABLE IF NOT EXISTS practice_script (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text_key TEXT,
+    body TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_script_key_unique ON practice_script(text_key);
+
+-- practice_profile: the per-practice MIND-MASTERY metadata with no
+-- additive home on the existing tables — system, level (the Н4-07
+-- access gate later) and declared_min stored NEXT TO the honest
+-- segment sum (practice_protocol.session_min; Н4-01 honesty).
+CREATE TABLE IF NOT EXISTS practice_profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    arm_id INTEGER REFERENCES arm(id),
+    system TEXT DEFAULT '',
+    level INTEGER DEFAULT '0',
+    declared_min REAL DEFAULT '0.0',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_arm_unique ON practice_profile(arm_id);

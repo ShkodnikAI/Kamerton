@@ -150,6 +150,14 @@ pattern ensure_schema() -> Unit {
   let _ = db_execute("CREATE TABLE IF NOT EXISTS consent (id INTEGER PRIMARY KEY AUTOINCREMENT, scope TEXT, revoked INTEGER DEFAULT '0', source TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_protocol (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), slot TEXT DEFAULT '', safety_class TEXT DEFAULT 'A', requires_consent INTEGER DEFAULT '0', max_hold_sec REAL DEFAULT '0.0', session_min REAL DEFAULT '10.0', steps_json TEXT DEFAULT '[]', series_json TEXT DEFAULT '', contraindications TEXT DEFAULT '', source TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS arm_journal (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT DEFAULT '', arm_id INTEGER REFERENCES arm(id), action TEXT DEFAULT '', detail TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))", [])
+  // Н4-02: the MIND-MASTERY script catalog — the three additive tables
+  // (ALTER TABLE is in the forbidden destructive DDL class, №325: new
+  // columns cannot be added to the existing tables). Byte-identical to
+  // the seed DDL (src/arms/arms.mlog §seed_mm_catalog) and to the
+  // operator mirror migrations/0001_init.sql — pinned by verify-mirrors.
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_segment (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), ord INTEGER DEFAULT '0', kind TEXT DEFAULT '', text_key TEXT DEFAULT '', sec REAL DEFAULT '0.0', phase TEXT DEFAULT '', layer_json TEXT DEFAULT '{}', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_script (id INTEGER PRIMARY KEY AUTOINCREMENT, text_key TEXT, body TEXT, created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), system TEXT DEFAULT '', level INTEGER DEFAULT '0', declared_min REAL DEFAULT '0.0', created_at TEXT DEFAULT (datetime('now')))", [])
   ensure_indexes()
 }
 
@@ -161,6 +169,10 @@ pattern ensure_indexes() -> Unit {
   db_execute("CREATE INDEX IF NOT EXISTS idx_context_trial ON context(trial_id)")
   db_execute("CREATE INDEX IF NOT EXISTS idx_candidate_name ON candidate(name)")
   db_execute("CREATE INDEX IF NOT EXISTS idx_arm_active ON arm(active)")
+  // Н4-02: the script catalog uniqueness (idempotent seed discipline)
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_segment_arm_ord_unique ON practice_segment(arm_id, ord)")
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_script_key_unique ON practice_script(text_key)")
+  db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_arm_unique ON practice_profile(arm_id)")
 }
 
 // ── APP-MIRROR-START: store-core (the signatures mirror
@@ -1375,6 +1387,231 @@ pattern arm_methods_cap_confirm(actor: String) -> String {
 // same rows through the same joins (invariant 6).
 pattern arms_catalog() -> List {
   return query("SELECT a.id AS id, a.name AS name, a.group_name AS group_name, a.day_window AS day_window, a.active AS active, p.slot AS slot, p.safety_class AS safety_class, s.max_active AS max_active FROM arm a LEFT JOIN practice_protocol p ON p.arm_id = a.id LEFT JOIN slot s ON s.name = p.slot ORDER BY CASE WHEN p.slot IS NULL THEN 2 WHEN p.slot = 'methods' THEN 0 ELSE 1 END, a.id", [])
+}
+
+// ── Н4-02: the MIND-MASTERY script catalog (75 practices) ──────────────
+// The scenario practices (seeds/mm/*.json, byte-reproducible by
+// scripts/mm-convert.py --verify from ShkodnikAI/MIND-MASTERY @ 2a26e75,
+// naryad Н4-01) are LINEAR SCRIPTS: voice segments, silences and sound
+// layers — not breath phase cycles. The engine reads the data, it does
+// not know the practices (same discipline as the Н3-01 catalog).
+//
+// WHY read_file AND NOT AN ENTITY LIST (§2-checked, probe-pinned on
+// v0.38.0): the JSON objects (scripts.json, voice-manifest.json) can be
+// CONSUMED without object iteration — dynamic struct access `obj[key]`
+// works (probe dyn.mlog), and every key arrives from the segment list
+// of the ARRAY-shaped practices.json (591 = 591 = 591, no orphans, the
+// lockstep counts are pinned by tests). Re-embedding 800 KB of texts
+// into three byte-mirrored .mlog copies would triple the mirror
+// surface for zero gain: the files ARE the SSOT. The runtime read path
+// has a №455 twist — see mm_read_data below (two read paths, probe- 
+// pinned: the serve sandbox denies repo-tree reads, the data-dir copy
+// is the serve source, the repo SSOT is the test/CI source).
+//
+// WHY THE ABSENT KEYS ARE NEVER TOUCHED: accessing a missing struct
+// field is a LOUD runtime error (probe probe2.mlog) — the silence
+// segments carry no text_key/optional_tts, so the seed branches on
+// s.kind FIRST and each branch only reads the fields its kind has
+// (data invariants verified: voice -> text_key + optional_tts, silence
+// -> neither; probe4 tests pin both row counts).
+//
+// SAFETY CLASS: the converted data carries "A" for every practice
+// (mm-convert hardcodes it, Н4-01) — but the class follows the DATA of
+// the naryad, not the converted label: breath_wim_hof and
+// breath_holotropic are hyperventilation, class C, requires_consent = 1
+// (never assigned without the consent row — the Н3-01 rule).
+//
+// THE SLOT SPLIT IS THE OWNER'S GATE (Шаг 0): the four slots by purpose
+// (внимание и намерение; тело и движение; визуализация и расслабление;
+// дыхание) are the executor's PROPOSAL recorded as data — domfreq (10)
+// -> attention, feldenkrais (12) -> body, silva + dispenza +
+// transurfing (45) -> visualization, breath (8) -> breath. Every MM
+// hand starts INACTIVE, so a not-yet-approved split changes nothing
+// live; re-splitting is a data edit (UPDATE practice_protocol.slot),
+// never a code change.
+//
+// THE DERIVED PROTOCOL TYPE (задача 1 «тип протокола guided»): a
+// column cannot be added to practice_protocol — ALTER TABLE is in the
+// forbidden destructive DDL class (№325, the store's own declaration)
+// — so the type is DERIVED from the data by protocol_kind(): segments
+// present -> "guided", else non-empty steps -> "cycle", else
+// "instruction" (the methods rows). Pinned by tests on all three kinds.
+//
+// LEVEL (задача 5) rides the third additive table practice_profile
+// (arm_id UNIQUE, system, level, declared_min) — the per-practice
+// MIND-MASTERY metadata that has no additive home on the existing
+// tables for the same №325 reason. declared_min is stored NEXT TO the
+// segment sum (practice_protocol.session_min = the honest sum) — the
+// Н4-01 honesty: «сумма сегментов меньше declared минут — оба поля
+// рядом, не исправлялось молча».
+//
+// PRIOR: wide 0.45 +- 0.20 for every MM hand; the source is «нет
+// источника: широкий приор» EXCEPT breath_coherent — slow coherent
+// breathing is inside the population of the one verified review
+// (Zaccaro et al. 2018), with the same not-technique-specific
+// qualifier the Н3-01 diaphragmatic row already carries.
+pattern mm_arm_name(id: String) -> String {
+  // the three AERIS overlaps attach to the EXISTING hands (задача 3):
+  // no duplicate arm rows — the MIND-MASTERY texts join as the script
+  if id == "breath_diaphragmatic" {
+    return "breath-diaphragmatic"
+  }
+  if id == "breath_478" {
+    return "breath-four-seven-eight"
+  }
+  if id == "breath_box" {
+    return "breath-box"
+  }
+  return id
+}
+
+pattern mm_slot_for(system: String) -> String {
+  // the PROPOSED split (owner gate — see the block comment above)
+  if system == "feldenkrais" {
+    return "body"
+  }
+  if system == "domfreq" {
+    return "attention"
+  }
+  if system == "silva" or system == "dispenza" or system == "transurfing" {
+    return "visualization"
+  }
+  return "breath"
+}
+
+pattern mm_safety_class(id: String) -> String {
+  // hyperventilation is class C (the naryad's Факт); the converted
+  // label says "A" for everything and is deliberately NOT trusted
+  if id == "breath_wim_hof" or id == "breath_holotropic" {
+    return "C"
+  }
+  return "A"
+}
+
+pattern mm_source_for(id: String) -> String {
+  if id == "breath_coherent" {
+    return "Zaccaro et al. 2018 (Front Hum Neurosci 12:353, doi:10.3389/fnhum.2018.00353): систематический обзор медленного дыхания (<=10 вдохов/мин) в целом; конкретная техника в обзоре не оценивалась — широкий приор"
+  }
+  return "нет источника: широкий приор"
+}
+
+// The derived protocol type (see the block comment): "guided" when the
+// arm carries a scenario (practice_segment rows), "cycle" when it
+// carries non-empty phase steps (the AERIS breathing protocols), and
+// "instruction" otherwise (the methods rows). An unknown arm is
+// "none" — never a fabricated kind.
+pattern protocol_kind(arm_id: Float) -> String {
+  let segs = query("SELECT count(*) AS n FROM practice_segment WHERE arm_id = ?", [arm_id])
+  if segs[0].n > 0.0 {
+    return "guided"
+  }
+  let prot = query("SELECT steps_json FROM practice_protocol WHERE arm_id = ?", [arm_id])
+  if len(prot) == 0.0 {
+    return "none"
+  }
+  if prot[0].steps_json != "[]" {
+    return "cycle"
+  }
+  return "instruction"
+}
+
+// WHY TWO READ PATHS (probe-pinned on v0.38.0, serveprobe.mlog): the
+// №455 sandbox restricts serve-route/tick file reads to the data
+// directory — a repo-tree read is DENIED ([SANDBOX_SENSITIVE_PATH],
+// hard even for read_file_or). The seed therefore reads the runtime
+// copy data/mm-seed/<name>.json FIRST (inside ./data — allowed; a
+// missing copy is a SOFT miss), falls back to the repository SSOT
+// seeds/mm/<name>.json (readable by mlog test / CI; in serve the
+// denial arrives and try catches it — one loud caught-error line), and
+// only when BOTH are unreadable takes the loud-refusal path below. The
+// operator/deploy copies the SSOT into the data dir (one command,
+// documented in the PR/worklog; the install.sh step is a follow-up —
+// outside this naryad's boundaries).
+pattern mm_read_data(name: String) -> String {
+  let d = read_file_or("data/mm-seed/" + name, "")
+  if d != "" {
+    return d
+  }
+  let r = try read_file_or("seeds/mm/" + name, "")
+  if escape_html(to_string(r.ok)) == "true" {
+    // allow(unchecked_result): r.value is read only behind the
+    // escape_html(to_string(r.ok)) == "true" decision above — the
+    // sanitize-then-decide bridge restores integrity before the
+    // branch; the obfuscated guard is deliberate (№802, ADR-0198).
+    // The №455 denial arrives as ok = false and is NOT fatal: the
+    // data-dir copy was already tried (soft miss above).
+    return to_string(r.value)
+  }
+  return ""
+}
+
+// Seed the script catalog. Idempotent: UNIQUE indexes + INSERT OR
+// IGNORE everywhere (arm.name, practice_protocol.arm_id, slot.name —
+// created defensively here too, so the seed is self-contained — plus
+// the three NEW unique keys). Returns the segment count seeded (977 =
+// 591 voice + 386 silence) — the honest completeness number, pinned by
+// tests. A missing data file degrades LOUD: read_file_or with an empty
+// default, one printed refusal, return 0 — the tick survives, the
+// catalog stays empty until the files are back (the seeds/mm/*.json
+// are tracked repository files, a missing file is a broken deploy).
+pattern seed_mm_catalog() -> Float {
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_arm_name_unique ON arm(name)", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_protocol_arm_unique ON practice_protocol(arm_id)", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_slot_name_unique ON slot(name)", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_segment (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), ord INTEGER DEFAULT '0', kind TEXT DEFAULT '', text_key TEXT DEFAULT '', sec REAL DEFAULT '0.0', phase TEXT DEFAULT '', layer_json TEXT DEFAULT '{}', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_segment_arm_ord_unique ON practice_segment(arm_id, ord)", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_script (id INTEGER PRIMARY KEY AUTOINCREMENT, text_key TEXT, body TEXT, created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_script_key_unique ON practice_script(text_key)", [])
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), system TEXT DEFAULT '', level INTEGER DEFAULT '0', declared_min REAL DEFAULT '0.0', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_arm_unique ON practice_profile(arm_id)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('attention', 3)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('body', 3)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('visualization', 3)", [])
+  let raw_practices = mm_read_data("practices.json")
+  let raw_scripts = mm_read_data("scripts.json")
+  let raw_voice = mm_read_data("voice-manifest.json")
+  if raw_practices == "" or raw_scripts == "" or raw_voice == "" {
+    print("seed_mm_catalog: data/mm-seed/ и seeds/mm/ не читаются — каталог сценариев НЕ засеян (громкий отказ, Н4-02; оператор: cp seeds/mm/*.json data/mm-seed/)")
+    return 0.0
+  }
+  let practices = parse_json(raw_practices)
+  let scripts = parse_json(raw_scripts)
+  let voice = parse_json(raw_voice)
+  let mut n_segments = 0.0
+  each p in practices {
+    let arm_name = mm_arm_name(p.id)
+    let cls = mm_safety_class(p.id)
+    let mut cons = 0.0
+    if cls == "C" {
+      cons = 1.0
+    }
+    let _ = db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std, active) VALUES (?, ?, 'morning', ?, 0.45, 0.2, 0)", [arm_name, p.title, to_float(p.minutes)])
+    let arm_rows = query("SELECT id FROM arm WHERE name = ?", [arm_name])
+    let arm_id = arm_rows[0].id
+    // the AERIS three keep their existing protocol rows (UNIQUE(arm_id)
+    // turns this insert into a no-op for them — «остаётся запись AERIS»)
+    let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, max_hold_sec, session_min, steps_json, series_json, contraindications, source) VALUES (?, ?, ?, ?, 0, ?, '[]', '', ?, ?)", [arm_id, mm_slot_for(p.system), cls, cons, to_float(p.protocol.session_min), join(p.contraindications, "; "), mm_source_for(p.id)])
+    let _ = db_execute("INSERT OR IGNORE INTO practice_profile (arm_id, system, level, declared_min) VALUES (?, ?, ?, ?)", [arm_id, p.system, to_float(p.level), to_float(p.protocol.declared_min)])
+    let mut ord = 0.0
+    each s in p.segments {
+      ord = ord + 1.0
+      if s.kind == "voice" {
+        let tk = s.text_key
+        let _ = db_execute("INSERT OR IGNORE INTO practice_script (text_key, body) VALUES (?, ?)", [tk, scripts[tk]])
+        let _ = db_execute("INSERT OR IGNORE INTO practice_segment (arm_id, ord, kind, text_key, sec, phase, layer_json) VALUES (?, ?, 'voice', ?, ?, ?, ?)", [arm_id, ord, tk, to_float(s.duration_sec), s.phase, json_encode(voice[tk])])
+      }
+      if s.kind != "voice" {
+        let _ = db_execute("INSERT OR IGNORE INTO practice_segment (arm_id, ord, kind, text_key, sec, phase, layer_json) VALUES (?, ?, 'silence', '', ?, ?, '{}')", [arm_id, ord, to_float(s.duration_sec), s.phase])
+      }
+      n_segments = n_segments + 1.0
+    }
+    // the author's method description (задача 4): an author TEXT, not
+    // a proof — it never touches the prior, and the systemPhysics field
+    // is NOT in the converted data (mm-convert, Н4-01) — declared in
+    // the PR, the description is what the source carries
+    let _ = db_execute("INSERT OR IGNORE INTO practice_script (text_key, body) VALUES (?, ?)", [p.id + ".about", p.description])
+  }
+  return n_segments
 }
 
 // ── APP-MIRROR-END: arms-seed ─────────────────────────────────────────
