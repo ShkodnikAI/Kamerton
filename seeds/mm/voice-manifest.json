@@ -1,0 +1,3548 @@
+{
+  "breath_478.deepening": {
+    "file": "assets/audio/voice/breath_478/breath_478_deepening.mp3",
+    "sha256": "ef1c78e10b90e95b57ea9d7221a523b3149a81154105b92752020a35e983c1c7",
+    "duration_sec": 45.34,
+    "size_bytes": 272016
+  },
+  "breath_478.integration": {
+    "file": "assets/audio/voice/breath_478/breath_478_integration.mp3",
+    "sha256": "12debcd9a9638845a864e7501ad91b00bf30d1f11057afa11976fa422ab0d0ef",
+    "duration_sec": 41.23,
+    "size_bytes": 247392
+  },
+  "breath_478.learning_counts": {
+    "file": "assets/audio/voice/breath_478/breath_478_learning_counts.mp3",
+    "sha256": "d73778439356a09af5315a7c34b97315edf8f61e8a9a24b4039c90891ceb7b2b",
+    "duration_sec": 47.21,
+    "size_bytes": 283248
+  },
+  "breath_478.method_intro": {
+    "file": "assets/audio/voice/breath_478/breath_478_method_intro.mp3",
+    "sha256": "7c31b4856670a677750230a675b7ef3afb77e36d59d59c205dc0be695b56b237",
+    "duration_sec": 41.78,
+    "size_bytes": 250704
+  },
+  "breath_478.practice_start": {
+    "file": "assets/audio/voice/breath_478/breath_478_practice_start.mp3",
+    "sha256": "45588124ebbad05b547ea893428242a2c09da9794b063a86fe781262dbed7fe7",
+    "duration_sec": 42.29,
+    "size_bytes": 253728
+  },
+  "breath_478.preparation": {
+    "file": "assets/audio/voice/breath_478/breath_478_preparation.mp3",
+    "sha256": "11d240c95f7ef36f08e81a101c439192c646b7f6cc7ca94f7f701294929ff1f6",
+    "duration_sec": 40.56,
+    "size_bytes": 243360
+  },
+  "breath_478.reorientation": {
+    "file": "assets/audio/voice/breath_478/breath_478_reorientation.mp3",
+    "sha256": "87f4732703b7f8e32c5673f6f1ac9f247cff6d2344aa556bcf970cb09144053a",
+    "duration_sec": 40.92,
+    "size_bytes": 245520
+  },
+  "breath_box.extension": {
+    "file": "assets/audio/voice/breath_box/breath_box_extension.mp3",
+    "sha256": "025a0fb83f42201cdac38b5171c5c50d20acc603d1e7f9cc7e2064f65c586de8",
+    "duration_sec": 42.89,
+    "size_bytes": 257328
+  },
+  "breath_box.integration": {
+    "file": "assets/audio/voice/breath_box/breath_box_integration.mp3",
+    "sha256": "cc9b68ebf288188c05f5d4b4673d8aed8644e4d5c1f7cb84b70b0eddb2105bb4",
+    "duration_sec": 44.95,
+    "size_bytes": 269712
+  },
+  "breath_box.learning_pattern": {
+    "file": "assets/audio/voice/breath_box/breath_box_learning_pattern.mp3",
+    "sha256": "91b94eb5d792f18c4f2698be201d82504cd6759379c407ac88b307ed1ba18e5a",
+    "duration_sec": 53.04,
+    "size_bytes": 318240
+  },
+  "breath_box.practice_start": {
+    "file": "assets/audio/voice/breath_box/breath_box_practice_start.mp3",
+    "sha256": "a3c31ced6f9ff4e8d2aa7f29c39792d4abb319f42cb622134b527e2add05c034",
+    "duration_sec": 45.94,
+    "size_bytes": 275616
+  },
+  "breath_box.preparation": {
+    "file": "assets/audio/voice/breath_box/breath_box_preparation.mp3",
+    "sha256": "1b3c6e902a52dbb8811482d8373e1eab7f93d63ca0be511729867b2d27635555",
+    "duration_sec": 43.15,
+    "size_bytes": 258912
+  },
+  "breath_box.reorientation": {
+    "file": "assets/audio/voice/breath_box/breath_box_reorientation.mp3",
+    "sha256": "e277dc0c56154e74b67fdee81cd124d41363add54e124abb1087308dba0bc917",
+    "duration_sec": 39.86,
+    "size_bytes": 239184
+  },
+  "breath_box.rhythm_concept": {
+    "file": "assets/audio/voice/breath_box/breath_box_rhythm_concept.mp3",
+    "sha256": "3cd80213cb1db706951d4202443c6dae5f142ba4b9668c47653d5b7490cca8b9",
+    "duration_sec": 45.17,
+    "size_bytes": 271008
+  },
+  "breath_coherent.finding_rhythm": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_finding_rhythm.mp3",
+    "sha256": "72a47652d44a5fe9846e897dd67e73e67eb312f755a3519fe84737c0cd2421d4",
+    "duration_sec": 48.98,
+    "size_bytes": 293904
+  },
+  "breath_coherent.heart_connection": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_heart_connection.mp3",
+    "sha256": "064f4cadcf69c90ede36b45a89d25964c852d91f6dad86ecf6969612cd56555d",
+    "duration_sec": 41.83,
+    "size_bytes": 250992
+  },
+  "breath_coherent.hrv_concept": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_hrv_concept.mp3",
+    "sha256": "c8de188c4f169aee22e18200db273fc97501af8e3fdef876621d5a826e08c33d",
+    "duration_sec": 39.96,
+    "size_bytes": 239760
+  },
+  "breath_coherent.integration": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_integration.mp3",
+    "sha256": "41893cfa9abe05895c3ce99da42f45e9fd022d8034d1f06f601bac9fdc7ef458",
+    "duration_sec": 43.32,
+    "size_bytes": 259920
+  },
+  "breath_coherent.practice_start": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_practice_start.mp3",
+    "sha256": "5259b2b0bd512528200484cf027dad106c75a29e5b7be4cec256c34f0dbfceb5",
+    "duration_sec": 44.71,
+    "size_bytes": 268272
+  },
+  "breath_coherent.preparation": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_preparation.mp3",
+    "sha256": "07852bdd59045b6d393d15e778a645ee8f0e61ff257d6b274047df2ca3b48198",
+    "duration_sec": 40.54,
+    "size_bytes": 243216
+  },
+  "breath_coherent.reorientation": {
+    "file": "assets/audio/voice/breath_coherent/breath_coherent_reorientation.mp3",
+    "sha256": "6920a408ce5cc99bc5d5ecd75d3415111633df0423bae77ed7ed29915aa6723d",
+    "duration_sec": 44.62,
+    "size_bytes": 267696
+  },
+  "breath_diaphragmatic.deepening": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_deepening.mp3",
+    "sha256": "63892325211018378e27b23d5bfd9a1d9e2595e5f7001fc4ef80779b014cf23d",
+    "duration_sec": 43.06,
+    "size_bytes": 258336
+  },
+  "breath_diaphragmatic.exploring_breath": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_exploring_breath.mp3",
+    "sha256": "8534bbad84201f5fe38b17dcf781a182e8b589221e4ace366cd772790d2e8782",
+    "duration_sec": 39.12,
+    "size_bytes": 234720
+  },
+  "breath_diaphragmatic.hand_placement": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_hand_placement.mp3",
+    "sha256": "a28d835030a2eb12f85e389a05ffdfdd59e4534c5f84508678efdb595ea50f30",
+    "duration_sec": 34.25,
+    "size_bytes": 205488
+  },
+  "breath_diaphragmatic.integration": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_integration.mp3",
+    "sha256": "7cbb6897550793de236eaf03e518bc6f3550bcb71c48a5a279a70f8d524ce9cd",
+    "duration_sec": 39.43,
+    "size_bytes": 236592
+  },
+  "breath_diaphragmatic.practice_start": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_practice_start.mp3",
+    "sha256": "836951ef59b3c227ce22dfcb8a40fcf5f9d19d678c26974125da12131b9b71d6",
+    "duration_sec": 40.94,
+    "size_bytes": 245664
+  },
+  "breath_diaphragmatic.preparation": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_preparation.mp3",
+    "sha256": "1a35b32e6d06f6a2704a52109a79d5932189ee6cc4964e4ea40bfbe0877168cc",
+    "duration_sec": 33.86,
+    "size_bytes": 203184
+  },
+  "breath_diaphragmatic.reorientation": {
+    "file": "assets/audio/voice/breath_diaphragmatic/breath_diaphragmatic_reorientation.mp3",
+    "sha256": "56390fa6f836d7b85b30e51079b6c597d08914c8b72fb4eefdbd2632e0d2b85c",
+    "duration_sec": 42.65,
+    "size_bytes": 255888
+  },
+  "breath_for_sleep.deepening": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_deepening.mp3",
+    "sha256": "d14f4e2d2fc7d48c0eb76abedd5487ab97891e3e13a41b2e5d145bd5fa843727",
+    "duration_sec": 45.34,
+    "size_bytes": 272016
+  },
+  "breath_for_sleep.drifting": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_drifting.mp3",
+    "sha256": "baa5df5f10b45b0b3c58d911ce6457d0ae773dee5328e2c7529f141f8966441e",
+    "duration_sec": 36.24,
+    "size_bytes": 217440
+  },
+  "breath_for_sleep.extended_exhale": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_extended_exhale.mp3",
+    "sha256": "fb1f4d6cf7fc1e7e5fefcbd740f01fc30c933cfc70dba29f4b882ce2a99a3a64",
+    "duration_sec": 47.47,
+    "size_bytes": 284832
+  },
+  "breath_for_sleep.gentle_practice": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_gentle_practice.mp3",
+    "sha256": "80fd2b73914564adc218efcf260b619ba92fdd74c0ca22c0740d3f1ec3fc5499",
+    "duration_sec": 42.53,
+    "size_bytes": 255168
+  },
+  "breath_for_sleep.letting_go": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_letting_go.mp3",
+    "sha256": "81460ca3809ff9d963554d53d42573f9d279f87d82d67053005b11a972e87bb7",
+    "duration_sec": 40.18,
+    "size_bytes": 241056
+  },
+  "breath_for_sleep.preparation": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_preparation.mp3",
+    "sha256": "4f994334247c627aaf8a236b4ad5f60bc380daa9856e31db0c27cb82ccaa87e1",
+    "duration_sec": 40.7,
+    "size_bytes": 244224
+  },
+  "breath_for_sleep.settling": {
+    "file": "assets/audio/voice/breath_for_sleep/breath_for_sleep_settling.mp3",
+    "sha256": "107566e913e1a118e2df80870d33f82916fedea763d03fd88e4f367327ee954a",
+    "duration_sec": 47.18,
+    "size_bytes": 283104
+  },
+  "breath_holotropic.breathing_pattern": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_breathing_pattern.mp3",
+    "sha256": "7cd67192be69e5b245f6421d97c59f59a2626b6c78a08c6aeb39a045a8464e98",
+    "duration_sec": 46.03,
+    "size_bytes": 276192
+  },
+  "breath_holotropic.consent": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_consent.mp3",
+    "sha256": "dbd3d2d7c88c68e848393892387a1d4da452d94f0c0d4ff8356fc329fc4aea25",
+    "duration_sec": 43.37,
+    "size_bytes": 260208
+  },
+  "breath_holotropic.entering_session": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_entering_session.mp3",
+    "sha256": "0af7103ee9034aaaaedf6e138bd150d5c1d45944ed00dabf05a2327484f93ef5",
+    "duration_sec": 43.2,
+    "size_bytes": 259200
+  },
+  "breath_holotropic.gradual_return": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_gradual_return.mp3",
+    "sha256": "29194e6bd2357774dab2457938b8e32167a849f7ad505f32bfacbbee9ea4c299",
+    "duration_sec": 53.09,
+    "size_bytes": 318528
+  },
+  "breath_holotropic.grounding": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_grounding.mp3",
+    "sha256": "42a8ae91b1bc866dc1e5b67f01860009f9724eb91f1e541de4fa457c5f92f3f6",
+    "duration_sec": 47.52,
+    "size_bytes": 285120
+  },
+  "breath_holotropic.maintaining": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_maintaining.mp3",
+    "sha256": "5fa118be4c76ce3df173468ad7761b6c328ec4041adcef6e611421eb2cb9f1c8",
+    "duration_sec": 54.46,
+    "size_bytes": 326736
+  },
+  "breath_holotropic.preparation": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_preparation.mp3",
+    "sha256": "e50207c21d78caf4b23b0ec31430377f3026d480b24a8f47c7c3b1de56e44d6f",
+    "duration_sec": 44.18,
+    "size_bytes": 265104
+  },
+  "breath_holotropic.reorientation": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_reorientation.mp3",
+    "sha256": "543d8a5b8612c638fe9db0222a28aea83824e7827a266ce043417b9d32577471",
+    "duration_sec": 52.15,
+    "size_bytes": 312912
+  },
+  "breath_holotropic.safety_guidelines": {
+    "file": "assets/audio/voice/breath_holotropic/breath_holotropic_safety_guidelines.mp3",
+    "sha256": "1252d8451d64db76a270f029e0cae1e366f4a088bbc16c541cb43e4c882d9276",
+    "duration_sec": 45.55,
+    "size_bytes": 273312
+  },
+  "breath_pranayama.integration": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_integration.mp3",
+    "sha256": "447cadb2acaf9319e27f05d1ef10130dc767db6b75f0d032db17adbfb3d1d496",
+    "duration_sec": 46.85,
+    "size_bytes": 281088
+  },
+  "breath_pranayama.kapalabhati_intro": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_kapalabhati_intro.mp3",
+    "sha256": "86fa44f343feee687f7481d7f20c40b34ff846d2a1a5479a7c8c2b82c2795ad7",
+    "duration_sec": 47.18,
+    "size_bytes": 283104
+  },
+  "breath_pranayama.kapalabhati_practice": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_kapalabhati_practice.mp3",
+    "sha256": "4661be0540ec44134727bb6f1174036d7624825fb9effb74441579343b8e7bed",
+    "duration_sec": 54.84,
+    "size_bytes": 329040
+  },
+  "breath_pranayama.nadi_shodhana_intro": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_nadi_shodhana_intro.mp3",
+    "sha256": "eec53ac85e15615c2939050029417e8c526ef1dffa2b11ae46e0f7039fbc019f",
+    "duration_sec": 45.86,
+    "size_bytes": 275184
+  },
+  "breath_pranayama.nadi_shodhana_practice": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_nadi_shodhana_practice.mp3",
+    "sha256": "332b6c7121b5a5730dcb08beda6fb79bc1b6f7d5f3c6561312d9fddcd8081158",
+    "duration_sec": 51.7,
+    "size_bytes": 310176
+  },
+  "breath_pranayama.prana_concept": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_prana_concept.mp3",
+    "sha256": "bef238cc6ed6e828134518539afe92e0ef56f7bbfecb428c554de5478c037801",
+    "duration_sec": 49.56,
+    "size_bytes": 297360
+  },
+  "breath_pranayama.preparation": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_preparation.mp3",
+    "sha256": "d1c704efbfc3923fa8b582a3ad9221900a42cd5e8113b5a5f261ec6e9c7821f2",
+    "duration_sec": 40.06,
+    "size_bytes": 240336
+  },
+  "breath_pranayama.reorientation": {
+    "file": "assets/audio/voice/breath_pranayama/breath_pranayama_reorientation.mp3",
+    "sha256": "b5f8a803d04058399e63d73398bdf226ac2edf063bd0eab520447e9d35fe2115",
+    "duration_sec": 49.85,
+    "size_bytes": 299088
+  },
+  "breath_wim_hof.consent": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_consent.mp3",
+    "sha256": "09bd083e87ec681de9ad94d551856ca1b6da675e9f5c8454b85de469dba56768",
+    "duration_sec": 42.98,
+    "size_bytes": 257904
+  },
+  "breath_wim_hof.first_round": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_first_round.mp3",
+    "sha256": "aaf2ac27df1198c04d927cf53602e89f4094b37ee65226dc41b663ea0121de16",
+    "duration_sec": 46.15,
+    "size_bytes": 276912
+  },
+  "breath_wim_hof.integration": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_integration.mp3",
+    "sha256": "3d2a116ed793e781b1e641044f989e865ddbd6e4e01f68ea4419a552720519a4",
+    "duration_sec": 44.86,
+    "size_bytes": 269136
+  },
+  "breath_wim_hof.learning_pattern": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_learning_pattern.mp3",
+    "sha256": "8864f342afc0b2ae43e291e8bce49b83725063ecd926d03b808cd695a7e54068",
+    "duration_sec": 40.37,
+    "size_bytes": 242208
+  },
+  "breath_wim_hof.preparation": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_preparation.mp3",
+    "sha256": "0646b3d7534ed4ac754908b5a0843e49c7db5cec100f4902b6f90c9a284de5f5",
+    "duration_sec": 41.62,
+    "size_bytes": 249696
+  },
+  "breath_wim_hof.recovery_breath": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_recovery_breath.mp3",
+    "sha256": "4ad11ed9e841abefe22629e25502db29e40275850fc7951f424e1b95c7895b13",
+    "duration_sec": 44.45,
+    "size_bytes": 266688
+  },
+  "breath_wim_hof.reorientation": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_reorientation.mp3",
+    "sha256": "7a52722d18151ae40209f412b75f812bb4827d0c0ce67d05e0ba206582feda4f",
+    "duration_sec": 42.43,
+    "size_bytes": 254592
+  },
+  "breath_wim_hof.retention": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_retention.mp3",
+    "sha256": "48adcc754eadd628917ab81f4ba06e411f98997fb24d8d39154f3c16d3d4c134",
+    "duration_sec": 41.4,
+    "size_bytes": 248400
+  },
+  "breath_wim_hof.retention_2": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_retention_2.mp3",
+    "sha256": "163829b4c4e224d2cf11fd558802a9b68cf5cc4a63222de6097bd9c7991eb63c",
+    "duration_sec": 38.93,
+    "size_bytes": 233568
+  },
+  "breath_wim_hof.safety_rules": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_safety_rules.mp3",
+    "sha256": "ede0d50e603a9a1e3eb4eb223148a4941d4df109e2ea23976bda3df110d1f134",
+    "duration_sec": 45.89,
+    "size_bytes": 275328
+  },
+  "breath_wim_hof.second_round": {
+    "file": "assets/audio/voice/breath_wim_hof/breath_wim_hof_second_round.mp3",
+    "sha256": "3b3d9f83fe1c27d4805a82bbfa6ec6a8e818ba46e1aeceafcbdcd49aa3ca0189",
+    "duration_sec": 39.43,
+    "size_bytes": 236592
+  },
+  "dfp_alpha_calibration.deepening": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_deepening.mp3",
+    "sha256": "71e49be91cd307a78391475e208c3ffc01b027413dc6e78a3c4a68821c55872f",
+    "duration_sec": 46.08,
+    "size_bytes": 276480
+  },
+  "dfp_alpha_calibration.deepening2": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_deepening2.mp3",
+    "sha256": "33bbad869fbb4473c9170e3ec2d239925b40dc4338741cc6035003fc56c63a55",
+    "duration_sec": 48.96,
+    "size_bytes": 293760
+  },
+  "dfp_alpha_calibration.induction": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_induction.mp3",
+    "sha256": "788488bb823e5ee4f4026b8a0cc5b3366d98678a67a6271b1f8852a6d1e057b9",
+    "duration_sec": 46.56,
+    "size_bytes": 279360
+  },
+  "dfp_alpha_calibration.integration": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_integration.mp3",
+    "sha256": "70c2d2bb5a180b04885b8f82b4341773d469290cc89c158efbed17ad2ba8b5d5",
+    "duration_sec": 46.66,
+    "size_bytes": 279936
+  },
+  "dfp_alpha_calibration.practice": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_practice.mp3",
+    "sha256": "db8b2a9bb388a3fa2606ede918ebebae06ac7baf6ff9b034f97088f8f62dfdf2",
+    "duration_sec": 47.57,
+    "size_bytes": 285408
+  },
+  "dfp_alpha_calibration.preparation": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_preparation.mp3",
+    "sha256": "ed166b87a6792fce5966eb68f9ea5b4982bab7fb73e7a9bc4171c9f47505666c",
+    "duration_sec": 43.87,
+    "size_bytes": 263232
+  },
+  "dfp_alpha_calibration.reorientation": {
+    "file": "assets/audio/voice/dfp_alpha_calibration/dfp_alpha_calibration_reorientation.mp3",
+    "sha256": "716511703fbc500ece59368177c549209166496405674f7ece07528e6bd07f76",
+    "duration_sec": 37.46,
+    "size_bytes": 224784
+  },
+  "dfp_body_scan.awareness": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_awareness.mp3",
+    "sha256": "25cc969c976ea00dd4ee3db5c898e349dd6bbfe2910e969b0769eb29e3b25be7",
+    "duration_sec": 54.19,
+    "size_bytes": 325152
+  },
+  "dfp_body_scan.deepening": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_deepening.mp3",
+    "sha256": "63ea4f81e97c300709a379b4574eb544edab42bd4f1cb61689a5617659192644",
+    "duration_sec": 49.1,
+    "size_bytes": 294624
+  },
+  "dfp_body_scan.integration": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_integration.mp3",
+    "sha256": "ea64e396d9a8f8ce24733d5c4d08c6343248ffbc234115b5d28cdc7014ae2c71",
+    "duration_sec": 38.04,
+    "size_bytes": 228240
+  },
+  "dfp_body_scan.mapping": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_mapping.mp3",
+    "sha256": "2bfef612deeab5866af1d47ce244b2e8ff16465e1cbac7199fe1a34dab9a6379",
+    "duration_sec": 50.66,
+    "size_bytes": 303984
+  },
+  "dfp_body_scan.practice": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_practice.mp3",
+    "sha256": "25a753cf3db8ea8ef29614301665b912afbaa9d30b9706ee1dba74a10c7f63c2",
+    "duration_sec": 41.78,
+    "size_bytes": 250704
+  },
+  "dfp_body_scan.preparation": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_preparation.mp3",
+    "sha256": "4fcaeadf40cda000abc756ae474e13ca02910de68d80ccef740c2b7f4458f002",
+    "duration_sec": 42.98,
+    "size_bytes": 257904
+  },
+  "dfp_body_scan.reorientation": {
+    "file": "assets/audio/voice/dfp_body_scan/dfp_body_scan_reorientation.mp3",
+    "sha256": "c663de97798d1878e8acf5464a6e634d56d98515c0e7cb6ec4a99169b3de4c56",
+    "duration_sec": 40.61,
+    "size_bytes": 243648
+  },
+  "dfp_diagnosis.deepening": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_deepening.mp3",
+    "sha256": "95d31c0656048aa09c4541ff800bea229e361be6a05b28aaa04b39d2009a5cd4",
+    "duration_sec": 48.29,
+    "size_bytes": 289728
+  },
+  "dfp_diagnosis.exploring": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_exploring.mp3",
+    "sha256": "11f2ca1cfb8b3d57c360b35f738c9f0e002c1bc3b86b8c146b297aa92b40e8c9",
+    "duration_sec": 48.96,
+    "size_bytes": 293760
+  },
+  "dfp_diagnosis.integration": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_integration.mp3",
+    "sha256": "243535e14057056d092057410d81f7740ccb1d097c527ce6d692e9b70fd2ee3d",
+    "duration_sec": 40.73,
+    "size_bytes": 244368
+  },
+  "dfp_diagnosis.practice": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_practice.mp3",
+    "sha256": "ab63c3f2898186e3217f128fc3f4308999608f867a4fd01aed8ef05ffad69356",
+    "duration_sec": 50.76,
+    "size_bytes": 304560
+  },
+  "dfp_diagnosis.preparation": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_preparation.mp3",
+    "sha256": "f03d20d51d29bf2744f1fc10c348c757b22372a1ad4a14f191276e938e01dee8",
+    "duration_sec": 45.46,
+    "size_bytes": 272736
+  },
+  "dfp_diagnosis.reorientation": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_reorientation.mp3",
+    "sha256": "dbf1e85f60eaf4b390d8d7a49fced593247b49d1ef10a792178c0830f512080b",
+    "duration_sec": 40.68,
+    "size_bytes": 244080
+  },
+  "dfp_diagnosis.scanning": {
+    "file": "assets/audio/voice/dfp_diagnosis/dfp_diagnosis_scanning.mp3",
+    "sha256": "bdc6091db2fac6d69c7569c90c5d50be61cb5395007403299d4b181cb8594e67",
+    "duration_sec": 47.57,
+    "size_bytes": 285408
+  },
+  "dfp_emotional_saturation.building": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_building.mp3",
+    "sha256": "700d7879e15b744541c7406d479e84c84985dd931af64e89766e5712b27ae12f",
+    "duration_sec": 54.05,
+    "size_bytes": 324288
+  },
+  "dfp_emotional_saturation.deepening": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_deepening.mp3",
+    "sha256": "c187336c18790986beb640ccb06a97474de6d7f26284958e7051721814e207e8",
+    "duration_sec": 49.99,
+    "size_bytes": 299952
+  },
+  "dfp_emotional_saturation.exploring": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_exploring.mp3",
+    "sha256": "568c3e5be7432e311c40ca6cfddc5c3fad58ab2fab194861f85a8051439f1c26",
+    "duration_sec": 58.32,
+    "size_bytes": 349920
+  },
+  "dfp_emotional_saturation.integration": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_integration.mp3",
+    "sha256": "beca1fcddec10b766838baf771cfc068d67089201d437bc92cb9cd4271660c8d",
+    "duration_sec": 47.14,
+    "size_bytes": 282816
+  },
+  "dfp_emotional_saturation.practice": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_practice.mp3",
+    "sha256": "289bb94f3ac9761ed981d2d9950f4c4826afad96ae389e0edb5b475d9f67978a",
+    "duration_sec": 38.83,
+    "size_bytes": 232992
+  },
+  "dfp_emotional_saturation.preparation": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_preparation.mp3",
+    "sha256": "5b59bbb52f8bf37fe086e06d2b93af32dec5f169f1cce54d997a77b77c1c8c6f",
+    "duration_sec": 50.21,
+    "size_bytes": 301248
+  },
+  "dfp_emotional_saturation.reorientation": {
+    "file": "assets/audio/voice/dfp_emotional_saturation/dfp_emotional_saturation_reorientation.mp3",
+    "sha256": "b2102647df47f59d4d3308c8d97b0d8cce9f9b64db57bea90de776261d4d993b",
+    "duration_sec": 45.48,
+    "size_bytes": 272880
+  },
+  "dfp_focus_lock.deepening": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_deepening.mp3",
+    "sha256": "d19e3d848bf7b2e36a8b2174c11e8d6786cc5772b52e95baa934a4114b05174e",
+    "duration_sec": 54.6,
+    "size_bytes": 327600
+  },
+  "dfp_focus_lock.integration": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_integration.mp3",
+    "sha256": "4f66ab509e181e8db5dc91ec621d369ad4ddab7a9aaf9ff7a93ada65082e1976",
+    "duration_sec": 43.9,
+    "size_bytes": 263376
+  },
+  "dfp_focus_lock.intention": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_intention.mp3",
+    "sha256": "83f2f9bfd6972f2cc82ea43d14262b394cc8f645b4c9b7db306eb8e8d7ab3a40",
+    "duration_sec": 50.26,
+    "size_bytes": 301536
+  },
+  "dfp_focus_lock.practice": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_practice.mp3",
+    "sha256": "06a8ccb6193f7272024588c59d2e7853de75d682f91d1bfaef3affc58a790eab",
+    "duration_sec": 43.94,
+    "size_bytes": 263664
+  },
+  "dfp_focus_lock.preparation": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_preparation.mp3",
+    "sha256": "7d79f63a6bdb98409afe69c70fd4794d56821eb0a8c92e39f120dd950dbd444a",
+    "duration_sec": 47.16,
+    "size_bytes": 282960
+  },
+  "dfp_focus_lock.reorientation": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_reorientation.mp3",
+    "sha256": "adaa9789e9742ea649aaff77672c1c8a6a767c05b618bea76b7089b917130632",
+    "duration_sec": 40.27,
+    "size_bytes": 241632
+  },
+  "dfp_focus_lock.sharpening": {
+    "file": "assets/audio/voice/dfp_focus_lock/dfp_focus_lock_sharpening.mp3",
+    "sha256": "87758392685efaf201a6bf26b09d5eca0a222fb0af335e03ae55a8458e2b534f",
+    "duration_sec": 50.95,
+    "size_bytes": 305712
+  },
+  "dfp_morning_tuning.awakening": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_awakening.mp3",
+    "sha256": "d1ef878f536c6e25cbe7c936334842f3f6cbb3ab0e4e72d1f311923eeea3bc9c",
+    "duration_sec": 58.15,
+    "size_bytes": 348912
+  },
+  "dfp_morning_tuning.deepening": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_deepening.mp3",
+    "sha256": "2ebfdf4833864f8224ed574c3f81348c523431abad1abaa860f5cf5e934ec29f",
+    "duration_sec": 55.22,
+    "size_bytes": 331344
+  },
+  "dfp_morning_tuning.frequency": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_frequency.mp3",
+    "sha256": "3f0eff3d2d4ad70923e95d91eba39d6340e3d2ad235d6457d2abab59f3669254",
+    "duration_sec": 54.19,
+    "size_bytes": 325152
+  },
+  "dfp_morning_tuning.integration": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_integration.mp3",
+    "sha256": "7dfb9cfde4816f4554f8ad3c9c21ec23cbad91781fcc8934762629e6663338ee",
+    "duration_sec": 43.87,
+    "size_bytes": 263232
+  },
+  "dfp_morning_tuning.practice": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_practice.mp3",
+    "sha256": "6cb06601e71a3199bc57913db1a6a677d10160e41113869c04a4265a03ba5687",
+    "duration_sec": 57.79,
+    "size_bytes": 346752
+  },
+  "dfp_morning_tuning.preparation": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_preparation.mp3",
+    "sha256": "31c0ee8fc7bc550660903efd7b9168007284182561b93f8dd4b105ad4a491b47",
+    "duration_sec": 51.22,
+    "size_bytes": 307296
+  },
+  "dfp_morning_tuning.reorientation": {
+    "file": "assets/audio/voice/dfp_morning_tuning/dfp_morning_tuning_reorientation.mp3",
+    "sha256": "d262db1c6f6b1805638cef78dd3539fe2279dffc631cfe26043bf3b7575b36f5",
+    "duration_sec": 30.17,
+    "size_bytes": 181008
+  },
+  "dfp_night_integration.deepening": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_deepening.mp3",
+    "sha256": "4a76d613c0119ada34b22ee84d512634c87964ac9a34200dc684a3d7e25119f4",
+    "duration_sec": 44.26,
+    "size_bytes": 265536
+  },
+  "dfp_night_integration.integration": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_integration.mp3",
+    "sha256": "67b1254cd3668a1fba963c98c4471d49d4bd8c6a944c371edb6723e650cd9035",
+    "duration_sec": 40.85,
+    "size_bytes": 245088
+  },
+  "dfp_night_integration.practice": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_practice.mp3",
+    "sha256": "7a91f794e28703d58f3b9e2b84a70ee26f24779f2c341bbf833bacdabff05291",
+    "duration_sec": 52.78,
+    "size_bytes": 316656
+  },
+  "dfp_night_integration.preparation": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_preparation.mp3",
+    "sha256": "4026961a63a41259a6183a7c6651d6fcf031e0916af3fe0ce6a73d988491ba7f",
+    "duration_sec": 48.91,
+    "size_bytes": 293472
+  },
+  "dfp_night_integration.programming": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_programming.mp3",
+    "sha256": "a1de74aee4ee8ad404cf8a0ce6bdfd5c3ef5f4c50c515224b8f604df831b533a",
+    "duration_sec": 49.03,
+    "size_bytes": 294192
+  },
+  "dfp_night_integration.releasing": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_releasing.mp3",
+    "sha256": "b84a89626241a9f4334b08fd9c7458097eff0d9af24c4d397adb66e7605252df",
+    "duration_sec": 54.31,
+    "size_bytes": 325872
+  },
+  "dfp_night_integration.reorientation": {
+    "file": "assets/audio/voice/dfp_night_integration/dfp_night_integration_reorientation.mp3",
+    "sha256": "820f7040affd1f5e49de9c0fc545db09ca03a02a88dd64187356b46b495d1259",
+    "duration_sec": 21.29,
+    "size_bytes": 127728
+  },
+  "dfp_proactive_projection.broadcasting": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_broadcasting.mp3",
+    "sha256": "e6f8cb93050b2cc480010a8f45fb62e5307464ec9a32ae5d16b71447452ebd71",
+    "duration_sec": 50.93,
+    "size_bytes": 305568
+  },
+  "dfp_proactive_projection.building": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_building.mp3",
+    "sha256": "d4b7ffe2a70349c1ce714dcba2b2e59caddfd1f9dcad9d28dccfec8df8f44cdc",
+    "duration_sec": 59.83,
+    "size_bytes": 358992
+  },
+  "dfp_proactive_projection.exploring": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_exploring.mp3",
+    "sha256": "c5873c666b9e4dc35125b706d3b5fc9e9109b92ce8a774234f0b7f9b42d7f984",
+    "duration_sec": 52.94,
+    "size_bytes": 317664
+  },
+  "dfp_proactive_projection.integration": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_integration.mp3",
+    "sha256": "2e7969e663dc6d3b1350f64cf93fc3cc9e6ad87dacfb3f79d18f8387733eddb7",
+    "duration_sec": 51.58,
+    "size_bytes": 309456
+  },
+  "dfp_proactive_projection.practice": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_practice.mp3",
+    "sha256": "8f11ca3c98cd49f28d81b1225ee04c208e167a90e09aabf9fc486856423d9cc8",
+    "duration_sec": 58.61,
+    "size_bytes": 351648
+  },
+  "dfp_proactive_projection.preparation": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_preparation.mp3",
+    "sha256": "b1cacb4689e897eab6558327de06cabe0e7a309cb5012bf5bcee6be8b7e70747",
+    "duration_sec": 52.06,
+    "size_bytes": 312336
+  },
+  "dfp_proactive_projection.reorientation": {
+    "file": "assets/audio/voice/dfp_proactive_projection/dfp_proactive_projection_reorientation.mp3",
+    "sha256": "83e3b0f9ce5dbaab38e78e939306eb7f4fce89cdfccee9a7f1d05c88e62abb8b",
+    "duration_sec": 35.5,
+    "size_bytes": 212976
+  },
+  "dfp_three_day_protocol.day_one": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_day_one.mp3",
+    "sha256": "cdadc582d10814d119c9004e58641c758f4e36db40671272f8e4f6ec0a5f7627",
+    "duration_sec": 57.58,
+    "size_bytes": 345456
+  },
+  "dfp_three_day_protocol.day_three": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_day_three.mp3",
+    "sha256": "28a8c4bb0420f72bf3f096f27dcf9ff6e6c5198eacc9445c76eb390e0c0bf3ef",
+    "duration_sec": 64.82,
+    "size_bytes": 388944
+  },
+  "dfp_three_day_protocol.day_two": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_day_two.mp3",
+    "sha256": "4afee77608f72f03c35a31bad0782652adf5431c82397729633ef43f9ce011b5",
+    "duration_sec": 59.76,
+    "size_bytes": 358560
+  },
+  "dfp_three_day_protocol.integration": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_integration.mp3",
+    "sha256": "2ed9d7e3293f168bd5efc54e888201dc81f04069c93b040736ab37859e6772be",
+    "duration_sec": 47.54,
+    "size_bytes": 285264
+  },
+  "dfp_three_day_protocol.practice": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_practice.mp3",
+    "sha256": "e9ff0751fc7593e7690b2fbad13de661ecb64447ab8cecad6e0503ccad9e882e",
+    "duration_sec": 50.3,
+    "size_bytes": 301824
+  },
+  "dfp_three_day_protocol.preparation": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_preparation.mp3",
+    "sha256": "880d85e4605f639f269c4d811effda328d7a9c2534458b1663afd1d36e09267f",
+    "duration_sec": 49.85,
+    "size_bytes": 299088
+  },
+  "dfp_three_day_protocol.reorientation": {
+    "file": "assets/audio/voice/dfp_three_day_protocol/dfp_three_day_protocol_reorientation.mp3",
+    "sha256": "ad3b0f1dab16339285b49521b08ce5dabb1d841b8b07dafe2fb0fc86fa611347",
+    "duration_sec": 45.67,
+    "size_bytes": 274032
+  },
+  "dfp_zero_contradictions.alignment": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_alignment.mp3",
+    "sha256": "fc2af02ac99b9c99523b61d8ef639fa29e195272c32b8aff7619c809861e5ade",
+    "duration_sec": 53.76,
+    "size_bytes": 322560
+  },
+  "dfp_zero_contradictions.deepening": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_deepening.mp3",
+    "sha256": "6bb0e7c6c6f53434b90a72a0360776867a1d0bdf311aa34b1d0d0e3053b04efb",
+    "duration_sec": 47.93,
+    "size_bytes": 287568
+  },
+  "dfp_zero_contradictions.exploring": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_exploring.mp3",
+    "sha256": "0d223cddfa95a6420b53403d47944e086dcb1c06e216316fc3f2cfd09a569704",
+    "duration_sec": 54.6,
+    "size_bytes": 327600
+  },
+  "dfp_zero_contradictions.integration": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_integration.mp3",
+    "sha256": "a4337a2d17bf1996f6731a1901d288178ee81f68c3163775c473801959fe7c04",
+    "duration_sec": 41.5,
+    "size_bytes": 248976
+  },
+  "dfp_zero_contradictions.practice": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_practice.mp3",
+    "sha256": "267152052335bd28ae63504d3c46fec6b6de286c960e1f3af6de98a5cca6e84d",
+    "duration_sec": 39.46,
+    "size_bytes": 236736
+  },
+  "dfp_zero_contradictions.preparation": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_preparation.mp3",
+    "sha256": "2980448d9e794f5752b6c7695409f101df1890eae495b041e6f2d878d88eeeeb",
+    "duration_sec": 51.62,
+    "size_bytes": 309744
+  },
+  "dfp_zero_contradictions.reorientation": {
+    "file": "assets/audio/voice/dfp_zero_contradictions/dfp_zero_contradictions_reorientation.mp3",
+    "sha256": "0e435a381cfbb2850bc5d2c82d5066e7cc6ac0875fa7ff1b45bda005a7951284",
+    "duration_sec": 51.48,
+    "size_bytes": 308880
+  },
+  "disp_becoming_supernatural.deepening": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_deepening.mp3",
+    "sha256": "d16bc3c29b2a608e0aac30f9d3a098146c52270010486a316bbc079b237e434b",
+    "duration_sec": 39.48,
+    "size_bytes": 236880
+  },
+  "disp_becoming_supernatural.induction": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_induction.mp3",
+    "sha256": "0ac17a7190778d3a8a80e1d067a7cf64aef9570ef9e1938e65a87d5e48e19a01",
+    "duration_sec": 44.11,
+    "size_bytes": 264672
+  },
+  "disp_becoming_supernatural.integration": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_integration.mp3",
+    "sha256": "9190a608651709c6e368469f224f1776fd26f3ef413db967c97578162b5422d2",
+    "duration_sec": 39.91,
+    "size_bytes": 239472
+  },
+  "disp_becoming_supernatural.potential_feeling": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_potential_feeling.mp3",
+    "sha256": "5e26f730597db54af36772befec6efdc1e53d87a46202579732c86a9bc3fdbfb",
+    "duration_sec": 42.36,
+    "size_bytes": 254160
+  },
+  "disp_becoming_supernatural.preparation": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_preparation.mp3",
+    "sha256": "513e481efedcaa3861a7ba3ce8d6a079807fddaf45078a796d59ef1cc074d87a",
+    "duration_sec": 45.24,
+    "size_bytes": 271440
+  },
+  "disp_becoming_supernatural.quantum_concept": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_quantum_concept.mp3",
+    "sha256": "c9a05ef397f6c2f3d7f876108ecd93692a853fbae212395b09b78fa96ca053a7",
+    "duration_sec": 43.66,
+    "size_bytes": 261936
+  },
+  "disp_becoming_supernatural.reorientation": {
+    "file": "assets/audio/voice/disp_becoming_supernatural/disp_becoming_supernatural_reorientation.mp3",
+    "sha256": "b57b6f152989e0763bc7a9b258003bc42ad3be3cdf39fe1e5e5b86e4b01287c7",
+    "duration_sec": 41.23,
+    "size_bytes": 247392
+  },
+  "disp_being_supernatural.anchoring": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_anchoring.mp3",
+    "sha256": "cd779f8a3443d87eac05dda8b811b0b2444dc781cdd5227aa961d4ed28803ce8",
+    "duration_sec": 56.4,
+    "size_bytes": 338400
+  },
+  "disp_being_supernatural.deepening": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_deepening.mp3",
+    "sha256": "85df18bc68f3ec825c3194f60d3252560c3d3f36f432bf361912e3dc20c8ab72",
+    "duration_sec": 56.54,
+    "size_bytes": 339264
+  },
+  "disp_being_supernatural.induction": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_induction.mp3",
+    "sha256": "6d8ac4bf950966824316a8c52a76c0be5bf7b82dfcb9927736decd10cbb991b7",
+    "duration_sec": 57.43,
+    "size_bytes": 344592
+  },
+  "disp_being_supernatural.leaving_body": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_leaving_body.mp3",
+    "sha256": "dac21cc6b42f3a10c81276f496163fb293a4f44b71e6421d22508194264ca784",
+    "duration_sec": 57.94,
+    "size_bytes": 347616
+  },
+  "disp_being_supernatural.new_identity": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_new_identity.mp3",
+    "sha256": "4bef89de055c1e8c37429c16e2fd8d7c5b04ed9385a78d7b0d1c7ec9014ee4bd",
+    "duration_sec": 59.95,
+    "size_bytes": 359712
+  },
+  "disp_being_supernatural.preparation": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_preparation.mp3",
+    "sha256": "5ce592c6c05fae7495cda98a669c98f35eda8fa2536394258530b1c095eca1ae",
+    "duration_sec": 50.14,
+    "size_bytes": 300816
+  },
+  "disp_being_supernatural.quantum_entry": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_quantum_entry.mp3",
+    "sha256": "ec9ae9359cd32e7f4067217a3bd716d19472f6bcae407a00884b1a5f3809cbac",
+    "duration_sec": 52.85,
+    "size_bytes": 317088
+  },
+  "disp_being_supernatural.reorientation": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_reorientation.mp3",
+    "sha256": "f5e722e82b2deab68b7a6e7efacd36a3cc72c769908a4a11eccf1e6bf7e281c8",
+    "duration_sec": 51.89,
+    "size_bytes": 311328
+  },
+  "disp_being_supernatural.returning_transformed": {
+    "file": "assets/audio/voice/disp_being_supernatural/disp_being_supernatural_returning_transformed.mp3",
+    "sha256": "7302730100d9b928f021d1456c1dfdaaaa9a07df0d7cb4e67be701f8fcafa549",
+    "duration_sec": 52.66,
+    "size_bytes": 315936
+  },
+  "disp_blessed_cells.cell_blessing": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_cell_blessing.mp3",
+    "sha256": "19f19bbb145205898754aecfec9736c3c66da62e586001d9d01a21af6cb0c7cf",
+    "duration_sec": 44.93,
+    "size_bytes": 269568
+  },
+  "disp_blessed_cells.deepening": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_deepening.mp3",
+    "sha256": "36fb8f59732eed0c65289ec353eade13c243cb72741e1e90e5fe87fd3d5a5dcf",
+    "duration_sec": 43.63,
+    "size_bytes": 261792
+  },
+  "disp_blessed_cells.entering_body": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_entering_body.mp3",
+    "sha256": "b4accc5ce4337ecdac79437f9af7ec5209a200700cb6be3bbde27827ac20a753",
+    "duration_sec": 46.66,
+    "size_bytes": 279936
+  },
+  "disp_blessed_cells.induction": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_induction.mp3",
+    "sha256": "d2be29e9340d8e85cf478706e06b635af3c3fe9e4f98ebe78b9106e7b4dcf583",
+    "duration_sec": 41.59,
+    "size_bytes": 249552
+  },
+  "disp_blessed_cells.integration": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_integration.mp3",
+    "sha256": "6f15b66515303578f22b79a7fba2283889d8a4265cfc6ab4170caff4ba371692",
+    "duration_sec": 44.69,
+    "size_bytes": 268128
+  },
+  "disp_blessed_cells.preparation": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_preparation.mp3",
+    "sha256": "f6516b2bcb5dfeecd72b957fd0f403c4c1502d210d246f1d7ae6d2bc51d7a142",
+    "duration_sec": 41.33,
+    "size_bytes": 247968
+  },
+  "disp_blessed_cells.regeneration": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_regeneration.mp3",
+    "sha256": "f45ea74465495cb317168152e9cecead4ee1c25bed1af52185d30ec823ed55aa",
+    "duration_sec": 48.19,
+    "size_bytes": 289152
+  },
+  "disp_blessed_cells.reorientation": {
+    "file": "assets/audio/voice/disp_blessed_cells/disp_blessed_cells_reorientation.mp3",
+    "sha256": "56caf4b8de4f02278b64160810668ecf1d9ded6e82c3e077b5a920a319e7639b",
+    "duration_sec": 40.94,
+    "size_bytes": 245664
+  },
+  "disp_body_parts_induction.arms_hands": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_arms_hands.mp3",
+    "sha256": "1b15a0532006544ef2e37a3cbf1068073192d25baa0715f625d071ece8872ee3",
+    "duration_sec": 47.83,
+    "size_bytes": 286992
+  },
+  "disp_body_parts_induction.head_face": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_head_face.mp3",
+    "sha256": "d76355d40eb4a9fe0d1dc1710cb3cba02b555aef96b80bdb49259798848004f4",
+    "duration_sec": 48.43,
+    "size_bytes": 290592
+  },
+  "disp_body_parts_induction.induction": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_induction.mp3",
+    "sha256": "9522f5ca82ca893e6f2e4d6c516d75f129beabbbe53c991ae0c801bb97a15192",
+    "duration_sec": 41.57,
+    "size_bytes": 249408
+  },
+  "disp_body_parts_induction.integration": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_integration.mp3",
+    "sha256": "652a72f0bcc2723c4419b015f923b90eab1b3819b9dfd3626791668b2acec0a8",
+    "duration_sec": 45.24,
+    "size_bytes": 271440
+  },
+  "disp_body_parts_induction.legs_feet": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_legs_feet.mp3",
+    "sha256": "7cc9b03ac8026d5c84da4d98b3a61131b9043795396fd46ba64a77ffc442bb39",
+    "duration_sec": 49.92,
+    "size_bytes": 299520
+  },
+  "disp_body_parts_induction.neck_shoulders": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_neck_shoulders.mp3",
+    "sha256": "c88ab75f1a45ca030be57e315afebcab204b6cc741775595f108ad504f942ea2",
+    "duration_sec": 51.02,
+    "size_bytes": 306144
+  },
+  "disp_body_parts_induction.preparation": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_preparation.mp3",
+    "sha256": "42292429e43f922dbadd1c6757cdcb483412e12d0ecc1b32ff05c66651930347",
+    "duration_sec": 40.56,
+    "size_bytes": 243360
+  },
+  "disp_body_parts_induction.reorientation": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_reorientation.mp3",
+    "sha256": "cca50c3ddbc6cace870fb2fd3c6e3406ae59ba87b95945063b82fa66fbbbbcce",
+    "duration_sec": 45.98,
+    "size_bytes": 275904
+  },
+  "disp_body_parts_induction.torso": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_torso.mp3",
+    "sha256": "38c5e60da3f53dffddde8f62cc44bd54eb0796ace353da103f597f6816924850",
+    "duration_sec": 48.72,
+    "size_bytes": 292320
+  },
+  "disp_body_parts_induction.whole_body": {
+    "file": "assets/audio/voice/disp_body_parts_induction/disp_body_parts_induction_whole_body.mp3",
+    "sha256": "f909f63e4340b7745a265288b03e46c0babb95fd0ae4829caebfc4bad567551e",
+    "duration_sec": 47.28,
+    "size_bytes": 283680
+  },
+  "disp_changing_beliefs.belief_concept": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_belief_concept.mp3",
+    "sha256": "820395e113cce0a0032abca464a2b660e3cd9bcd88b4c51227816dd2c6c04dac",
+    "duration_sec": 47.98,
+    "size_bytes": 287856
+  },
+  "disp_changing_beliefs.deepening": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_deepening.mp3",
+    "sha256": "770e8cbe6c9cd08fb93bdc52ea705b4be6428f577b1f314c04be56065b3af95d",
+    "duration_sec": 47.26,
+    "size_bytes": 283536
+  },
+  "disp_changing_beliefs.identifying_limiting": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_identifying_limiting.mp3",
+    "sha256": "b2641849604903d53245fed70783ea2fd2196a2e04b30856308bbc656b504ba7",
+    "duration_sec": 50.23,
+    "size_bytes": 301392
+  },
+  "disp_changing_beliefs.induction": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_induction.mp3",
+    "sha256": "456584b675dfcc95c151b5f5313f014f6de074c11700ea4b08708015992e231d",
+    "duration_sec": 46.46,
+    "size_bytes": 278784
+  },
+  "disp_changing_beliefs.integration": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_integration.mp3",
+    "sha256": "f83295b8fa435635abfbd404674a096f6cdca08fc0a1b3b956a9bad095a67976",
+    "duration_sec": 46.27,
+    "size_bytes": 277632
+  },
+  "disp_changing_beliefs.preparation": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_preparation.mp3",
+    "sha256": "6ec4396f77161b3204908cf50b1adf3e481e748b5ac4610824dbd1386a77de04",
+    "duration_sec": 46.56,
+    "size_bytes": 279360
+  },
+  "disp_changing_beliefs.reorientation": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_reorientation.mp3",
+    "sha256": "a01758a39fec6fcbe7519fd2ebe8a00f2a42a740f8d54fb12310d6d32c4eb995",
+    "duration_sec": 48.58,
+    "size_bytes": 291456
+  },
+  "disp_changing_beliefs.rewiring": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_rewiring.mp3",
+    "sha256": "fa196bcc69362b396ef6f2fb322ab812fd7e46a4abaee0154160aa10ffb61e4a",
+    "duration_sec": 59.02,
+    "size_bytes": 354096
+  },
+  "disp_changing_beliefs.unwiring": {
+    "file": "assets/audio/voice/disp_changing_beliefs/disp_changing_beliefs_unwiring.mp3",
+    "sha256": "0775cc2f44377931eb8592bbd5f6c5b2f039386792ed3cc8e57d3e5ba8a5ef4e",
+    "duration_sec": 51.55,
+    "size_bytes": 309312
+  },
+  "disp_emotional_addiction.addiction_concept": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_addiction_concept.mp3",
+    "sha256": "f3f99409e64964bc4e465685e697569613b191f962adae553479eaa35ff3ff52",
+    "duration_sec": 50.09,
+    "size_bytes": 300528
+  },
+  "disp_emotional_addiction.body_sensations": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_body_sensations.mp3",
+    "sha256": "b793cd984322cbc70365a2ccd29c40b3498f3f5d135c1dcba9bd4b91a05a8904",
+    "duration_sec": 53.52,
+    "size_bytes": 321120
+  },
+  "disp_emotional_addiction.deepening": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_deepening.mp3",
+    "sha256": "e323a16c0c43b3d54ae8b32e3bbcfcf30c33af61d624c81c2d631c521c28f665",
+    "duration_sec": 45.74,
+    "size_bytes": 274464
+  },
+  "disp_emotional_addiction.induction": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_induction.mp3",
+    "sha256": "dd9fa7e03418359950bbe2bae682bfac5ab38e96d154205c1ce4226320e6ddf1",
+    "duration_sec": 48.84,
+    "size_bytes": 293040
+  },
+  "disp_emotional_addiction.integration": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_integration.mp3",
+    "sha256": "64cae1c0c59fee9eac1c8e75d58f990bf0281f0065a53e796fd9c0ec33ffa26e",
+    "duration_sec": 47.09,
+    "size_bytes": 282528
+  },
+  "disp_emotional_addiction.liberation": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_liberation.mp3",
+    "sha256": "a07a19fdfd578a07c9d2e2bd1360c3a5801d630b93f971ff7488e4799d80b32e",
+    "duration_sec": 61.78,
+    "size_bytes": 370656
+  },
+  "disp_emotional_addiction.observing_emotions": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_observing_emotions.mp3",
+    "sha256": "13de6ff5636cd8c45404f10d794fc8eb6626961dea6c8c7cfdffd2250f90bb7a",
+    "duration_sec": 56.95,
+    "size_bytes": 341712
+  },
+  "disp_emotional_addiction.preparation": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_preparation.mp3",
+    "sha256": "bb74fb947e8177c18b4c94d384c611e437014e422ab9d2c26ae399861d72153e",
+    "duration_sec": 43.2,
+    "size_bytes": 259200
+  },
+  "disp_emotional_addiction.reorientation": {
+    "file": "assets/audio/voice/disp_emotional_addiction/disp_emotional_addiction_reorientation.mp3",
+    "sha256": "a8bcea32ddb2f86521974b7cd7087380c7cf3f0d5caa7b6dc2785bbb046f9340",
+    "duration_sec": 53.71,
+    "size_bytes": 322272
+  },
+  "disp_generative_meditation.becoming_nothing": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_becoming_nothing.mp3",
+    "sha256": "8e25e2d10f59f0508b0c1671f65f820ce27298b90dc3f4758197f12e23b8ffa8",
+    "duration_sec": 50.26,
+    "size_bytes": 301536
+  },
+  "disp_generative_meditation.creating_future": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_creating_future.mp3",
+    "sha256": "17e1d488c719f71d3aaff5de094e5e04efbedbcb5545ec7db3a29ad689199ba2",
+    "duration_sec": 61.85,
+    "size_bytes": 371088
+  },
+  "disp_generative_meditation.deepening": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_deepening.mp3",
+    "sha256": "a4d95e2b1397d58d4d7dbb4f09dd0a05113dda6562e56a39647fc318dbe88fba",
+    "duration_sec": 48.19,
+    "size_bytes": 289152
+  },
+  "disp_generative_meditation.embodying": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_embodying.mp3",
+    "sha256": "395e8fbe2497bea5fa944b690f5942a6c883dfbf970c6f42ffe3a4655e3dac0c",
+    "duration_sec": 53.66,
+    "size_bytes": 321984
+  },
+  "disp_generative_meditation.entering_field": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_entering_field.mp3",
+    "sha256": "03db6c9e9f66fd7f896f2ced5d0bf9817a1c841335685c8efda6d1c2f3166d24",
+    "duration_sec": 50.81,
+    "size_bytes": 304848
+  },
+  "disp_generative_meditation.induction": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_induction.mp3",
+    "sha256": "d437954fe4add7ed278552967f474b270be8170cde14a4bf8babc63b00e16571",
+    "duration_sec": 49.75,
+    "size_bytes": 298512
+  },
+  "disp_generative_meditation.integration": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_integration.mp3",
+    "sha256": "f0a01ec8b725bb5c00a36f83ce8c6ee8bd65aa9fa52ac7acc6e9d39ab0db180a",
+    "duration_sec": 49.06,
+    "size_bytes": 294336
+  },
+  "disp_generative_meditation.preparation": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_preparation.mp3",
+    "sha256": "d0cddb31b58af3208c35443bb4ced8cc3a554e28de87000c587390a959685956",
+    "duration_sec": 49.66,
+    "size_bytes": 297936
+  },
+  "disp_generative_meditation.reorientation": {
+    "file": "assets/audio/voice/disp_generative_meditation/disp_generative_meditation_reorientation.mp3",
+    "sha256": "911c2577bf0d27f91ff4475a336ae1f76d8cd57fba1fea0bb6cf5f06ebf9df79",
+    "duration_sec": 50.28,
+    "size_bytes": 301680
+  },
+  "disp_healing_meditation.becoming_no_body": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_becoming_no_body.mp3",
+    "sha256": "61b7c0086e75b1d058726c393bafff8c631598cd28e89e7d4914770adabab1c9",
+    "duration_sec": 47.14,
+    "size_bytes": 282816
+  },
+  "disp_healing_meditation.deepening": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_deepening.mp3",
+    "sha256": "01a1d1c85eb4eacad876ff86cd586cd3559b7be59d20ea4ec547e7ddabba1b02",
+    "duration_sec": 49.03,
+    "size_bytes": 294192
+  },
+  "disp_healing_meditation.energetic_centers": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_energetic_centers.mp3",
+    "sha256": "12f7d0767d5577bf1c961111dd0f10e9d6979fa200b846d29ad2befab72c4e7b",
+    "duration_sec": 44.59,
+    "size_bytes": 267552
+  },
+  "disp_healing_meditation.gratitude": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_gratitude.mp3",
+    "sha256": "e8c8a5819f42a14ea8639a41a7eeec2ee19e78b48ddb20318e5591228aef0dfa",
+    "duration_sec": 47.28,
+    "size_bytes": 283680
+  },
+  "disp_healing_meditation.induction": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_induction.mp3",
+    "sha256": "60cd3fc25294949ebbd97d0cb9ecf43f49b05083167e370f046520a0c6f3d7c3",
+    "duration_sec": 43.51,
+    "size_bytes": 261072
+  },
+  "disp_healing_meditation.preparation": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_preparation.mp3",
+    "sha256": "79a696a0303b87f60db0a341ea6433d3e0f24d0d3451e9a8d333fb4584ccc76a",
+    "duration_sec": 43.32,
+    "size_bytes": 259920
+  },
+  "disp_healing_meditation.rebuilding": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_rebuilding.mp3",
+    "sha256": "f2fa2792a0c90fd7dd9b48172e30423aafe64a192f0d1e7d35717aed58dea5bb",
+    "duration_sec": 49.78,
+    "size_bytes": 298656
+  },
+  "disp_healing_meditation.reorientation": {
+    "file": "assets/audio/voice/disp_healing_meditation/disp_healing_meditation_reorientation.mp3",
+    "sha256": "53bf91f8dbd649234de41cff36e848aa2e6df3f8685fc256fe614b0ad21a09d2",
+    "duration_sec": 44.76,
+    "size_bytes": 268560
+  },
+  "disp_heart_coherence.coherence_breathing": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_coherence_breathing.mp3",
+    "sha256": "70838d485effa3a4c9e22c0a44abf4dc7dea018b1b8bab96be590f44b6b86e9d",
+    "duration_sec": 47.38,
+    "size_bytes": 284256
+  },
+  "disp_heart_coherence.deepening": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_deepening.mp3",
+    "sha256": "47d321ce95c1b8bf8a19ad3e378b4c5420566e8aed53760cb2d50745b128c8d0",
+    "duration_sec": 44.57,
+    "size_bytes": 267408
+  },
+  "disp_heart_coherence.expansion": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_expansion.mp3",
+    "sha256": "430faaea7e857cdb59738a98860c2e257daa66e2784eff71eace2ba15e2301aa",
+    "duration_sec": 44.04,
+    "size_bytes": 264240
+  },
+  "disp_heart_coherence.heart_focus": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_heart_focus.mp3",
+    "sha256": "7b67843d0c714b10cd8b76da81f9a52474f90501d1db0ea9975b060665eed399",
+    "duration_sec": 43.46,
+    "size_bytes": 260784
+  },
+  "disp_heart_coherence.induction": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_induction.mp3",
+    "sha256": "725ec497dd8ec7580dac1f1bf27878ea6e20e7b5c4b5c5bca572fb8cfd7223d6",
+    "duration_sec": 47.69,
+    "size_bytes": 286128
+  },
+  "disp_heart_coherence.integration": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_integration.mp3",
+    "sha256": "6bd2893cd7f57b4330151104fdc338eaf148330d60ed5a96607b2f495900e939",
+    "duration_sec": 40.06,
+    "size_bytes": 240336
+  },
+  "disp_heart_coherence.preparation": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_preparation.mp3",
+    "sha256": "2ed5fa44e79d7c91827ba8d6e9c87d03a42060bcdb7339ba098b15adc0c9e930",
+    "duration_sec": 38.57,
+    "size_bytes": 231408
+  },
+  "disp_heart_coherence.reorientation": {
+    "file": "assets/audio/voice/disp_heart_coherence/disp_heart_coherence_reorientation.mp3",
+    "sha256": "8eacb9b4cf4f6538c58cd29274be4094419789570aa71b653d086ad70b18d176",
+    "duration_sec": 43.22,
+    "size_bytes": 259344
+  },
+  "disp_new_potentials.choosing_frequency": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_choosing_frequency.mp3",
+    "sha256": "558306e2f30bf5b42f6b7f316f8829f253bdcc40809e1033e6e55e48ce9d2432",
+    "duration_sec": 51.0,
+    "size_bytes": 306000
+  },
+  "disp_new_potentials.deepening": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_deepening.mp3",
+    "sha256": "8b5d99d9fd00d1049a24a9d8ef9929cdafdbd8ee6fd605308e05cbf635f555e0",
+    "duration_sec": 46.73,
+    "size_bytes": 280368
+  },
+  "disp_new_potentials.exploring_potentials": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_exploring_potentials.mp3",
+    "sha256": "69bc2abfb402bf1e094c2907b96f2e9fa2d7fbef3d335e28c7cd86fcff0a8235",
+    "duration_sec": 56.33,
+    "size_bytes": 337968
+  },
+  "disp_new_potentials.induction": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_induction.mp3",
+    "sha256": "920d8b54f8a5556d08830eed30b668350332490434aafaa46f42718717458667",
+    "duration_sec": 48.05,
+    "size_bytes": 288288
+  },
+  "disp_new_potentials.integration": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_integration.mp3",
+    "sha256": "bc771a4f8889186d5a23bb8dd2ef529ac3c01481bc75a930bb9b6a1b06ca8d27",
+    "duration_sec": 51.98,
+    "size_bytes": 311904
+  },
+  "disp_new_potentials.preparation": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_preparation.mp3",
+    "sha256": "ccba584df0e3bae3daf120d19ac8d311aad418a5136dc04af9e6d0c0be63c44d",
+    "duration_sec": 46.06,
+    "size_bytes": 276336
+  },
+  "disp_new_potentials.reorientation": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_reorientation.mp3",
+    "sha256": "9b1e855cc7b4ed443cf001cfcb700b37bc23e62066ce7aa33357a6bc46666055",
+    "duration_sec": 47.59,
+    "size_bytes": 285552
+  },
+  "disp_new_potentials.tuning_nervous_system": {
+    "file": "assets/audio/voice/disp_new_potentials/disp_new_potentials_tuning_nervous_system.mp3",
+    "sha256": "457f3b0a543c934c594bbd623a77ac45d6aca5d5e35066bc5950eec08daa585d",
+    "duration_sec": 56.42,
+    "size_bytes": 338544
+  },
+  "disp_quantum_field.crossing_threshold": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_crossing_threshold.mp3",
+    "sha256": "9d3139a05e821aee912faeb0d46b6dc8431c7e11b9fe5aec4a00d1939a435158",
+    "duration_sec": 59.81,
+    "size_bytes": 358848
+  },
+  "disp_quantum_field.deepening": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_deepening.mp3",
+    "sha256": "ad2cdcc49d165a7678d9864fdb10ecbaf6d9c78de1bb1b5455a541954c1b5821",
+    "duration_sec": 54.17,
+    "size_bytes": 325008
+  },
+  "disp_quantum_field.in_the_field": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_in_the_field.mp3",
+    "sha256": "e2c286fdb67bff73667d29001fdf4f448047ea470e7a74b3d7f45334bd1810f3",
+    "duration_sec": 53.57,
+    "size_bytes": 321408
+  },
+  "disp_quantum_field.induction": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_induction.mp3",
+    "sha256": "36bb6621bb74c2821f4d872de418a0ba20758bddcb7ee1d9f6d4abf2b3e29c6f",
+    "duration_sec": 50.02,
+    "size_bytes": 300096
+  },
+  "disp_quantum_field.preparation": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_preparation.mp3",
+    "sha256": "072e1b1104e7f4de35f249a69af2caba9f74160e7bdfc8c2d2b7f29ec108f18d",
+    "duration_sec": 47.45,
+    "size_bytes": 284688
+  },
+  "disp_quantum_field.receiving_potentials": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_receiving_potentials.mp3",
+    "sha256": "c72de7ad4b3e226ad75e173a7abd10899c66f2151a19732786f014a16ceaa71e",
+    "duration_sec": 51.17,
+    "size_bytes": 307008
+  },
+  "disp_quantum_field.reorientation": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_reorientation.mp3",
+    "sha256": "fa9be84436e7598ca7319d8455a0946eb82f87c6f6127f6e70e6cccf67ec1278",
+    "duration_sec": 48.98,
+    "size_bytes": 293904
+  },
+  "disp_quantum_field.returning": {
+    "file": "assets/audio/voice/disp_quantum_field/disp_quantum_field_returning.mp3",
+    "sha256": "116dd31b6bc0142b20459f47e1f773078e95fbc95618065cb81dbb43cf83db48",
+    "duration_sec": 51.72,
+    "size_bytes": 310320
+  },
+  "disp_space_time.deepening": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_deepening.mp3",
+    "sha256": "d81f4e07eef1ae50b40cd8639851d65638dc3e812d22fdbc9252689b73f6a6f2",
+    "duration_sec": 47.42,
+    "size_bytes": 284544
+  },
+  "disp_space_time.dissolving_matter": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_dissolving_matter.mp3",
+    "sha256": "6bce78cbc421604104130ab58b90e9020185b1c146c1e83d4be0611ccd742bec",
+    "duration_sec": 49.51,
+    "size_bytes": 297072
+  },
+  "disp_space_time.entering_void": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_entering_void.mp3",
+    "sha256": "cc87815681fd46f6fc35a71ccee20b9fd7caa0e8e356193b6c8cd8f4e19b7c6d",
+    "duration_sec": 54.02,
+    "size_bytes": 324144
+  },
+  "disp_space_time.induction": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_induction.mp3",
+    "sha256": "af9f1fa52af40591b5bdc7fd342560952db567d53af94c8e62296a1e9559d1a3",
+    "duration_sec": 42.96,
+    "size_bytes": 257760
+  },
+  "disp_space_time.integration": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_integration.mp3",
+    "sha256": "d539463552a728d9caf8299bb4e7760929b39900e3104ebab4d7b76f2b7e45ea",
+    "duration_sec": 44.52,
+    "size_bytes": 267120
+  },
+  "disp_space_time.preparation": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_preparation.mp3",
+    "sha256": "bd2c87f1539951ee0bcbafcbf2f68692f435fa4d525542dab9f247d07cea50e2",
+    "duration_sec": 42.58,
+    "size_bytes": 255456
+  },
+  "disp_space_time.quantum_field": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_quantum_field.mp3",
+    "sha256": "0008568d6eaed10da8ea8745e383e2675a1d84253a674039d78053bbb711e1ff",
+    "duration_sec": 51.53,
+    "size_bytes": 309168
+  },
+  "disp_space_time.reorientation": {
+    "file": "assets/audio/voice/disp_space_time/disp_space_time_reorientation.mp3",
+    "sha256": "52bc9950d42525bdad058c1e1c9b808f07c7559288002ce0c538679e5f44bfee",
+    "duration_sec": 43.42,
+    "size_bytes": 260496
+  },
+  "disp_walking_creation.conscious_walking": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_conscious_walking.mp3",
+    "sha256": "3753f878b227d29255c3a39f2e628b7641b24574e29ce76aa7b3741335190862",
+    "duration_sec": 59.09,
+    "size_bytes": 354528
+  },
+  "disp_walking_creation.deepening": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_deepening.mp3",
+    "sha256": "fadaf243726b164567ecf90fdeeeeea4d1de00cbaa888fb3138aecf7922a675a",
+    "duration_sec": 50.33,
+    "size_bytes": 301968
+  },
+  "disp_walking_creation.entering_state": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_entering_state.mp3",
+    "sha256": "8774a8a99ecc6459c6ffae61a3213a6fdb84580e205c67b028959c0afa33963c",
+    "duration_sec": 54.53,
+    "size_bytes": 327168
+  },
+  "disp_walking_creation.induction": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_induction.mp3",
+    "sha256": "1b35b4a6ec80cb9e18b73328227c6d8eede377ec1f7d742c8e7525ce2f10981c",
+    "duration_sec": 46.22,
+    "size_bytes": 277344
+  },
+  "disp_walking_creation.integrating": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_integrating.mp3",
+    "sha256": "63fbba1ce500992ef23e1d842aed2cd00106a605f0a207dfc615a8f40bee33c3",
+    "duration_sec": 46.68,
+    "size_bytes": 280080
+  },
+  "disp_walking_creation.preparation": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_preparation.mp3",
+    "sha256": "9a58505fff32745fe1f13366278d03b4a61b3e4101f735f7fa2af06ef545b6a7",
+    "duration_sec": 46.51,
+    "size_bytes": 279072
+  },
+  "disp_walking_creation.preparing_movement": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_preparing_movement.mp3",
+    "sha256": "d5b6adec7b1bc81354bae0614035f01ed9df240c92ede9b69bac0050a94a765e",
+    "duration_sec": 47.26,
+    "size_bytes": 283536
+  },
+  "disp_walking_creation.reorientation": {
+    "file": "assets/audio/voice/disp_walking_creation/disp_walking_creation_reorientation.mp3",
+    "sha256": "94153cafef29fbc4e19424f7170f9dc65e5497299deae3232d5e836bcd58b2ab",
+    "duration_sec": 54.38,
+    "size_bytes": 326304
+  },
+  "feld_atlantic_puppet.connecting": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_connecting.mp3",
+    "sha256": "2fad0ef92cc05adc838094edc1c403daf1c1ce3ceccfdb6dcfa49d10beedb08a",
+    "duration_sec": 49.56,
+    "size_bytes": 297360
+  },
+  "feld_atlantic_puppet.head_nodding": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_head_nodding.mp3",
+    "sha256": "4acc6fb5ded9c8a0b4ec6cd62d72f862df2256232d30e00dc492a9cf09638c6c",
+    "duration_sec": 51.14,
+    "size_bytes": 306864
+  },
+  "feld_atlantic_puppet.integration": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_integration.mp3",
+    "sha256": "56eaf61d6eb78991fdf8a547f802e68e412f1cd289a86b5dad974657f6c3a589",
+    "duration_sec": 48.67,
+    "size_bytes": 292032
+  },
+  "feld_atlantic_puppet.pelvic_response": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_pelvic_response.mp3",
+    "sha256": "1be3b3b5970d90dd083bfa23bfaf21f17bb1634720a5e826672c3364f56d49e5",
+    "duration_sec": 51.77,
+    "size_bytes": 310608
+  },
+  "feld_atlantic_puppet.preparation": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_preparation.mp3",
+    "sha256": "37818323ca5ceaea82139e55548d01943695fb04dfd321fce38372eed9976ded",
+    "duration_sec": 54.14,
+    "size_bytes": 324864
+  },
+  "feld_atlantic_puppet.puppet_image": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_puppet_image.mp3",
+    "sha256": "bc2e1ca180bf8982c8c7c0942a3d1ef44036ea920fee0a1d6a5ceec488c614e8",
+    "duration_sec": 51.94,
+    "size_bytes": 311616
+  },
+  "feld_atlantic_puppet.reorientation": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_reorientation.mp3",
+    "sha256": "63e42e64707daf70a82f72cedfa7d46ab174eb9ae92f81be134070dfda6d8b49",
+    "duration_sec": 52.18,
+    "size_bytes": 313056
+  },
+  "feld_atlantic_puppet.resting": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_resting.mp3",
+    "sha256": "858df09038427dfbb2f62cd1e54ade18bf2ec202aa732b6e800fd8c965cb4124",
+    "duration_sec": 52.03,
+    "size_bytes": 312192
+  },
+  "feld_atlantic_puppet.whole_puppet": {
+    "file": "assets/audio/voice/feld_atlantic_puppet/feld_atlantic_puppet_whole_puppet.mp3",
+    "sha256": "006420ff02da4585d12a128da8986c605b1a437cfb0af8e18595682cd1daebed",
+    "duration_sec": 51.94,
+    "size_bytes": 311616
+  },
+  "feld_atm_intro.first_scan": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_first_scan.mp3",
+    "sha256": "1d71f33e6c73dc076ae9c106f7a8d7f470417a865a63b6028de3287e8b9fd865",
+    "duration_sec": 41.57,
+    "size_bytes": 249408
+  },
+  "feld_atm_intro.gentle_movement": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_gentle_movement.mp3",
+    "sha256": "1a0485e687f7a8f3c8e942dda78bc0c57016c500a399cd4957a1b5c1c5f702e7",
+    "duration_sec": 40.22,
+    "size_bytes": 241344
+  },
+  "feld_atm_intro.integration": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_integration.mp3",
+    "sha256": "44e1f07252c608a8178e4b977c6cbcf6557aab7d3a1140ea148d4598c36e89af",
+    "duration_sec": 43.22,
+    "size_bytes": 259344
+  },
+  "feld_atm_intro.preparation": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_preparation.mp3",
+    "sha256": "d851c906986d5d3f4ba375dd5bc5ef8ab4bcb638d8fa8a75d5d63afbaffc2297",
+    "duration_sec": 40.78,
+    "size_bytes": 244656
+  },
+  "feld_atm_intro.principles": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_principles.mp3",
+    "sha256": "cf2ef9de1134385c8bd13012a8e6fcee2e7d8c5a377b69fd87285ba2b9cc2d19",
+    "duration_sec": 44.81,
+    "size_bytes": 268848
+  },
+  "feld_atm_intro.reorientation": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_reorientation.mp3",
+    "sha256": "178bbbd424bba5227a6d9f5fee5f79289b7fdd85439fdc262a28da3777825fd8",
+    "duration_sec": 41.52,
+    "size_bytes": 249120
+  },
+  "feld_atm_intro.second_scan": {
+    "file": "assets/audio/voice/feld_atm_intro/feld_atm_intro_second_scan.mp3",
+    "sha256": "373b420249ab534145d21dd65ff5634110fddab71fd3058eb31a1c4da3378404",
+    "duration_sec": 44.54,
+    "size_bytes": 267264
+  },
+  "feld_eyes.eye_movements": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_eye_movements.mp3",
+    "sha256": "3d15bf08e98d8c2da88e73bb7abb5b08ff3c22694d06b517754eb38a4008d72f",
+    "duration_sec": 52.2,
+    "size_bytes": 313200
+  },
+  "feld_eyes.integration": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_integration.mp3",
+    "sha256": "a03c3042d1bd645801bbc41af93610dfa5d1812c1891a871a77cf1e8961a4980",
+    "duration_sec": 51.1,
+    "size_bytes": 306576
+  },
+  "feld_eyes.palming": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_palming.mp3",
+    "sha256": "dcdc3b323d9e2fab209d0a72f44dd5dcf1e6d551e94568955cacbbabf49c4915",
+    "duration_sec": 55.25,
+    "size_bytes": 331488
+  },
+  "feld_eyes.peripheral": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_peripheral.mp3",
+    "sha256": "0c62d729d609384649c8fe4d7136075910a4c19d6dd82c4cabaaa693390de0fe",
+    "duration_sec": 51.65,
+    "size_bytes": 309888
+  },
+  "feld_eyes.preparation": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_preparation.mp3",
+    "sha256": "63f763200e51560b19c66a9726e29d0bc274f4259b5932d1594bab7d4da8b167",
+    "duration_sec": 50.54,
+    "size_bytes": 303264
+  },
+  "feld_eyes.reorientation": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_reorientation.mp3",
+    "sha256": "78cc82ee44f66a550e1a2a7b0c36076ff8a966c1f7ffb0c821d1ab7cd765742a",
+    "duration_sec": 47.35,
+    "size_bytes": 284112
+  },
+  "feld_eyes.soft_gaze": {
+    "file": "assets/audio/voice/feld_eyes/feld_eyes_soft_gaze.mp3",
+    "sha256": "dd10484b9be91a1325b92f1857606b3ab9baa1de754ec9d4d7829a332d4742fd",
+    "duration_sec": 47.42,
+    "size_bytes": 284544
+  },
+  "feld_pelvic_clock.circling": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_circling.mp3",
+    "sha256": "8f2ee99f210fd804b21c902934ed9762dbfae6e614a0eca5bab2aea4aa583f0f",
+    "duration_sec": 47.45,
+    "size_bytes": 284688
+  },
+  "feld_pelvic_clock.exploring_three": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_exploring_three.mp3",
+    "sha256": "7063a6d03118607c6221200030c43424c97401beaae87b08ce7b876e75587128",
+    "duration_sec": 50.83,
+    "size_bytes": 304992
+  },
+  "feld_pelvic_clock.exploring_twelve": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_exploring_twelve.mp3",
+    "sha256": "0eca793cc2be04c21c51038f5aa4198945d8961c7399dc974e8feba4209239b7",
+    "duration_sec": 52.08,
+    "size_bytes": 312480
+  },
+  "feld_pelvic_clock.integration": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_integration.mp3",
+    "sha256": "bcf18d9b7ab5e797d51b9e5b77b3b053321a7f956ffb0885d0883d097da54b6b",
+    "duration_sec": 44.66,
+    "size_bytes": 267984
+  },
+  "feld_pelvic_clock.lying_down": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_lying_down.mp3",
+    "sha256": "b5a9501fab2b9e19b71538de6f987f74bca7d6a7f863d3625c619dd887b60ce5",
+    "duration_sec": 43.75,
+    "size_bytes": 262512
+  },
+  "feld_pelvic_clock.preparation": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_preparation.mp3",
+    "sha256": "fb1770bc08344c9e029cf4509bfc98ad315716e4f535279381a3ed87c8c78141",
+    "duration_sec": 44.18,
+    "size_bytes": 265104
+  },
+  "feld_pelvic_clock.reorientation": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_reorientation.mp3",
+    "sha256": "3b99a0c9fa1ee573827e4ca0a9221f367cea0bb9b0e9eb9821d6705ca0ddba44",
+    "duration_sec": 43.22,
+    "size_bytes": 259344
+  },
+  "feld_pelvic_clock.resting": {
+    "file": "assets/audio/voice/feld_pelvic_clock/feld_pelvic_clock_resting.mp3",
+    "sha256": "02f442a194bb7edc6f884d95cac770f4ab0ee0e6f26c5a6b3069cfcfdd34ee8f",
+    "duration_sec": 44.35,
+    "size_bytes": 266112
+  },
+  "feld_ribcage.back_ribs": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_back_ribs.mp3",
+    "sha256": "0f373916e3aa9252c7413e5d9d59f074790193477d66517a1da78127aad25cfc",
+    "duration_sec": 51.72,
+    "size_bytes": 310320
+  },
+  "feld_ribcage.comparison": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_comparison.mp3",
+    "sha256": "37e5538a6e12aa9926fb99e5864fd37dd01eb6f03fe4dc69271bdabf438dbdaf",
+    "duration_sec": 48.24,
+    "size_bytes": 289440
+  },
+  "feld_ribcage.full_breathing": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_full_breathing.mp3",
+    "sha256": "6712552793eda224792574413b40b8af1377b7b5ca80928b8437bf929c5083b9",
+    "duration_sec": 55.06,
+    "size_bytes": 330336
+  },
+  "feld_ribcage.initial_breath": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_initial_breath.mp3",
+    "sha256": "8566fdfac0131195867062a21a1b2b1e2c15d57ce2038b572af38f6b646610f4",
+    "duration_sec": 46.73,
+    "size_bytes": 280368
+  },
+  "feld_ribcage.preparation": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_preparation.mp3",
+    "sha256": "b6b41582e2ec50e348c5c9295de9f6d27a7ffafc9f7ecfdd526691e30ce782ea",
+    "duration_sec": 51.62,
+    "size_bytes": 309744
+  },
+  "feld_ribcage.reorientation": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_reorientation.mp3",
+    "sha256": "4af3148837cd8c466fcf34f663d388b00beab4f7570fb1a403ee96d14476a2f5",
+    "duration_sec": 53.52,
+    "size_bytes": 321120
+  },
+  "feld_ribcage.side_ribs": {
+    "file": "assets/audio/voice/feld_ribcage/feld_ribcage_side_ribs.mp3",
+    "sha256": "d6dcd7dfc609547802804d1682996d0e9a16529621bfeeb1398dbbc605572003",
+    "duration_sec": 39.22,
+    "size_bytes": 235296
+  },
+  "feld_rolling.full_rolling": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_full_rolling.mp3",
+    "sha256": "35096b6ca3b811950d2e7aaa0f460ff96ab62ff953bf81216b6913805cc571d4",
+    "duration_sec": 47.3,
+    "size_bytes": 283824
+  },
+  "feld_rolling.grounding": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_grounding.mp3",
+    "sha256": "2e75f54185d0ba316dd87aa5a2f2fb51f062de53b8e61f0a3d1deadc60584e33",
+    "duration_sec": 46.01,
+    "size_bytes": 276048
+  },
+  "feld_rolling.head_rolling": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_head_rolling.mp3",
+    "sha256": "d86a77add9a576c3f0e91839685e69a7dddb882f0c91cb2eb4e76eb9e7273072",
+    "duration_sec": 55.94,
+    "size_bytes": 335664
+  },
+  "feld_rolling.integration": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_integration.mp3",
+    "sha256": "b0fa25cc879a6cb47afe7a0feba778bf997e37c449290e1c4d1feabce06efecf",
+    "duration_sec": 46.68,
+    "size_bytes": 280080
+  },
+  "feld_rolling.preparation": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_preparation.mp3",
+    "sha256": "7c00a31d05b80d6fbb64897df7c2663d6e4c26d9fdb553620ef723a346d24fd7",
+    "duration_sec": 43.82,
+    "size_bytes": 262944
+  },
+  "feld_rolling.reorientation": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_reorientation.mp3",
+    "sha256": "90b8230a9476421c07863e156aef9e219f1b4e455f1fe65a897dd2c07e44274c",
+    "duration_sec": 49.01,
+    "size_bytes": 294048
+  },
+  "feld_rolling.resting": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_resting.mp3",
+    "sha256": "ae3b2c2d9eba1b3c70d5917048110f7e74cb5ef18acfc68addd700e39e01f095",
+    "duration_sec": 47.66,
+    "size_bytes": 285984
+  },
+  "feld_rolling.shoulder_rolling": {
+    "file": "assets/audio/voice/feld_rolling/feld_rolling_shoulder_rolling.mp3",
+    "sha256": "e05bc44f388ef7f012653c1fe58123b170acae4a72883a75e0b7f26b4e539d3f",
+    "duration_sec": 54.0,
+    "size_bytes": 324000
+  },
+  "feld_self_image.body_mapping": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_body_mapping.mp3",
+    "sha256": "b5a87cefb411f733dd9e579b5793bbfa713c459c170ce6bb05d66a7fc6718f34",
+    "duration_sec": 55.94,
+    "size_bytes": 335664
+  },
+  "feld_self_image.current_image": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_current_image.mp3",
+    "sha256": "a65287272c653b287157e2b5912b9fef9a5d725565f250938c88e626d8387221",
+    "duration_sec": 50.71,
+    "size_bytes": 304272
+  },
+  "feld_self_image.edge_exploration": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_edge_exploration.mp3",
+    "sha256": "748072629977d0eed490cdd21170cfb547f0a06c809e33ee0864e7961062d9c3",
+    "duration_sec": 54.98,
+    "size_bytes": 329904
+  },
+  "feld_self_image.expanding_image": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_expanding_image.mp3",
+    "sha256": "71a223a7de77df69ee7ddc5d6935c35b47469ff92ce83b8db4ae3a4aa633397d",
+    "duration_sec": 56.4,
+    "size_bytes": 338400
+  },
+  "feld_self_image.integrated_movement": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_integrated_movement.mp3",
+    "sha256": "c2b1bafcd927649c9ecf43f70fe822b423eca9612825cd1b08bbfae33dd24d12",
+    "duration_sec": 55.32,
+    "size_bytes": 331920
+  },
+  "feld_self_image.new_image": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_new_image.mp3",
+    "sha256": "019d4a0266ba561a66ec6c0b688f4583b80d093c53ce60d1a75c2bdb8c59ee3e",
+    "duration_sec": 53.54,
+    "size_bytes": 321264
+  },
+  "feld_self_image.preparation": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_preparation.mp3",
+    "sha256": "184fc3e1818a0bc42422653222168df60bbdf0843d3d07c5783fa39ec84ba0f9",
+    "duration_sec": 56.5,
+    "size_bytes": 338976
+  },
+  "feld_self_image.reorientation": {
+    "file": "assets/audio/voice/feld_self_image/feld_self_image_reorientation.mp3",
+    "sha256": "0400d52493078882d726c92034c1d4f283599c2f7d9cdff336dedf973418ca43",
+    "duration_sec": 58.68,
+    "size_bytes": 352080
+  },
+  "feld_sitting_ease.finding_sitbones": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_finding_sitbones.mp3",
+    "sha256": "ea8a17abe913b7db073827081e2612cfe46e5c51dae337e0b67e6c73d3f2ca1b",
+    "duration_sec": 46.9,
+    "size_bytes": 281376
+  },
+  "feld_sitting_ease.integration": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_integration.mp3",
+    "sha256": "b27683e16394337b6be8b7c6d0e98abb528553f79d826ac54944c78c47f82c20",
+    "duration_sec": 44.3,
+    "size_bytes": 265824
+  },
+  "feld_sitting_ease.preparation": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_preparation.mp3",
+    "sha256": "f308f381b89e9d5076286b39c263de0ad4665766b409ef198c0f02b744098f6e",
+    "duration_sec": 47.14,
+    "size_bytes": 282816
+  },
+  "feld_sitting_ease.reorientation": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_reorientation.mp3",
+    "sha256": "8c629eb71a1dfe3fbf469db46620c076d13373aa383865962b6cb387a2cb70f5",
+    "duration_sec": 44.71,
+    "size_bytes": 268272
+  },
+  "feld_sitting_ease.shifting_weight": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_shifting_weight.mp3",
+    "sha256": "f546667248d4213d4e8c5d92c8d729a5eb178b5bf246fbd19fc44e7affa70059",
+    "duration_sec": 50.18,
+    "size_bytes": 301104
+  },
+  "feld_sitting_ease.spine_lengthening": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_spine_lengthening.mp3",
+    "sha256": "f3535175b25786d64f8a82994fa8b95ee494ef8623cd88b5fe914ae7ec34aee9",
+    "duration_sec": 49.32,
+    "size_bytes": 295920
+  },
+  "feld_sitting_ease.turning": {
+    "file": "assets/audio/voice/feld_sitting_ease/feld_sitting_ease_turning.mp3",
+    "sha256": "13aa0676721144c2242dae85744ffcbe3e5b90c5475642c7d401c2460aa249d4",
+    "duration_sec": 51.62,
+    "size_bytes": 309744
+  },
+  "feld_spine_articulation.combined": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_combined.mp3",
+    "sha256": "0e18f8ea38cf4c536f4885513bd99550c6d6b12426d8ebc2281ebfab51df7533",
+    "duration_sec": 46.1,
+    "size_bytes": 276624
+  },
+  "feld_spine_articulation.preparation": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_preparation.mp3",
+    "sha256": "7937450b91084457e11a20731ea28ef24b0561df998905a2b1bc41c130c8381e",
+    "duration_sec": 47.35,
+    "size_bytes": 284112
+  },
+  "feld_spine_articulation.reorientation": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_reorientation.mp3",
+    "sha256": "36e226b70addf6b0017cc5e39a26a24f3733e9d33bec32d9f591bba12c12525f",
+    "duration_sec": 52.37,
+    "size_bytes": 314208
+  },
+  "feld_spine_articulation.rotation": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_rotation.mp3",
+    "sha256": "415145118002ef41536cd6c996e5bc2269b1672361775fecf3a4657a606ce138",
+    "duration_sec": 52.85,
+    "size_bytes": 317088
+  },
+  "feld_spine_articulation.side_bending": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_side_bending.mp3",
+    "sha256": "a720f1ab7ca59ceebd8520939d2efe12690bf47fe023a62dc116ace3589d370a",
+    "duration_sec": 41.9,
+    "size_bytes": 251424
+  },
+  "feld_spine_articulation.standing_scan": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_standing_scan.mp3",
+    "sha256": "e577a00383b1a09f4af6afd981e294a0892339e5b65d0da86f15d65df37c3a2a",
+    "duration_sec": 50.18,
+    "size_bytes": 301104
+  },
+  "feld_spine_articulation.supine_scan": {
+    "file": "assets/audio/voice/feld_spine_articulation/feld_spine_articulation_supine_scan.mp3",
+    "sha256": "f2e4afe90a420406ae2a7d3dd8488b9ea554282f19df99563f9ce580b7004cca",
+    "duration_sec": 53.59,
+    "size_bytes": 321552
+  },
+  "feld_spine_chain.body_scan": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_body_scan.mp3",
+    "sha256": "722a771d2ed48bb853a3b324ac00e2b338944724b6e738f37136be584323e2fe",
+    "duration_sec": 48.17,
+    "size_bytes": 289008
+  },
+  "feld_spine_chain.full_chain": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_full_chain.mp3",
+    "sha256": "3ae722da2e0034a979458f04571811de1e9b510edfa078b329dfe2352b1a4e0c",
+    "duration_sec": 44.38,
+    "size_bytes": 266256
+  },
+  "feld_spine_chain.integration": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_integration.mp3",
+    "sha256": "558ca6fa3ee000cffa4a233b299cc406d5022eb056714d44203efc9e62c6d522",
+    "duration_sec": 43.9,
+    "size_bytes": 263376
+  },
+  "feld_spine_chain.lower_spine": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_lower_spine.mp3",
+    "sha256": "3abf09c9d4f959323688f433822e9f5f3ddfe7f2a3214b82bd7acfec1d35a19c",
+    "duration_sec": 43.94,
+    "size_bytes": 263664
+  },
+  "feld_spine_chain.mid_spine": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_mid_spine.mp3",
+    "sha256": "c774551d740014be174f1b3cf6493e0e49ac2756257d11dc5e0e169790119a3b",
+    "duration_sec": 44.98,
+    "size_bytes": 269856
+  },
+  "feld_spine_chain.preparation": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_preparation.mp3",
+    "sha256": "abe57fb6299bd260fe6af929fb9b60b628a661d95cdccaa04f2b1e97563180a8",
+    "duration_sec": 44.71,
+    "size_bytes": 268272
+  },
+  "feld_spine_chain.reorientation": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_reorientation.mp3",
+    "sha256": "1c788079572db0d7a6adefe87ccc0e16f64d26c008c4166189148457dfa527c7",
+    "duration_sec": 46.61,
+    "size_bytes": 279648
+  },
+  "feld_spine_chain.upper_spine": {
+    "file": "assets/audio/voice/feld_spine_chain/feld_spine_chain_upper_spine.mp3",
+    "sha256": "9257faf1e88d5929df8bdf5d4bb4746e893be9c05765f2f879cbc4c082601360",
+    "duration_sec": 45.98,
+    "size_bytes": 275904
+  },
+  "feld_walking_awareness.free_walking": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_free_walking.mp3",
+    "sha256": "73699974bfb85ac6b1fbc0e2aa187c6a3bd6230f4a60027ebbbb0ba6b3f71a67",
+    "duration_sec": 53.54,
+    "size_bytes": 321264
+  },
+  "feld_walking_awareness.integration": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_integration.mp3",
+    "sha256": "86b34a18b5475d1e084e6bfeb56f7a07143fb8e75842a18247455c42221717ff",
+    "duration_sec": 48.48,
+    "size_bytes": 290880
+  },
+  "feld_walking_awareness.preparation": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_preparation.mp3",
+    "sha256": "3ca54617aeb385cf3472ae3431ebe2a3751fa5fff640247de37aa76b22f324b5",
+    "duration_sec": 55.34,
+    "size_bytes": 332064
+  },
+  "feld_walking_awareness.reorientation": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_reorientation.mp3",
+    "sha256": "cf6154b83650e426d4e8d1510da672f6cae637b4dd6e1430e6829e68d67c5de3",
+    "duration_sec": 48.79,
+    "size_bytes": 292752
+  },
+  "feld_walking_awareness.spine_in_walking": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_spine_in_walking.mp3",
+    "sha256": "3b7f100f1fc2bd8860217330ceb577a8ec2ece26546c37824804d4f9c495fb6c",
+    "duration_sec": 59.47,
+    "size_bytes": 356832
+  },
+  "feld_walking_awareness.standing_scan": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_standing_scan.mp3",
+    "sha256": "6c86068a2a62d985fcd1c569cf28cc4eb089e1dc8beb922a53369e086302664d",
+    "duration_sec": 57.07,
+    "size_bytes": 342432
+  },
+  "feld_walking_awareness.step_by_step": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_step_by_step.mp3",
+    "sha256": "777de22a80e658bb893ecc0b192d921c830c4c3f81c746dfdc34be0c2ebd906b",
+    "duration_sec": 57.43,
+    "size_bytes": 344592
+  },
+  "feld_walking_awareness.weight_shift": {
+    "file": "assets/audio/voice/feld_walking_awareness/feld_walking_awareness_weight_shift.mp3",
+    "sha256": "6cb56b6ead4d05b8b2ce276f67604a6049aa8d4c1c1648941ca53f485ab2812c",
+    "duration_sec": 53.98,
+    "size_bytes": 323856
+  },
+  "feld_weight_distribution.circling": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_circling.mp3",
+    "sha256": "54e4458f8099625243b0bc38310dc88c666842d4d095db26958f833e57126d42",
+    "duration_sec": 49.15,
+    "size_bytes": 294912
+  },
+  "feld_weight_distribution.diagonals": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_diagonals.mp3",
+    "sha256": "7ed12ca6c53a9a3055c4d100ccb157fcb6dd0ce195f768dd2c9793e4d6c04b9d",
+    "duration_sec": 52.63,
+    "size_bytes": 315792
+  },
+  "feld_weight_distribution.exploring_base": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_exploring_base.mp3",
+    "sha256": "4cca3cd712719b98b86a16ff576f4e74d4438e4017ba9216f08b2a455d756675",
+    "duration_sec": 55.2,
+    "size_bytes": 331200
+  },
+  "feld_weight_distribution.forward_back": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_forward_back.mp3",
+    "sha256": "07275cee82de24bd51470ceac24ab20e68befb3141b1b500c7bb655e084d95b8",
+    "duration_sec": 52.1,
+    "size_bytes": 312624
+  },
+  "feld_weight_distribution.integration": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_integration.mp3",
+    "sha256": "6d4d200c0e93451d1db95a73300fda64e1d36d74e153cf91dd83a8e53016be14",
+    "duration_sec": 49.8,
+    "size_bytes": 298800
+  },
+  "feld_weight_distribution.preparation": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_preparation.mp3",
+    "sha256": "e6bb4150d67ca94f5fb992cccb8d5a6a6c9b90a8bb7786e167826f778fd45c1d",
+    "duration_sec": 50.45,
+    "size_bytes": 302688
+  },
+  "feld_weight_distribution.reorientation": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_reorientation.mp3",
+    "sha256": "c167103cc1e7737265c6b798f40dad8f8fca825d1642c46a58d1a5efbc55b790",
+    "duration_sec": 54.77,
+    "size_bytes": 328608
+  },
+  "feld_weight_distribution.side_to_side": {
+    "file": "assets/audio/voice/feld_weight_distribution/feld_weight_distribution_side_to_side.mp3",
+    "sha256": "eafe7f4469a3ffa0ecd6675e96c9b0d24799cd48aa9847eb54f6e063ec60da35",
+    "duration_sec": 48.02,
+    "size_bytes": 288144
+  },
+  "silva_alpha_entry.alpha_state": {
+    "file": "assets/audio/voice/silva_alpha_entry/silva_alpha_entry_alpha_state.mp3",
+    "sha256": "c912fe3dd2f7838235cc5dc1b67e3cf28c70f89051cadf7b7eecc365ae8c7fbf",
+    "duration_sec": 39.96,
+    "size_bytes": 239760
+  },
+  "silva_alpha_entry.countdown": {
+    "file": "assets/audio/voice/silva_alpha_entry/silva_alpha_entry_countdown.mp3",
+    "sha256": "a2ec84f73463820dd9a9b7a5d5e65c8bec988c48eb326701d008e0f0c8d00727",
+    "duration_sec": 42.19,
+    "size_bytes": 253152
+  },
+  "silva_alpha_entry.induction": {
+    "file": "assets/audio/voice/silva_alpha_entry/silva_alpha_entry_induction.mp3",
+    "sha256": "fff3515de399c873e17ac9ae9d07cbce7736c21b0784ac61de0ee12b2f605dc1",
+    "duration_sec": 36.86,
+    "size_bytes": 221184
+  },
+  "silva_alpha_entry.integration": {
+    "file": "assets/audio/voice/silva_alpha_entry/silva_alpha_entry_integration.mp3",
+    "sha256": "110edf91440c06f99dcf71bfaf82571bd3c3bb80ebe1be2bffa2cf3692e40c39",
+    "duration_sec": 35.14,
+    "size_bytes": 210816
+  },
+  "silva_alpha_entry.preparation": {
+    "file": "assets/audio/voice/silva_alpha_entry/silva_alpha_entry_preparation.mp3",
+    "sha256": "7289a8a74f4c108f09afccbdba5b3c61b13546009762d7e3253465fbb9615e80",
+    "duration_sec": 32.66,
+    "size_bytes": 195984
+  },
+  "silva_alpha_entry.reorientation": {
+    "file": "assets/audio/voice/silva_alpha_entry/silva_alpha_entry_reorientation.mp3",
+    "sha256": "595546a3ef926f6844ce01e57c76dcf3fd4bfbe687de6dd22942e3027dd47fdb",
+    "duration_sec": 43.8,
+    "size_bytes": 262800
+  },
+  "silva_case_working.deepening": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_deepening.mp3",
+    "sha256": "5a3f21e758e01f019098d6e99dcc3f0999e9a7887098ad0de9d65f9d86977864",
+    "duration_sec": 46.51,
+    "size_bytes": 279072
+  },
+  "silva_case_working.defining_problem": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_defining_problem.mp3",
+    "sha256": "2ae221010cba2d843a19de79f0edbd499a4ecfc2d35affbb127c231d3b5b60bb",
+    "duration_sec": 46.54,
+    "size_bytes": 279216
+  },
+  "silva_case_working.induction": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_induction.mp3",
+    "sha256": "3dc3170c8ca074b227d723ab5926a842cfc06132ea1fa4e5ccce619aa534688f",
+    "duration_sec": 42.53,
+    "size_bytes": 255168
+  },
+  "silva_case_working.integration": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_integration.mp3",
+    "sha256": "14dc06a78e252d2dccebe4f011bdc3c298bd465098308f7a015b6c1271fd2b1d",
+    "duration_sec": 46.06,
+    "size_bytes": 276336
+  },
+  "silva_case_working.preparation": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_preparation.mp3",
+    "sha256": "81b15d02ccfdecdbedd011a83ad83d315731f3edf3a98e5f82670d299ccd19c3",
+    "duration_sec": 34.92,
+    "size_bytes": 209520
+  },
+  "silva_case_working.programming": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_programming.mp3",
+    "sha256": "2e896cfc3986b9bd264e7d5552243457e3c4eaf0c661904097717175e70c1e5f",
+    "duration_sec": 46.51,
+    "size_bytes": 279072
+  },
+  "silva_case_working.projecting_solution": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_projecting_solution.mp3",
+    "sha256": "3e8a86fa217933e3b870e8aff6c693449786d86f52983451d474b3164cb6fc9e",
+    "duration_sec": 45.79,
+    "size_bytes": 274752
+  },
+  "silva_case_working.reorientation": {
+    "file": "assets/audio/voice/silva_case_working/silva_case_working_reorientation.mp3",
+    "sha256": "4f9b03ec3aad404911406ead647448f9f40e29eea798fb8e673db74b04509934",
+    "duration_sec": 42.98,
+    "size_bytes": 257904
+  },
+  "silva_creativity.capturing": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_capturing.mp3",
+    "sha256": "cff85eee01e33fbb8f208a78bdb3f69a2d8e0a761925577bcfd5ed360a52b97d",
+    "duration_sec": 48.17,
+    "size_bytes": 289008
+  },
+  "silva_creativity.deepening": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_deepening.mp3",
+    "sha256": "88a34bf4730af606ba9962bfe08949782bbaef929bffeae84c61f250cfc5c4bb",
+    "duration_sec": 51.38,
+    "size_bytes": 308304
+  },
+  "silva_creativity.idea_generation": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_idea_generation.mp3",
+    "sha256": "74f7a0393a5b235e463e46bea7d2a4a5dc6e1805542145a783ac5044463a2917",
+    "duration_sec": 52.66,
+    "size_bytes": 315936
+  },
+  "silva_creativity.induction": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_induction.mp3",
+    "sha256": "77eb4a3f4a1aa4730f169e252ebb62da9b0b0f05e4dba381114fd67169d0e6a8",
+    "duration_sec": 44.9,
+    "size_bytes": 269424
+  },
+  "silva_creativity.integration": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_integration.mp3",
+    "sha256": "f56fd19b8154bedf814d28e9f619fcbb81c5689222abccd10b9ba0c4356e0417",
+    "duration_sec": 45.67,
+    "size_bytes": 274032
+  },
+  "silva_creativity.opening_channels": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_opening_channels.mp3",
+    "sha256": "a1b60c92045df5bd269f2ff2bb8b77c4443d7878b06794f731d352d0376d60f6",
+    "duration_sec": 43.82,
+    "size_bytes": 262944
+  },
+  "silva_creativity.preparation": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_preparation.mp3",
+    "sha256": "8c9e86a5c888ecd9369d1c08323ee268c811414204abfab957ef7634a58933ce",
+    "duration_sec": 39.5,
+    "size_bytes": 237024
+  },
+  "silva_creativity.reorientation": {
+    "file": "assets/audio/voice/silva_creativity/silva_creativity_reorientation.mp3",
+    "sha256": "e3718770d10479b3e8bebd75f24306778512921b5fc95ddfbc2eb5323aca0b16",
+    "duration_sec": 42.62,
+    "size_bytes": 255744
+  },
+  "silva_cycle_28.affirmation_implant": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_affirmation_implant.mp3",
+    "sha256": "c2d4e4a31b79fdbf1fe2f7666326a724e01ed12dd4711167cb6beb205e0a424f",
+    "duration_sec": 48.41,
+    "size_bytes": 290448
+  },
+  "silva_cycle_28.cycle_concept": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_cycle_concept.mp3",
+    "sha256": "669e30a17dc20d32cd903d7c87072d2c482af0f2a9ad79f0bee93c872024e809",
+    "duration_sec": 43.78,
+    "size_bytes": 262656
+  },
+  "silva_cycle_28.deepening": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_deepening.mp3",
+    "sha256": "4eb05da642ad1974a32bd4f082a8ea4a42bae58473ba7c560c72939a730593fd",
+    "duration_sec": 51.6,
+    "size_bytes": 309600
+  },
+  "silva_cycle_28.identifying_beliefs": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_identifying_beliefs.mp3",
+    "sha256": "987959370a6158e67130b70ef82adf1f84858dcef4fffa0aeeda6cc67da0524c",
+    "duration_sec": 53.62,
+    "size_bytes": 321696
+  },
+  "silva_cycle_28.induction": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_induction.mp3",
+    "sha256": "4de400f01548a5899792c27750559fc6e9ef57dfc3fefa6fefa7e4743217681f",
+    "duration_sec": 41.93,
+    "size_bytes": 251568
+  },
+  "silva_cycle_28.integration": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_integration.mp3",
+    "sha256": "9ce588d75c3f2f8412545abfe6fdc7b7d7064e47d566f082ae3852f18cd38d06",
+    "duration_sec": 46.3,
+    "size_bytes": 277776
+  },
+  "silva_cycle_28.preparation": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_preparation.mp3",
+    "sha256": "4dbc47c6f30d5e7ab162de5aafa33ef3cca249ca4856c39c51ed984aef46686d",
+    "duration_sec": 39.67,
+    "size_bytes": 238032
+  },
+  "silva_cycle_28.reorientation": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_reorientation.mp3",
+    "sha256": "58f2e8b7c4abf571acf8930e8ec1de7388438a4899eee2bc8a947c9587a895c0",
+    "duration_sec": 44.93,
+    "size_bytes": 269568
+  },
+  "silva_cycle_28.reprogramming": {
+    "file": "assets/audio/voice/silva_cycle_28/silva_cycle_28_reprogramming.mp3",
+    "sha256": "c7c0a791734805792864bd1b75523723c9cbe54ce24c747d695566b4964123cd",
+    "duration_sec": 48.17,
+    "size_bytes": 289008
+  },
+  "silva_deep_relaxation.body_scan": {
+    "file": "assets/audio/voice/silva_deep_relaxation/silva_deep_relaxation_body_scan.mp3",
+    "sha256": "a66f2798f88a0b1d57d31d98fba5c8e5e48e583b9ee70a33d3d7f5fa26ddab03",
+    "duration_sec": 47.5,
+    "size_bytes": 284976
+  },
+  "silva_deep_relaxation.induction": {
+    "file": "assets/audio/voice/silva_deep_relaxation/silva_deep_relaxation_induction.mp3",
+    "sha256": "02e7a1d56a75513c1b02ee4b90bcede29b4e15f84c7f3c6bec0bef6a4adc1fad",
+    "duration_sec": 43.63,
+    "size_bytes": 261792
+  },
+  "silva_deep_relaxation.integration": {
+    "file": "assets/audio/voice/silva_deep_relaxation/silva_deep_relaxation_integration.mp3",
+    "sha256": "1ffa2ca89bfc0f82ce688e46cbaacc2d6b09ca0d66cc34057d60f0c33d2fff6b",
+    "duration_sec": 41.76,
+    "size_bytes": 250560
+  },
+  "silva_deep_relaxation.preparation": {
+    "file": "assets/audio/voice/silva_deep_relaxation/silva_deep_relaxation_preparation.mp3",
+    "sha256": "e3a70b4191615a39080329f20a3b7d1993063dd83b35672ad7334e5b50a25ee1",
+    "duration_sec": 39.7,
+    "size_bytes": 238176
+  },
+  "silva_deep_relaxation.releasing_tension": {
+    "file": "assets/audio/voice/silva_deep_relaxation/silva_deep_relaxation_releasing_tension.mp3",
+    "sha256": "97b031ed9db646491c354e79c93d4b8029eb133f48942aae43a59942efd01075",
+    "duration_sec": 58.13,
+    "size_bytes": 348768
+  },
+  "silva_deep_relaxation.reorientation": {
+    "file": "assets/audio/voice/silva_deep_relaxation/silva_deep_relaxation_reorientation.mp3",
+    "sha256": "07fc0d098cc8682d2bf7d4cd36355493e098e8154038ab136c0da47cc969be81",
+    "duration_sec": 46.46,
+    "size_bytes": 278784
+  },
+  "silva_dream_control.deepening": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_deepening.mp3",
+    "sha256": "16f2cf1ff35315aaca7114368b5edaa929adb8a31391ff1452a8e2b2b677ea95",
+    "duration_sec": 50.33,
+    "size_bytes": 301968
+  },
+  "silva_dream_control.dream_concept": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_dream_concept.mp3",
+    "sha256": "ddce88e38375f0688d6bc018ba1c1a42140c1a5be341091eaf3350ab1bfd6bad",
+    "duration_sec": 42.91,
+    "size_bytes": 257472
+  },
+  "silva_dream_control.induction": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_induction.mp3",
+    "sha256": "e9e627d84e3d78fd1383d378c7343ae2f8a233ce70625242e6d27f397a62b648",
+    "duration_sec": 42.1,
+    "size_bytes": 252576
+  },
+  "silva_dream_control.integration": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_integration.mp3",
+    "sha256": "06670c1f59b3b042d949775eb47c21e982a9847c2232956a8684d767ee1b1a6b",
+    "duration_sec": 42.31,
+    "size_bytes": 253872
+  },
+  "silva_dream_control.intent_setting": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_intent_setting.mp3",
+    "sha256": "7fcb1b94417c4865a2af967cb0b719d786662a83f084bc3dd25687d5f97d1bfd",
+    "duration_sec": 44.4,
+    "size_bytes": 266400
+  },
+  "silva_dream_control.preparation": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_preparation.mp3",
+    "sha256": "d1d3abca756e364a4c1c0ea632365cec4a76755d5e69495433c58eadb02c926d",
+    "duration_sec": 38.78,
+    "size_bytes": 232704
+  },
+  "silva_dream_control.programming": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_programming.mp3",
+    "sha256": "b34b34e7f5628dfaa070b2c85af509c0a6a500f8cf3fd821a43242d8bde4d2e6",
+    "duration_sec": 47.66,
+    "size_bytes": 285984
+  },
+  "silva_dream_control.reorientation": {
+    "file": "assets/audio/voice/silva_dream_control/silva_dream_control_reorientation.mp3",
+    "sha256": "245ed26a426abad0a68650a36a18bed7027ca0daf19597fcca8939dbdeb0a6f1",
+    "duration_sec": 42.79,
+    "size_bytes": 256752
+  },
+  "silva_five_senses.deepening": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_deepening.mp3",
+    "sha256": "7dcfdacd814c28024222aa5c9bf1c513e7989e31b1bfbb6b07b9229aa6dbb967",
+    "duration_sec": 49.92,
+    "size_bytes": 299520
+  },
+  "silva_five_senses.induction": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_induction.mp3",
+    "sha256": "7dc762718e40681399967be308b49e8bb2c48e4df3c36bc5783c0daf9200656c",
+    "duration_sec": 42.34,
+    "size_bytes": 254016
+  },
+  "silva_five_senses.integration": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_integration.mp3",
+    "sha256": "56b5ea82f3046ba764fbee2e5e712b25cf67f82f534e65361232e38256b7e651",
+    "duration_sec": 44.9,
+    "size_bytes": 269424
+  },
+  "silva_five_senses.preparation": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_preparation.mp3",
+    "sha256": "9a21eb908ae92a4332ce4e4a12345d1d533775799e4829ee807675290fba6992",
+    "duration_sec": 40.22,
+    "size_bytes": 241344
+  },
+  "silva_five_senses.reorientation": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_reorientation.mp3",
+    "sha256": "aac0e716f031504a67e0e8b3b1c7eb6142bdc834dc44a21ec482a20ef6f5d2df",
+    "duration_sec": 41.66,
+    "size_bytes": 249984
+  },
+  "silva_five_senses.sight": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_sight.mp3",
+    "sha256": "fd828ec7d9327b2c0b802cb42e9d70cdce4b3cff500825043e57b724f366db7a",
+    "duration_sec": 51.58,
+    "size_bytes": 309456
+  },
+  "silva_five_senses.smell_taste": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_smell_taste.mp3",
+    "sha256": "6b1691ff5521463e759011d8936685dbae2ec717e3b00e11d480d5907dfcd44a",
+    "duration_sec": 46.03,
+    "size_bytes": 276192
+  },
+  "silva_five_senses.sound": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_sound.mp3",
+    "sha256": "1d3e3b58addb8f237f2bc9ebf20fa33dc479de5368340f755c20c29ed2c42101",
+    "duration_sec": 49.8,
+    "size_bytes": 298800
+  },
+  "silva_five_senses.touch": {
+    "file": "assets/audio/voice/silva_five_senses/silva_five_senses_touch.mp3",
+    "sha256": "4fd805d297d4227d9b0b2484c2edc5e2d5d318d1e1de7eea57de584fad5166e2",
+    "duration_sec": 47.23,
+    "size_bytes": 283392
+  },
+  "silva_glass_water.deepening": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_deepening.mp3",
+    "sha256": "a626a174304c20bbe6b4c07853e77b6a66dfe5f0461eefb6db6a9a59b63cf333",
+    "duration_sec": 50.66,
+    "size_bytes": 303984
+  },
+  "silva_glass_water.formulating_question": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_formulating_question.mp3",
+    "sha256": "e818468da961fa1fb64452c8bc0d931b212584032ed33acf31ec82faa683cb8b",
+    "duration_sec": 45.07,
+    "size_bytes": 270432
+  },
+  "silva_glass_water.induction": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_induction.mp3",
+    "sha256": "37da2fe9353bebbb28268435544ffff6ed15ac327a6417dc310bd2bb8ecfb293",
+    "duration_sec": 41.71,
+    "size_bytes": 250272
+  },
+  "silva_glass_water.integration": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_integration.mp3",
+    "sha256": "447074d8c9f86eb47c32d55f7823a5993c648c854d807d1ae43cae2efbff272d",
+    "duration_sec": 45.29,
+    "size_bytes": 271728
+  },
+  "silva_glass_water.preparation": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_preparation.mp3",
+    "sha256": "4c0d828aa0ca6bc0a600d2a636cf094551a3696d0fa4356229d77f0ebbc650f3",
+    "duration_sec": 37.61,
+    "size_bytes": 225648
+  },
+  "silva_glass_water.programming_glass": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_programming_glass.mp3",
+    "sha256": "07430b8caaa9bef4ebe124f4ffb7630d85e1ce5aa4c927a2662514a36d119699",
+    "duration_sec": 47.4,
+    "size_bytes": 284400
+  },
+  "silva_glass_water.reorientation": {
+    "file": "assets/audio/voice/silva_glass_water/silva_glass_water_reorientation.mp3",
+    "sha256": "193a502cbf13fc30c711fae6e9fb1c6415216cce9d1bb9ad484336194065d6a0",
+    "duration_sec": 45.53,
+    "size_bytes": 273168
+  },
+  "silva_habit_control.deepening": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_deepening.mp3",
+    "sha256": "7977738ff6c4ce4adb7b68a03b992a06d94337e138a028383ef883ec4a7801f3",
+    "duration_sec": 48.55,
+    "size_bytes": 291312
+  },
+  "silva_habit_control.identifying": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_identifying.mp3",
+    "sha256": "fe85bafaae26086226b4c0b8b7b3d539c5e8c35830805c3118406e6ffbc87620",
+    "duration_sec": 47.45,
+    "size_bytes": 284688
+  },
+  "silva_habit_control.induction": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_induction.mp3",
+    "sha256": "f15dc54cce70c2c3bf8c847f3cf334eb044f7fd5c0f49e4f95e53fe36a370c72",
+    "duration_sec": 41.21,
+    "size_bytes": 247248
+  },
+  "silva_habit_control.installing_new": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_installing_new.mp3",
+    "sha256": "920342ecc72fb038261bb95c260f3cdd2d3eff3946103bc4d163f0d4b84bed7a",
+    "duration_sec": 60.12,
+    "size_bytes": 360720
+  },
+  "silva_habit_control.integration": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_integration.mp3",
+    "sha256": "540d11a86d63e39e1faaff84c367140f692cee6463170cb44c31cf06cac7ff72",
+    "duration_sec": 47.09,
+    "size_bytes": 282528
+  },
+  "silva_habit_control.preparation": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_preparation.mp3",
+    "sha256": "e14ff4fce4a2779cfa5a766aa5086d7360ef39753fc59a5855918ac16fdb4a44",
+    "duration_sec": 40.44,
+    "size_bytes": 242640
+  },
+  "silva_habit_control.releasing": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_releasing.mp3",
+    "sha256": "166b7c487c3ba66a4fe2cce5d6006279d2d43c5021090ba5e0bb86d3c078153b",
+    "duration_sec": 47.54,
+    "size_bytes": 285264
+  },
+  "silva_habit_control.reorientation": {
+    "file": "assets/audio/voice/silva_habit_control/silva_habit_control_reorientation.mp3",
+    "sha256": "4d475dcaebbff55d2ca4ea7401b6941d79b1139075c1ddaa4f6eef1a4580d059",
+    "duration_sec": 41.16,
+    "size_bytes": 246960
+  },
+  "silva_healing_mirror.current_state": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_current_state.mp3",
+    "sha256": "87519031006567aab7acbd25bd300311378cbead6dbd52b71959ffd985d65e2b",
+    "duration_sec": 47.95,
+    "size_bytes": 287712
+  },
+  "silva_healing_mirror.deepening": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_deepening.mp3",
+    "sha256": "566790e68a0e09710c631a70efc42bd14bd9b0a97137bae60944d0c9e5c2b922",
+    "duration_sec": 46.51,
+    "size_bytes": 279072
+  },
+  "silva_healing_mirror.ideal_state": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_ideal_state.mp3",
+    "sha256": "68c1c9f29040a9d317b199b81421bf7d5f6c38863117d895c378a57f0e5a1f65",
+    "duration_sec": 49.27,
+    "size_bytes": 295632
+  },
+  "silva_healing_mirror.induction": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_induction.mp3",
+    "sha256": "2cf88dd842b31370ed144bb6949b0deeeebcd95d61df539050cd9009d2b42b81",
+    "duration_sec": 42.24,
+    "size_bytes": 253440
+  },
+  "silva_healing_mirror.integration": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_integration.mp3",
+    "sha256": "c499d94ef19f122eb54276feaf1ecff0f97f0a650ca6e7c069c5abdc42e2969c",
+    "duration_sec": 44.98,
+    "size_bytes": 269856
+  },
+  "silva_healing_mirror.mirror_concept": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_mirror_concept.mp3",
+    "sha256": "7ee3a4d5023dedfae11ddf0dfb5f97e86cd7ee7613fdc5cf12e16fd7f555eac6",
+    "duration_sec": 42.84,
+    "size_bytes": 257040
+  },
+  "silva_healing_mirror.preparation": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_preparation.mp3",
+    "sha256": "595cf6e8866f216832e194b861f0efc77167a43c7bd7ec1774b80388d3f855b9",
+    "duration_sec": 35.98,
+    "size_bytes": 215856
+  },
+  "silva_healing_mirror.reorientation": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_reorientation.mp3",
+    "sha256": "0246bb595b69266207a2ec3b6bc153036f336edae7347c1ea1210ad0509fc8f0",
+    "duration_sec": 49.73,
+    "size_bytes": 298368
+  },
+  "silva_healing_mirror.transformation": {
+    "file": "assets/audio/voice/silva_healing_mirror/silva_healing_mirror_transformation.mp3",
+    "sha256": "c7232b56b8e0002db6623b8faebab5bbe8734be56634234c4a4d36c5178b9310",
+    "duration_sec": 45.96,
+    "size_bytes": 275760
+  },
+  "silva_intuition_mastery.daily_integration": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_daily_integration.mp3",
+    "sha256": "0c96ec5b3600708f5173d04a066ef0ce22f7eb62e09b24d520b542f1f444cdcf",
+    "duration_sec": 49.37,
+    "size_bytes": 296208
+  },
+  "silva_intuition_mastery.decision_testing": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_decision_testing.mp3",
+    "sha256": "6cb519dccd598fbfcb67d862b96917966324ff0e5a646537ade79e575bb4bb42",
+    "duration_sec": 55.94,
+    "size_bytes": 335664
+  },
+  "silva_intuition_mastery.deepening": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_deepening.mp3",
+    "sha256": "e3f7c64b46317ac3f67823fe9dfa7f684e47593b64222571c124c891c8ee0c02",
+    "duration_sec": 54.48,
+    "size_bytes": 326880
+  },
+  "silva_intuition_mastery.induction": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_induction.mp3",
+    "sha256": "a0c63b1215b07b06cafd8ea068cd3b47818e1b54428d1c6900647d2c52677b5b",
+    "duration_sec": 46.51,
+    "size_bytes": 279072
+  },
+  "silva_intuition_mastery.integration": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_integration.mp3",
+    "sha256": "12583c6ee17eb1a378040b8853060c596e04b2db1d01e28f9e87e6f5e32c8e4f",
+    "duration_sec": 49.22,
+    "size_bytes": 295344
+  },
+  "silva_intuition_mastery.intuition_concept": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_intuition_concept.mp3",
+    "sha256": "f6cc61134b4bf4b2f8f8e434a66819ceb2b5339ef4bdd41303fdcf507bf782c0",
+    "duration_sec": 44.42,
+    "size_bytes": 266544
+  },
+  "silva_intuition_mastery.preparation": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_preparation.mp3",
+    "sha256": "989c8702cffa55ccf2c80f92710869ba4c4fcba7d07545849ab49d0662142b49",
+    "duration_sec": 43.73,
+    "size_bytes": 262368
+  },
+  "silva_intuition_mastery.reorientation": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_reorientation.mp3",
+    "sha256": "61ecc672d8efd1d476dbf54b49332dcf7f6d1e08559ba3bcce93bbf1aa933407",
+    "duration_sec": 46.1,
+    "size_bytes": 276624
+  },
+  "silva_intuition_mastery.sensing_exercise": {
+    "file": "assets/audio/voice/silva_intuition_mastery/silva_intuition_mastery_sensing_exercise.mp3",
+    "sha256": "05268c65401318a9b172ff8e5bd9998d306216527de4b23ddd866288d3ec17d7",
+    "duration_sec": 52.08,
+    "size_bytes": 312480
+  },
+  "silva_laboratory.counselors": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_counselors.mp3",
+    "sha256": "0d62af7eeb2a11161699026fa7172b410cecc182c95f3109486e44d2d04dcb04",
+    "duration_sec": 45.98,
+    "size_bytes": 275904
+  },
+  "silva_laboratory.deepening": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_deepening.mp3",
+    "sha256": "733fd587c33bcb072a53de201314d80b6337a1cb1ee1ab2f1d2d10cbf238af35",
+    "duration_sec": 37.82,
+    "size_bytes": 226944
+  },
+  "silva_laboratory.entering_lab": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_entering_lab.mp3",
+    "sha256": "577151384a3b4c088c0edc5c83e609d2dc6c10b86b9db23f137e7b122a181414",
+    "duration_sec": 46.63,
+    "size_bytes": 279792
+  },
+  "silva_laboratory.exploring_lab": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_exploring_lab.mp3",
+    "sha256": "d84c964059ef5d659a74d89b2f535921629bccfe869368fc20048b3987e75f0f",
+    "duration_sec": 44.57,
+    "size_bytes": 267408
+  },
+  "silva_laboratory.induction": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_induction.mp3",
+    "sha256": "1b8a66aba1c02cf4166bceef288561262f1b0ff56ae707502fd2eb386fe866f4",
+    "duration_sec": 39.53,
+    "size_bytes": 237168
+  },
+  "silva_laboratory.integration": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_integration.mp3",
+    "sha256": "6022c5f9cb16656bb6b7d5102ecd5dacf97c19864a86f39735f8b73116ca7efd",
+    "duration_sec": 45.29,
+    "size_bytes": 271728
+  },
+  "silva_laboratory.preparation": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_preparation.mp3",
+    "sha256": "8b45a1eedbdad31335205dad58b16f18d2130a6c49a2b482a4a4fbda486b52cd",
+    "duration_sec": 37.27,
+    "size_bytes": 223632
+  },
+  "silva_laboratory.reorientation": {
+    "file": "assets/audio/voice/silva_laboratory/silva_laboratory_reorientation.mp3",
+    "sha256": "554fdcd01040231c22a2d8142d70929841ff595d9ab9c53d7dc1ba8fa701e1ae",
+    "duration_sec": 49.22,
+    "size_bytes": 295344
+  },
+  "silva_mental_screen.creating_screen": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_creating_screen.mp3",
+    "sha256": "4d50bbcb85d597662ecc6b717fbc9af1c16c28aca0a77efa1711098daa80006a",
+    "duration_sec": 44.47,
+    "size_bytes": 266832
+  },
+  "silva_mental_screen.deepening": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_deepening.mp3",
+    "sha256": "8a3938255c12633e784d1171da582a4a28b1592bb6063e35906a0ae489d483b4",
+    "duration_sec": 39.94,
+    "size_bytes": 239616
+  },
+  "silva_mental_screen.induction": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_induction.mp3",
+    "sha256": "82155592c87d348b1ba9f3efeaf971ba46b80d408cf0e5af7fb5ce5f4909440b",
+    "duration_sec": 38.26,
+    "size_bytes": 229536
+  },
+  "silva_mental_screen.integration": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_integration.mp3",
+    "sha256": "9d3bcf86e2393a258d6c3f686fff18d38785a0a4897808f6f73db7e54171d214",
+    "duration_sec": 43.73,
+    "size_bytes": 262368
+  },
+  "silva_mental_screen.preparation": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_preparation.mp3",
+    "sha256": "a95d8e9b4b1be302e8850b93ef60dbe3966926340514490c5cd1c59602330424",
+    "duration_sec": 34.2,
+    "size_bytes": 205200
+  },
+  "silva_mental_screen.projecting": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_projecting.mp3",
+    "sha256": "063a9239379e708620702de896ab38d6fefff2530f32c7018486252decb2d3a2",
+    "duration_sec": 41.78,
+    "size_bytes": 250704
+  },
+  "silva_mental_screen.reorientation": {
+    "file": "assets/audio/voice/silva_mental_screen/silva_mental_screen_reorientation.mp3",
+    "sha256": "129869cbb2eed3b88c2c28be4cb24ded89855d194f1e663ea00d00d5711ef823",
+    "duration_sec": 48.0,
+    "size_bytes": 288000
+  },
+  "silva_problem_solving.choosing_best": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_choosing_best.mp3",
+    "sha256": "0c896c54296a49a37d8e68f500ab474e5e8a5f8686922093871312650ae57160",
+    "duration_sec": 45.53,
+    "size_bytes": 273168
+  },
+  "silva_problem_solving.deepening": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_deepening.mp3",
+    "sha256": "b51d789e6aee29e7ecdaac3f69dc8c4d4a9216906b961b61f84bd07c4c2a79a6",
+    "duration_sec": 48.74,
+    "size_bytes": 292464
+  },
+  "silva_problem_solving.defining": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_defining.mp3",
+    "sha256": "2f0f674025b7b92d1583505d35ec2d4d8df97c55e2bf0ec0af512d67154abd77",
+    "duration_sec": 47.04,
+    "size_bytes": 282240
+  },
+  "silva_problem_solving.induction": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_induction.mp3",
+    "sha256": "ff147834d873d7a7879ec68f5c28241a03255d0a7553030844ef01620a54fd5c",
+    "duration_sec": 45.98,
+    "size_bytes": 275904
+  },
+  "silva_problem_solving.integration": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_integration.mp3",
+    "sha256": "7e838a8126ace6a79e68afb5939e5e8438e954caa238d5c8213b619004cd6e43",
+    "duration_sec": 50.86,
+    "size_bytes": 305136
+  },
+  "silva_problem_solving.mental_review": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_mental_review.mp3",
+    "sha256": "c159e5ea856b03fb468eb8d79ddb5c251742f6ec891e17cfd5891f50fc5d2fb7",
+    "duration_sec": 43.8,
+    "size_bytes": 262800
+  },
+  "silva_problem_solving.preparation": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_preparation.mp3",
+    "sha256": "0987adfe35aa9590fe56e6e8e6a0183f64585427ec52ae9b55c5cc6a9f088ac2",
+    "duration_sec": 41.26,
+    "size_bytes": 247536
+  },
+  "silva_problem_solving.reorientation": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_reorientation.mp3",
+    "sha256": "bde8c6bd4871483d9fbeb55472c2e081da8f994c7957a311d583ae660fdc0db5",
+    "duration_sec": 43.22,
+    "size_bytes": 259344
+  },
+  "silva_problem_solving.solutions": {
+    "file": "assets/audio/voice/silva_problem_solving/silva_problem_solving_solutions.mp3",
+    "sha256": "cd2166c28240eb8239ab8d9a73a2eef9fe11bdcaec98303a87c44d9d2280b44e",
+    "duration_sec": 50.66,
+    "size_bytes": 303984
+  },
+  "silva_rapid_manifest.clarifying_intent": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_clarifying_intent.mp3",
+    "sha256": "e60bcd17ca18f3334afa64a85e7e4033d463cd34d7e74686af428b0f7a8e8924",
+    "duration_sec": 52.9,
+    "size_bytes": 317376
+  },
+  "silva_rapid_manifest.deepening": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_deepening.mp3",
+    "sha256": "2419c009b750b1175da6fb622a75784c98120a5ca767053a1f03891024945696",
+    "duration_sec": 52.27,
+    "size_bytes": 313632
+  },
+  "silva_rapid_manifest.induction": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_induction.mp3",
+    "sha256": "4b1ac38d873f6afd73b4cbc6e99666c24d6b798b76d1c8b3b0a2195d11732b5b",
+    "duration_sec": 46.08,
+    "size_bytes": 276480
+  },
+  "silva_rapid_manifest.manifest_concept": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_manifest_concept.mp3",
+    "sha256": "ef80bef0160cf1d7f281623cb2bbff9f5cc3cf52bb4cdd12fd450de32f18a0da",
+    "duration_sec": 42.96,
+    "size_bytes": 257760
+  },
+  "silva_rapid_manifest.preparation": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_preparation.mp3",
+    "sha256": "1d1396b8efe00a58f534c23fca5119efdd8b62656c446401c28223c6c5ed5a7b",
+    "duration_sec": 42.48,
+    "size_bytes": 254880
+  },
+  "silva_rapid_manifest.releasing": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_releasing.mp3",
+    "sha256": "62fd7a5451a4432ee9c30328b085a65b45d7aaf57cbc46974e9d2aa9e1de7eb3",
+    "duration_sec": 50.66,
+    "size_bytes": 303984
+  },
+  "silva_rapid_manifest.reorientation": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_reorientation.mp3",
+    "sha256": "aedb422f6b2e89aa6086744bba36c4af4462d37a6ec08e186ee24f623c5ecdaa",
+    "duration_sec": 43.7,
+    "size_bytes": 262224
+  },
+  "silva_rapid_manifest.vivid_projection": {
+    "file": "assets/audio/voice/silva_rapid_manifest/silva_rapid_manifest_vivid_projection.mp3",
+    "sha256": "0989171ccc175ee72960aaa2c24eed139e50e571b0e2831157e419a675155087",
+    "duration_sec": 52.13,
+    "size_bytes": 312768
+  },
+  "silva_subjective_comm.comm_concept": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_comm_concept.mp3",
+    "sha256": "3f80f25ff545bc26587b8c2ae96a25658b5bd406bfd66bc9598b273d236d28a2",
+    "duration_sec": 40.34,
+    "size_bytes": 242064
+  },
+  "silva_subjective_comm.deepening": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_deepening.mp3",
+    "sha256": "a2d294e5d0b99161de661ab52097ed7d0dc9336badaae8fa941b12e5ad6ee82b",
+    "duration_sec": 45.22,
+    "size_bytes": 271296
+  },
+  "silva_subjective_comm.establishing": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_establishing.mp3",
+    "sha256": "bc586d63825eafe662850d0f265d033f48d55bcf494ceaaf6bb1a140506486c9",
+    "duration_sec": 44.76,
+    "size_bytes": 268560
+  },
+  "silva_subjective_comm.induction": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_induction.mp3",
+    "sha256": "b7bbd2a1aa7ae0176f0c99e8b95935b7d126a9520ce83b022ce13514b0318b3d",
+    "duration_sec": 38.71,
+    "size_bytes": 232272
+  },
+  "silva_subjective_comm.integration": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_integration.mp3",
+    "sha256": "cb517b6c17b8d0dd2c9ef11dd1fac58f0f27da1c1e725717ae976978c4e75725",
+    "duration_sec": 49.39,
+    "size_bytes": 296352
+  },
+  "silva_subjective_comm.preparation": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_preparation.mp3",
+    "sha256": "b4d968c22549f24118b71e15b4338654dd3ba34fe7041ee024faee614e8d6a16",
+    "duration_sec": 38.28,
+    "size_bytes": 229680
+  },
+  "silva_subjective_comm.reorientation": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_reorientation.mp3",
+    "sha256": "7f2a1599235ffd702c3218f9ad380fcc3ab3c91e8177e20ac897d5afd0d6f258",
+    "duration_sec": 45.41,
+    "size_bytes": 272448
+  },
+  "silva_subjective_comm.sending_message": {
+    "file": "assets/audio/voice/silva_subjective_comm/silva_subjective_comm_sending_message.mp3",
+    "sha256": "dfc3e979942e6a6e93fc225258eb974095bb18365cc3a849e01878d4d515b024",
+    "duration_sec": 48.0,
+    "size_bytes": 288000
+  },
+  "silva_subjective_points.applying_energy": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_applying_energy.mp3",
+    "sha256": "b7b31c8d6b8b75f6387bff9352fcd14594c1f5c439dd4f2ea6a32cc78f4c5da2",
+    "duration_sec": 56.45,
+    "size_bytes": 338688
+  },
+  "silva_subjective_points.deepening": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_deepening.mp3",
+    "sha256": "5a58cf4cefaee04ac121820c939c0500466bacbdd38c4bef1aadc7f2d95132a5",
+    "duration_sec": 50.59,
+    "size_bytes": 303552
+  },
+  "silva_subjective_points.healing_focus": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_healing_focus.mp3",
+    "sha256": "6f0f09fc5b53bd4b2e9c7976e4a4aa9a28a69af81df37e4c15b3eaf5ac60172a",
+    "duration_sec": 52.49,
+    "size_bytes": 314928
+  },
+  "silva_subjective_points.induction": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_induction.mp3",
+    "sha256": "a0d1df48dffadad33a739b895ca757b579b591b5d53d8d05460b5fb64bc03bf4",
+    "duration_sec": 43.85,
+    "size_bytes": 263088
+  },
+  "silva_subjective_points.integration": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_integration.mp3",
+    "sha256": "eb508cd984ceb6f417b7e05749b4cbc508f8f6f4fc51ff44e3dc46fef84e7f21",
+    "duration_sec": 46.51,
+    "size_bytes": 279072
+  },
+  "silva_subjective_points.locating_points": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_locating_points.mp3",
+    "sha256": "d5745b3fc017e3f688047f268ce90a6815bdfc5d05856e20736d3abf5cb3255c",
+    "duration_sec": 53.59,
+    "size_bytes": 321552
+  },
+  "silva_subjective_points.points_concept": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_points_concept.mp3",
+    "sha256": "27ca2bddc312783cd5ee7ae36fa0eb0f942e511d73c75bb14176e8fec498c2b5",
+    "duration_sec": 42.62,
+    "size_bytes": 255744
+  },
+  "silva_subjective_points.preparation": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_preparation.mp3",
+    "sha256": "8a6acff16a9500be366178c1dd1ea4f1d4417b5c40011e390513a744d0175bf2",
+    "duration_sec": 37.87,
+    "size_bytes": 227232
+  },
+  "silva_subjective_points.reorientation": {
+    "file": "assets/audio/voice/silva_subjective_points/silva_subjective_points_reorientation.mp3",
+    "sha256": "04c495c278512beb02374529980c2bc8d82a454a14b507662374efbe6b290c66",
+    "duration_sec": 43.06,
+    "size_bytes": 258336
+  },
+  "silva_three_fingers.anchor_concept": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_anchor_concept.mp3",
+    "sha256": "edfb9d0df84726124e2b09f8b6516ea577ce67df5031b28e4c342ed127f90c8c",
+    "duration_sec": 42.79,
+    "size_bytes": 256752
+  },
+  "silva_three_fingers.deepening": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_deepening.mp3",
+    "sha256": "0550f6d25fbdd7ed36815124c9a890380a1605f4966748c69207fdc8b48eabf2",
+    "duration_sec": 49.37,
+    "size_bytes": 296208
+  },
+  "silva_three_fingers.induction": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_induction.mp3",
+    "sha256": "30991058494411cb4eb774ca46234e155769bde0588215acf8e4281b325e7977",
+    "duration_sec": 41.71,
+    "size_bytes": 250272
+  },
+  "silva_three_fingers.installing_anchor": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_installing_anchor.mp3",
+    "sha256": "ee39482ec072ff585205fd35bc9c278e2db7e62ffbdc3a451bddfc139faedcf6",
+    "duration_sec": 48.94,
+    "size_bytes": 293616
+  },
+  "silva_three_fingers.integration": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_integration.mp3",
+    "sha256": "32b392b5f613e297c409d296c6b4d2a312a912e43536665cfc2c85c2f62b3756",
+    "duration_sec": 43.73,
+    "size_bytes": 262368
+  },
+  "silva_three_fingers.preparation": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_preparation.mp3",
+    "sha256": "27446bd38af5622d7084b2411757a9c8ccdbf8ff7f86da2d5afde3bcc02e7893",
+    "duration_sec": 39.62,
+    "size_bytes": 237744
+  },
+  "silva_three_fingers.reorientation": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_reorientation.mp3",
+    "sha256": "23de9ad2ffde714d3ad21d9d38aaabf95f2887cede654fb951cbd69c616ffd1e",
+    "duration_sec": 39.6,
+    "size_bytes": 237600
+  },
+  "silva_three_fingers.testing_anchor": {
+    "file": "assets/audio/voice/silva_three_fingers/silva_three_fingers_testing_anchor.mp3",
+    "sha256": "4cbc84d6d7f4c063c8c5616fea4456d4fd1276443df4de8a750179f570d02e2e",
+    "duration_sec": 44.9,
+    "size_bytes": 269424
+  },
+  "trans_archer_butterfly.archer_principle": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_archer_principle.mp3",
+    "sha256": "4407cd5f10321018aea6e95563303feab4bc189f333d41e897abcd9f9c2447b4",
+    "duration_sec": 53.26,
+    "size_bytes": 319536
+  },
+  "trans_archer_butterfly.butterfly_principle": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_butterfly_principle.mp3",
+    "sha256": "fa555569df7a7d7ebc33c71fe8f8508923bf2ab7d32ac93150ba622cf4a4f8f6",
+    "duration_sec": 52.54,
+    "size_bytes": 315216
+  },
+  "trans_archer_butterfly.deepening": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_deepening.mp3",
+    "sha256": "0e2cbd4f918d6545e379a0d8cc5165d3ee0fc49a977cca79668cca84d8c851d9",
+    "duration_sec": 36.02,
+    "size_bytes": 216144
+  },
+  "trans_archer_butterfly.induction": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_induction.mp3",
+    "sha256": "6d13933fc96ff8e66d5967b61eba11f87bab790c7721d2872d91e5da659c16a0",
+    "duration_sec": 37.58,
+    "size_bytes": 225504
+  },
+  "trans_archer_butterfly.integration": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_integration.mp3",
+    "sha256": "06c020fa80f3e06092d984a2ad230bf724d5dcbbb120bda30b67dea0f407016b",
+    "duration_sec": 36.1,
+    "size_bytes": 216576
+  },
+  "trans_archer_butterfly.preparation": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_preparation.mp3",
+    "sha256": "c7aac2180daf716cd759a504f8e5cd7b9c132f56c5a912765b05fcc76b165b12",
+    "duration_sec": 23.54,
+    "size_bytes": 141264
+  },
+  "trans_archer_butterfly.reorientation": {
+    "file": "assets/audio/voice/trans_archer_butterfly/trans_archer_butterfly_reorientation.mp3",
+    "sha256": "b1767329c9f47c4e0d683889e3fecfa4fb3df43fdb187d594a3d594ec3fbab11",
+    "duration_sec": 26.83,
+    "size_bytes": 160992
+  },
+  "trans_attention_control.deepening": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_deepening.mp3",
+    "sha256": "e6e002401bde0405e44422517394f46779cd6c5662b8e1d0e527980c9bf7b49d",
+    "duration_sec": 42.14,
+    "size_bytes": 252864
+  },
+  "trans_attention_control.focus_exercise": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_focus_exercise.mp3",
+    "sha256": "6c4c8957c0345e496d352b3bad85f086988bda2ebfd175a55a64ded365c8a29a",
+    "duration_sec": 45.34,
+    "size_bytes": 272016
+  },
+  "trans_attention_control.induction": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_induction.mp3",
+    "sha256": "017a0f8a81673477b1e63e2852c5a32cc5fc7a01b5e902348353aca5e2a17715",
+    "duration_sec": 37.94,
+    "size_bytes": 227664
+  },
+  "trans_attention_control.integration": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_integration.mp3",
+    "sha256": "53150619ebf18ef73fc4442307b1c76800aa91c2f58c1666b7f13c923ad83be3",
+    "duration_sec": 32.93,
+    "size_bytes": 197568
+  },
+  "trans_attention_control.preparation": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_preparation.mp3",
+    "sha256": "ede93e0cf02585cbfa7aa8ea9e2add0f80af347a1a4ea3cfa9a5f7d7021070e9",
+    "duration_sec": 24.17,
+    "size_bytes": 145008
+  },
+  "trans_attention_control.reorientation": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_reorientation.mp3",
+    "sha256": "0c05707ad804f84f480e67c5649d4397cf5c1becee267c0d1f42db6b427da62e",
+    "duration_sec": 25.63,
+    "size_bytes": 153792
+  },
+  "trans_attention_control.target_line": {
+    "file": "assets/audio/voice/trans_attention_control/trans_attention_control_target_line.mp3",
+    "sha256": "f5b96c228511c7ef105f66f145f50f3fede8c19e3895ab80461f60991249e7c3",
+    "duration_sec": 44.45,
+    "size_bytes": 266688
+  },
+  "trans_create_intention.anchoring": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_anchoring.mp3",
+    "sha256": "45ec20f20a1793593bbbbcb4be66aaf2c96d86421452ebf03eb45a6817f389fe",
+    "duration_sec": 45.74,
+    "size_bytes": 274464
+  },
+  "trans_create_intention.deepening": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_deepening.mp3",
+    "sha256": "1aa53b6345ea38cdf3405af1b12e2dd571ecc662a7f1feae995525927d16c630",
+    "duration_sec": 39.62,
+    "size_bytes": 237744
+  },
+  "trans_create_intention.desire_vs_intention": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_desire_vs_intention.mp3",
+    "sha256": "248bd726bf16be9ba68012144ba7f040c68dc7e01c05097bb4cff234b1c30fed",
+    "duration_sec": 57.1,
+    "size_bytes": 342576
+  },
+  "trans_create_intention.forming_intention": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_forming_intention.mp3",
+    "sha256": "465e9dee84442927c82bb02e2d8d0cb3ac7fd3fd7b4702500a532eb34dc89647",
+    "duration_sec": 53.71,
+    "size_bytes": 322272
+  },
+  "trans_create_intention.induction": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_induction.mp3",
+    "sha256": "2d641a4f74008b4789c7406964e2a09dc12d1b29b49a9a421e701c2ddc129ed7",
+    "duration_sec": 36.24,
+    "size_bytes": 217440
+  },
+  "trans_create_intention.integration": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_integration.mp3",
+    "sha256": "b84fd2b3f10e4a1a2780f3933e6d2b29c081a6ff0d4064bde1e796ec19b9b85a",
+    "duration_sec": 37.92,
+    "size_bytes": 227520
+  },
+  "trans_create_intention.preparation": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_preparation.mp3",
+    "sha256": "de6a04bac0031b352db99953db61d8ab7585868a4697b9f35669a5c6c33ed0dd",
+    "duration_sec": 25.06,
+    "size_bytes": 150336
+  },
+  "trans_create_intention.reorientation": {
+    "file": "assets/audio/voice/trans_create_intention/trans_create_intention_reorientation.mp3",
+    "sha256": "bd667fcea2711d9e0f6784e52d38c1becd36412f8dc2ea131207e5dfb013c1cd",
+    "duration_sec": 24.55,
+    "size_bytes": 147312
+  },
+  "trans_goal_constellation.connecting_lines": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_connecting_lines.mp3",
+    "sha256": "5378e0e5941f7504f8843b9e25696f43e99f8368f71434ace6da94519ab40577",
+    "duration_sec": 46.37,
+    "size_bytes": 278208
+  },
+  "trans_goal_constellation.deepening": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_deepening.mp3",
+    "sha256": "f7659a61f64b07b5fc40c74d2dc6945edca798829aebd9e5dd0ddfc81fd67d97",
+    "duration_sec": 39.14,
+    "size_bytes": 234864
+  },
+  "trans_goal_constellation.harmonizing": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_harmonizing.mp3",
+    "sha256": "3006121993432caf0716ae626d3107920c6013dd9b8b28749b8694dc028fce43",
+    "duration_sec": 44.74,
+    "size_bytes": 268416
+  },
+  "trans_goal_constellation.induction": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_induction.mp3",
+    "sha256": "00754b0ff08cfdca8018f3ab416922681132c6405bdca4779d539967c04fa7fe",
+    "duration_sec": 40.94,
+    "size_bytes": 245664
+  },
+  "trans_goal_constellation.integration": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_integration.mp3",
+    "sha256": "7536fe24bf0ca2c48fb1ac6d000fb6ba266a3b98c64935e95e7a29f871a0b504",
+    "duration_sec": 33.34,
+    "size_bytes": 200016
+  },
+  "trans_goal_constellation.placing_stars": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_placing_stars.mp3",
+    "sha256": "fd97f9f504010b7d33288b31d63eedd4abdc5764f3f9b732eebf2b4d26041c00",
+    "duration_sec": 49.15,
+    "size_bytes": 294912
+  },
+  "trans_goal_constellation.preparation": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_preparation.mp3",
+    "sha256": "1851a75487a02cc19388fd1f04f1e6f916dac072c4a46baaea24adaf48314c65",
+    "duration_sec": 22.54,
+    "size_bytes": 135216
+  },
+  "trans_goal_constellation.reorientation": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_reorientation.mp3",
+    "sha256": "d43675c314eb815bc1721a0554906c239c4efb299cfa0f54598740b576fee540",
+    "duration_sec": 26.66,
+    "size_bytes": 159984
+  },
+  "trans_goal_constellation.sky_concept": {
+    "file": "assets/audio/voice/trans_goal_constellation/trans_goal_constellation_sky_concept.mp3",
+    "sha256": "ef3ef9cba2eff3a6b3bc8e02a642e0177d4818fe66a56d7dc8cb36e34d254db9",
+    "duration_sec": 42.65,
+    "size_bytes": 255888
+  },
+  "trans_lower_importance.concept": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_concept.mp3",
+    "sha256": "dd8725d10e2f51c1a8538f5b01c21ccb3af01e638a81e60d61fbaf1dfc85e808",
+    "duration_sec": 39.89,
+    "size_bytes": 239328
+  },
+  "trans_lower_importance.deepening": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_deepening.mp3",
+    "sha256": "b7e56724c4baf336f1339327de55043067209b0994973e2a7e820f75e8a2219e",
+    "duration_sec": 33.82,
+    "size_bytes": 202896
+  },
+  "trans_lower_importance.induction": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_induction.mp3",
+    "sha256": "d1f9322c45afbfe1fc7bbf6f16304e026808f7328f12c6fb12c341f9fc219d89",
+    "duration_sec": 32.5,
+    "size_bytes": 194976
+  },
+  "trans_lower_importance.integration": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_integration.mp3",
+    "sha256": "08c2aecd716061a7089c213cebb8ee455020e290c6f0e86ff5093c854f8e04e5",
+    "duration_sec": 31.44,
+    "size_bytes": 188640
+  },
+  "trans_lower_importance.preparation": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_preparation.mp3",
+    "sha256": "752ebdd225bdddd26ff4eb40ccd5a4628b33d4727322d63eba3ff80ff4dd361a",
+    "duration_sec": 25.3,
+    "size_bytes": 151776
+  },
+  "trans_lower_importance.reorientation": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_reorientation.mp3",
+    "sha256": "a9b80f05106da75192581be23b9c995190ee667b6fc9670e20de6df7c4c156fd",
+    "duration_sec": 24.36,
+    "size_bytes": 146160
+  },
+  "trans_lower_importance.visualization": {
+    "file": "assets/audio/voice/trans_lower_importance/trans_lower_importance_visualization.mp3",
+    "sha256": "6547454a14dc048da8c2fe09a497294828e745604e99b9a62848b3d72b7b4443",
+    "duration_sec": 52.03,
+    "size_bytes": 312192
+  },
+  "trans_outer_intention.application": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_application.mp3",
+    "sha256": "a0081c712456dd045ac4529e8e8509023093c73b3f41a415590d8ef47b446393",
+    "duration_sec": 50.18,
+    "size_bytes": 301104
+  },
+  "trans_outer_intention.deepening": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_deepening.mp3",
+    "sha256": "03e8b37161be3f2dad2eaae6d40fa51cef038fc1575d90eb2dc9ffdc377f3a21",
+    "duration_sec": 43.22,
+    "size_bytes": 259344
+  },
+  "trans_outer_intention.feeling_outer": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_feeling_outer.mp3",
+    "sha256": "9058d4944ea4b05c35c8702893d759a2b202992cd53e533fbb7c39b5a25ab641",
+    "duration_sec": 50.98,
+    "size_bytes": 305856
+  },
+  "trans_outer_intention.induction": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_induction.mp3",
+    "sha256": "522dbc763a65910d4d67d384d5bc80bd0df42ac989edc437d8c16c02be7252e6",
+    "duration_sec": 40.49,
+    "size_bytes": 242928
+  },
+  "trans_outer_intention.inner_vs_outer": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_inner_vs_outer.mp3",
+    "sha256": "4154ad7e14ae5875a1eb9c4fd623f4def431f4f4839ef87b64ac6e419f1bad37",
+    "duration_sec": 55.78,
+    "size_bytes": 334656
+  },
+  "trans_outer_intention.integration": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_integration.mp3",
+    "sha256": "2c1b3b73caf847188b2e26d69713fba925ac8a71f1c2174451c10a750856c169",
+    "duration_sec": 36.12,
+    "size_bytes": 216720
+  },
+  "trans_outer_intention.preparation": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_preparation.mp3",
+    "sha256": "9bdc72fea915563373da2f3a4c362f91c4c1553423bf345349998478e71d6a28",
+    "duration_sec": 21.38,
+    "size_bytes": 128304
+  },
+  "trans_outer_intention.reorientation": {
+    "file": "assets/audio/voice/trans_outer_intention/trans_outer_intention_reorientation.mp3",
+    "sha256": "e2878a305583ed9dfa58c21d125a45af37f76ab07dcd023a19dcdaf4bd8fdb35",
+    "duration_sec": 24.26,
+    "size_bytes": 145584
+  },
+  "trans_past_branches.branch_concept": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_branch_concept.mp3",
+    "sha256": "a5476690072171a5080fa376efcb886c07ae84c4550dc6b04e70527125ab1e56",
+    "duration_sec": 47.26,
+    "size_bytes": 283536
+  },
+  "trans_past_branches.deepening": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_deepening.mp3",
+    "sha256": "493c6d88d3b91d85d4f59931cf6efdf8d2183fd0c6759968d300d76f6fb42ec7",
+    "duration_sec": 38.14,
+    "size_bytes": 228816
+  },
+  "trans_past_branches.induction": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_induction.mp3",
+    "sha256": "427b778e65ffa77c93627ecde5ee6eb775a0ce87ece8fa58e8cd78a4ace2574f",
+    "duration_sec": 35.78,
+    "size_bytes": 214704
+  },
+  "trans_past_branches.integration": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_integration.mp3",
+    "sha256": "7b8919a171b062d0ceca19e9a477b557a8718857185bd7fb88033a12faa1c5f8",
+    "duration_sec": 31.73,
+    "size_bytes": 190368
+  },
+  "trans_past_branches.preparation": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_preparation.mp3",
+    "sha256": "5546154742e5c0b1b5e8c3fb0b8089a299a660ca177431870d9e5ec4e0f406ad",
+    "duration_sec": 23.71,
+    "size_bytes": 142272
+  },
+  "trans_past_branches.reorientation": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_reorientation.mp3",
+    "sha256": "843067e75147aa4906d4c41e7b93b4739394896d49dce1b2e2c2574dcf2b98bc",
+    "duration_sec": 27.96,
+    "size_bytes": 167760
+  },
+  "trans_past_branches.return": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_return.mp3",
+    "sha256": "b370480d774f0765649399cc581a043ede2d3a96c8a2152ded4a707574268004",
+    "duration_sec": 38.23,
+    "size_bytes": 229392
+  },
+  "trans_past_branches.rewriting": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_rewriting.mp3",
+    "sha256": "11ea4687e697460e9672a9fae0149dc71d61cafade7f58158133a68c372febfa",
+    "duration_sec": 53.81,
+    "size_bytes": 322848
+  },
+  "trans_past_branches.selecting_moment": {
+    "file": "assets/audio/voice/trans_past_branches/trans_past_branches_selecting_moment.mp3",
+    "sha256": "886f6d70fdf9fe3baebb9f30b0abccaa8b4f376cbddcd702ab34ab5815cd1ad6",
+    "duration_sec": 39.89,
+    "size_bytes": 239328
+  },
+  "trans_pendulums.deepening": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_deepening.mp3",
+    "sha256": "fd9559f9bd3adafce9193b16b8fc7a7cd29ed864330d4a29493d5c5d26741d76",
+    "duration_sec": 45.29,
+    "size_bytes": 271728
+  },
+  "trans_pendulums.identification": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_identification.mp3",
+    "sha256": "207fd3f0b01466b648cb3d1ed6e405530f865a33f9a783ff372a8a36e0be960d",
+    "duration_sec": 44.18,
+    "size_bytes": 265104
+  },
+  "trans_pendulums.induction": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_induction.mp3",
+    "sha256": "d395e2a699f08c9986912c4a2c45954110140db64270f57cc80084bf3b4fff7d",
+    "duration_sec": 38.5,
+    "size_bytes": 230976
+  },
+  "trans_pendulums.integration": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_integration.mp3",
+    "sha256": "514dd32fecd685b7fe316390c9c013657905a18f12046b2e1c710968d240e2b2",
+    "duration_sec": 36.43,
+    "size_bytes": 218592
+  },
+  "trans_pendulums.pendulum_concept": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_pendulum_concept.mp3",
+    "sha256": "24155aa0fd3b91ae40f38d6cc2f63c3f1f2dc7b999ab25af34db4b8408cb9828",
+    "duration_sec": 50.18,
+    "size_bytes": 301104
+  },
+  "trans_pendulums.preparation": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_preparation.mp3",
+    "sha256": "272caeea88ebbed0a01bb8a8aba9d1e37bba2b948d3417c91c182042fdc5ca9b",
+    "duration_sec": 25.18,
+    "size_bytes": 151056
+  },
+  "trans_pendulums.release": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_release.mp3",
+    "sha256": "28771e5387297c86a7317b93b678c8c4124f3a0b7f0b5eaef342be34d7e2ae3d",
+    "duration_sec": 45.43,
+    "size_bytes": 272592
+  },
+  "trans_pendulums.reorientation": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_reorientation.mp3",
+    "sha256": "d2fb612bfeec72733182f0485b6ddb5d057865d92e09896c687fc0d390c6915d",
+    "duration_sec": 23.21,
+    "size_bytes": 139248
+  },
+  "trans_pendulums.stepping_aside": {
+    "file": "assets/audio/voice/trans_pendulums/trans_pendulums_stepping_aside.mp3",
+    "sha256": "651d0671fd8ad563ee0f033b1617c385350a70e9f77c058dfd78d366a6455188",
+    "duration_sec": 44.86,
+    "size_bytes": 269136
+  },
+  "trans_reality_mirror.deepening": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_deepening.mp3",
+    "sha256": "43cb673ba7c5c712817163f1a02780e10374a2c3a85ace99ccee91e204290dd0",
+    "duration_sec": 37.32,
+    "size_bytes": 223920
+  },
+  "trans_reality_mirror.induction": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_induction.mp3",
+    "sha256": "292f9f2dfccb5f54fa103be1773f2122019cbb6f30312917138ab63cd39205cb",
+    "duration_sec": 36.6,
+    "size_bytes": 219600
+  },
+  "trans_reality_mirror.integration": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_integration.mp3",
+    "sha256": "b0967f1cfb058b805463c837ec9e31534d5f2022faa7ec04fe1224b5706e009b",
+    "duration_sec": 30.46,
+    "size_bytes": 182736
+  },
+  "trans_reality_mirror.mirror_concept": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_mirror_concept.mp3",
+    "sha256": "d022768e74733d7d2958e2b72cc6062ac7f1974638b6add115f737facaed90de",
+    "duration_sec": 42.6,
+    "size_bytes": 255600
+  },
+  "trans_reality_mirror.observation": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_observation.mp3",
+    "sha256": "66e43092d9ea1af3111a1e5918e8a0f37d4d2929b0e7c952bfa553457287c582",
+    "duration_sec": 42.29,
+    "size_bytes": 253728
+  },
+  "trans_reality_mirror.preparation": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_preparation.mp3",
+    "sha256": "b182e1e5f8a166dfb7c4e2fd6f1e125bd9ae2765d781c48dcb50dff1ce76a25e",
+    "duration_sec": 19.1,
+    "size_bytes": 114624
+  },
+  "trans_reality_mirror.reflection": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_reflection.mp3",
+    "sha256": "aad5f671831b1ba7cbfadfc1ccc426afa50181e28383f6ba1bcc2bb0a983f712",
+    "duration_sec": 42.77,
+    "size_bytes": 256608
+  },
+  "trans_reality_mirror.reorientation": {
+    "file": "assets/audio/voice/trans_reality_mirror/trans_reality_mirror_reorientation.mp3",
+    "sha256": "224d08291646f9f5354c8c529d4de83a63640a22136b46982c4b14eed4ae5ba2",
+    "duration_sec": 27.34,
+    "size_bytes": 164016
+  },
+  "trans_soul_mind_unity.deepening": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_deepening.mp3",
+    "sha256": "c6401bebe339484112cc74a785a6c00908f0db4d5dc0af16e88c77bd8a25c0e1",
+    "duration_sec": 46.42,
+    "size_bytes": 278496
+  },
+  "trans_soul_mind_unity.induction": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_induction.mp3",
+    "sha256": "ad7652ed54060dca52c01f5e4e99886f1e7e5705bc7e45ccc2269956bcdc6982",
+    "duration_sec": 38.14,
+    "size_bytes": 228816
+  },
+  "trans_soul_mind_unity.integration": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_integration.mp3",
+    "sha256": "aacc96aa532e220c3393714f00fbecec10eb65400e9b864a3b5717e64e69f5cf",
+    "duration_sec": 40.8,
+    "size_bytes": 244800
+  },
+  "trans_soul_mind_unity.merging": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_merging.mp3",
+    "sha256": "6a409b70266efecad02eed09e4ccfd2e3a5b4489bc1b66711f781f4eebb610ac",
+    "duration_sec": 49.42,
+    "size_bytes": 296496
+  },
+  "trans_soul_mind_unity.mind_layer": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_mind_layer.mp3",
+    "sha256": "28e320830f9430b6d09cf7edc749a763b149338e2f87031a45ee08941899f197",
+    "duration_sec": 46.18,
+    "size_bytes": 277056
+  },
+  "trans_soul_mind_unity.preparation": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_preparation.mp3",
+    "sha256": "12a42de6357582607433504cede0345fc3fc0f35f6df8a681bec46817d905041",
+    "duration_sec": 28.13,
+    "size_bytes": 168768
+  },
+  "trans_soul_mind_unity.reorientation": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_reorientation.mp3",
+    "sha256": "9c0866c3ee3bf8d6610aef7a81fbde1dd3a3326bc7e411bdbbef7f045c13ed6a",
+    "duration_sec": 34.2,
+    "size_bytes": 205200
+  },
+  "trans_soul_mind_unity.soul_layer": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_soul_layer.mp3",
+    "sha256": "3c383f334880662fd00e645f1e85cc30920059f5afdf1ad764b8c2addd0552ee",
+    "duration_sec": 46.99,
+    "size_bytes": 281952
+  },
+  "trans_soul_mind_unity.unity_concept": {
+    "file": "assets/audio/voice/trans_soul_mind_unity/trans_soul_mind_unity_unity_concept.mp3",
+    "sha256": "306f8fd3891aa9aa833049490b394f83dbf800a59ef788faef6896cc5d1254e3",
+    "duration_sec": 56.28,
+    "size_bytes": 337680
+  },
+  "trans_variant_space.choosing": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_choosing.mp3",
+    "sha256": "dbd5f589f72c7e7b4e8978559c5d907ada1ddceeaeb380f5b121de444f6a38a8",
+    "duration_sec": 40.63,
+    "size_bytes": 243792
+  },
+  "trans_variant_space.deepening": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_deepening.mp3",
+    "sha256": "71e5abf4792fb0a1fbe15f328329b344e91a8e0d911db7d1d3c5e2f22d666189",
+    "duration_sec": 39.02,
+    "size_bytes": 234144
+  },
+  "trans_variant_space.exploration": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_exploration.mp3",
+    "sha256": "3a2358ffd2b1670572b5ee391f3afd140422461625c3bd4b8b667a4a76e4baab",
+    "duration_sec": 39.7,
+    "size_bytes": 238176
+  },
+  "trans_variant_space.induction": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_induction.mp3",
+    "sha256": "7431e0df347fbaffc60dc0b27ed5a75562614ca4cb04b4b84e9a7690bf02cd31",
+    "duration_sec": 36.77,
+    "size_bytes": 220608
+  },
+  "trans_variant_space.integration": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_integration.mp3",
+    "sha256": "7a62a63d046faaac0d17e7106d09ed498609f426d06b99fc048095f83c16cfd8",
+    "duration_sec": 30.91,
+    "size_bytes": 185472
+  },
+  "trans_variant_space.preparation": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_preparation.mp3",
+    "sha256": "34814ed6244caa738297e7f3da3cbdd553602755f9b242593ddeb15d17e40e80",
+    "duration_sec": 24.26,
+    "size_bytes": 145584
+  },
+  "trans_variant_space.reorientation": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_reorientation.mp3",
+    "sha256": "e3fb2b5e9e5c6865c86dceb7c1ec69c06ba91b3b864fbed0f9ebcbdea68b5c60",
+    "duration_sec": 25.99,
+    "size_bytes": 155952
+  },
+  "trans_variant_space.space_concept": {
+    "file": "assets/audio/voice/trans_variant_space/trans_variant_space_space_concept.mp3",
+    "sha256": "ec6e9acf9c9f2789353cbbb559512b19af1ee4dcccdd86bfc23512955aaf03ca",
+    "duration_sec": 41.47,
+    "size_bytes": 248832
+  },
+  "trans_wanderer_path.deepening": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_deepening.mp3",
+    "sha256": "781b4562be3fbfb1486c5a7291233c25ae96823da19a80c8487f7355e7d0c1d2",
+    "duration_sec": 47.71,
+    "size_bytes": 286272
+  },
+  "trans_wanderer_path.encounters": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_encounters.mp3",
+    "sha256": "b8b94ed826c28600f0321e1b7fcfb87dcb9cf9c4868b4d5d504102164fc908f6",
+    "duration_sec": 48.7,
+    "size_bytes": 292176
+  },
+  "trans_wanderer_path.induction": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_induction.mp3",
+    "sha256": "6d22ba6a8249841b56f35240b95bb20b112baaecab4a8c907c27bbfebf7bd349",
+    "duration_sec": 40.39,
+    "size_bytes": 242352
+  },
+  "trans_wanderer_path.integration": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_integration.mp3",
+    "sha256": "b079dd36481f3295a6951bb16e0a8052bbf0e4507e29e096551d081099409d59",
+    "duration_sec": 39.48,
+    "size_bytes": 236880
+  },
+  "trans_wanderer_path.preparation": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_preparation.mp3",
+    "sha256": "7d2f5f19c133b2a72b70ece652676e487385f4a7776aa4f8cbd2a36e3eb9ebc4",
+    "duration_sec": 24.74,
+    "size_bytes": 148464
+  },
+  "trans_wanderer_path.reorientation": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_reorientation.mp3",
+    "sha256": "868c06e2b72251c1c3449b6b14b5cdad8606d2f29b0e2d4758a36692db849ed2",
+    "duration_sec": 27.65,
+    "size_bytes": 165888
+  },
+  "trans_wanderer_path.walking_meditation": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_walking_meditation.mp3",
+    "sha256": "e3cbc628b500afbde70986ea1adc74e8c87f6c55752586b4f4971f149c7b9ae1",
+    "duration_sec": 44.54,
+    "size_bytes": 267264
+  },
+  "trans_wanderer_path.wanderer_concept": {
+    "file": "assets/audio/voice/trans_wanderer_path/trans_wanderer_path_wanderer_concept.mp3",
+    "sha256": "bb59ee39ea436d3b83b241d3ab02ff915cea5e40e8f3d375c307945750f6826a",
+    "duration_sec": 51.5,
+    "size_bytes": 309024
+  },
+  "trans_wave_dampener.deepening": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_deepening.mp3",
+    "sha256": "4f4a61118f70120c50476a97a0ae882ee847468df6852936b7f46c48d496b911",
+    "duration_sec": 34.73,
+    "size_bytes": 208368
+  },
+  "trans_wave_dampener.induction": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_induction.mp3",
+    "sha256": "d9370e41c36e7bc8aead68ee854f440e6d6f6a411bb4f3d38a3846f3b7a0cd4f",
+    "duration_sec": 35.71,
+    "size_bytes": 214272
+  },
+  "trans_wave_dampener.integration": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_integration.mp3",
+    "sha256": "15a39460890f3cae1e4e24ed96e11066b5487b8e690317b4ec14fffb938ea33d",
+    "duration_sec": 27.84,
+    "size_bytes": 167040
+  },
+  "trans_wave_dampener.preparation": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_preparation.mp3",
+    "sha256": "a072a10c5372741b7572fd8d48eddfdd6208d71289043e51c935a102435e2bb0",
+    "duration_sec": 22.63,
+    "size_bytes": 135792
+  },
+  "trans_wave_dampener.reorientation": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_reorientation.mp3",
+    "sha256": "f85b36e7ef7cea94eb4a857a0c185b4587c78d4bbf42286d7c7a84f2fd035ec9",
+    "duration_sec": 24.7,
+    "size_bytes": 148176
+  },
+  "trans_wave_dampener.scanning": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_scanning.mp3",
+    "sha256": "d108410dbfce6c7ac8f51589f459efa7e0b8b47a38baf916ab37415b41e8a272",
+    "duration_sec": 35.35,
+    "size_bytes": 212112
+  },
+  "trans_wave_dampener.smoothing": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_smoothing.mp3",
+    "sha256": "9e0493d50c23792ba74ab5d2c8a7c3edd2a7394cfc8eb5cdb159ff37ab1a660f",
+    "duration_sec": 42.26,
+    "size_bytes": 253584
+  },
+  "trans_wave_dampener.wave_concept": {
+    "file": "assets/audio/voice/trans_wave_dampener/trans_wave_dampener_wave_concept.mp3",
+    "sha256": "cae4f20ce8f0b7c6394b72aeb8c995e7388dff987a45d495915e577b970249a4",
+    "duration_sec": 38.09,
+    "size_bytes": 228528
+  },
+  "trans_world_slide.deepening": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_deepening.mp3",
+    "sha256": "e75f5da01c4813395593f5b0a2871e88de80f1b36f473dc760c6d9781bab4857",
+    "duration_sec": 38.93,
+    "size_bytes": 233568
+  },
+  "trans_world_slide.entering_slide": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_entering_slide.mp3",
+    "sha256": "d88aff04405dcd22d73d41cdbec172bdb54dfcc85fecdc082986d50177199eec",
+    "duration_sec": 42.24,
+    "size_bytes": 253440
+  },
+  "trans_world_slide.induction": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_induction.mp3",
+    "sha256": "490bf7c45c1c0aa157851e88bb83772bb0ed82eccdb215d49aef1a1c2979b7b2",
+    "duration_sec": 39.17,
+    "size_bytes": 235008
+  },
+  "trans_world_slide.living_slide": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_living_slide.mp3",
+    "sha256": "73ca25876b8954496192bfc58474d002c2f0562c0f58b60dee6a3d69641fbce9",
+    "duration_sec": 48.12,
+    "size_bytes": 288720
+  },
+  "trans_world_slide.preparation": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_preparation.mp3",
+    "sha256": "63252c767296bbd723442e77a5e417f853e62def970487c80142a294f4f6e09c",
+    "duration_sec": 22.7,
+    "size_bytes": 136224
+  },
+  "trans_world_slide.reorientation": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_reorientation.mp3",
+    "sha256": "4b07d64488d41f25a221979c2e82ac8ab3d34ee979283a8dfc10f44fb33aa3d1",
+    "duration_sec": 25.25,
+    "size_bytes": 151488
+  },
+  "trans_world_slide.return": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_return.mp3",
+    "sha256": "8d235370bd5fa00e6d9b1b44a0d976c3ba408ac8ea9009059b27e9cb2f344a02",
+    "duration_sec": 33.77,
+    "size_bytes": 202608
+  },
+  "trans_world_slide.slide_concept": {
+    "file": "assets/audio/voice/trans_world_slide/trans_world_slide_slide_concept.mp3",
+    "sha256": "fdfd7d374caaccadc6cd87eb3f3e9d2c635dbff3d5e8d0d1f86ce10b53245ad5",
+    "duration_sec": 38.54,
+    "size_bytes": 231264
+  }
+}
