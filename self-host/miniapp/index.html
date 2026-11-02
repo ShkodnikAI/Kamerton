@@ -22,6 +22,13 @@
   button.act.sec { background: #2a2e37; color: var(--fg); }
   #status { font-size: 13px; color: var(--dim); min-height: 20px; margin-top: 8px; white-space: pre-wrap; }
   .ok { color: var(--ok); } .err { color: var(--err); }
+  .plan-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #22262f; font-size: 14px; }
+  .plan-row:last-child { border-bottom: 0; }
+  .plan-row.done { opacity: 0.55; }
+  .plan-row button { padding: 6px 10px; font-size: 13px; }
+  input[type="text"] { background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; padding: 10px; font-size: 15px; }
+  select { background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; padding: 8px; font-size: 14px; max-width: 100%; }
+  textarea { background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; padding: 10px; font-size: 14px; width: 100%; }
 </style>
 </head>
 <body>
@@ -29,6 +36,7 @@
 <nav>
   <button id="tab-pacer" class="on" onclick="show('pacer')">Пейсер</button>
   <button id="tab-ppg" onclick="show('ppg')">Пульс</button>
+  <button id="tab-day" onclick="show('day')">День</button>
 </nav>
 
 <section id="screen-pacer" class="screen on">
@@ -69,6 +77,28 @@
   </div>
 </section>
 
+<section id="screen-day" class="screen">
+  <div class="card">
+    <p class="lbl">План дня (Н4-03). Рекомендация бандита — проба дня: её отклики p:/m:. Остальное — свободные сессии, в данные бандита не входят.</p>
+    <div id="plan-list"></div>
+    <div class="row">
+      <input type="text" id="plan-add-input" list="catalog-names" placeholder="фрагмент названия практики" style="flex:1">
+      <datalist id="catalog-names"></datalist>
+      <button class="act" onclick="planAdd()">Добавить</button>
+    </div>
+    <div class="row"><button class="act sec" onclick="loadPlan()">Обновить план</button></div>
+  </div>
+  <div class="card">
+    <p class="lbl">Дневник свободной сессии (таблица free_journal — настроение и заметка, вне награды бандита)</p>
+    <div class="row">
+      <select id="journal-plan" style="flex:1"><option value="">— без практики —</option></select>
+    </div>
+    <p class="lbl">Настроение: <input type="range" id="journal-mood" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('journal-mood-v').textContent=this.value"> <b id="journal-mood-v">0.5</b></p>
+    <textarea id="journal-note" rows="2" placeholder="заметка дня (необязательно)"></textarea>
+    <div class="row"><button class="act" onclick="journalSave()">Записать в дневник</button></div>
+  </div>
+</section>
+
 <p id="status"></p>
 
 <script>
@@ -83,11 +113,26 @@ var sessionId = 0;
 var marks = [];
 
 function show(name) {
-  var names = ["pacer", "ppg"];
+  var names = ["pacer", "ppg", "day"];
   for (var i = 0; i < names.length; i++) {
     document.getElementById("screen-" + names[i]).className = names[i] === name ? "screen on" : "screen";
     document.getElementById("tab-" + names[i]).className = names[i] === name ? "on" : "";
   }
+  // Н4-03: план и каталог грузятся лениво — при первом открытии вкладки.
+  if (name === "day") { loadPlan(); loadCatalog(); }
+}
+
+// Экранирование имён из каталога/плана перед вставкой в innerHTML
+// (данные владельца, но дисциплина едина с серверной escape_html).
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function get(path, params) {
+  var q = new URLSearchParams(params || {});
+  q.set("t", TOKEN);
+  return fetch(path + "?" + q.toString())
+    .then(function (r) { return r.text().then(function (body) { return { code: r.status, body: body }; }); });
 }
 
 function status(msg, cls) {
@@ -263,6 +308,101 @@ function closeSession() {
       sessionId = 0; marks = []; rrBuffer = []; stepSamples = [];
       sweepStopCam();
       document.getElementById("pacer-marks").textContent = "";
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+// ── План дня и дневник (Н4-03) ──────────────────────────────────────
+var planLoaded = false;
+
+function loadPlan() {
+  return get("/miniapp/plan")
+    .then(function (res) {
+      if (res.code !== 200) { status("План: отказ сервера " + res.code, "err"); return; }
+      var rows = JSON.parse(res.body);
+      var el = document.getElementById("plan-list");
+      var sel = document.getElementById("journal-plan");
+      var selKeep = sel.value;
+      var html = "";
+      var opts = "<option value=\"\">— без практики —</option>";
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var done = r.status === "done";
+        var src = r.source === "recommendation" ? "рекомендация" : "выбор владельца";
+        html += "<div class='plan-row" + (done ? " done" : "") + "'><span>" + esc(r.name) +
+          " <span class='lbl'>(" + src + (done ? ", сделано" : "") + ")</span></span>" +
+          (done ? "" : " <button class='act sec' onclick='planDone(" + r.id + ")'>Сделано</button>") + "</div>";
+        opts += "<option value=\"" + r.id + "\"" + (String(r.id) === selKeep ? " selected" : "") + ">" + esc(r.name) + "</option>";
+      }
+      if (!rows.length) { html = "<p class='lbl'>План пуст. Добавьте практику ниже; рекомендация появится утром (07:00) или по /fire.</p>"; }
+      el.innerHTML = html;
+      sel.innerHTML = opts;
+      planLoaded = true;
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+function loadCatalog() {
+  return get("/miniapp/catalog")
+    .then(function (res) {
+      if (res.code !== 200) { return; }
+      var rows = JSON.parse(res.body);
+      var opts = "";
+      for (var i = 0; i < rows.length; i++) { opts += "<option value=\"" + esc(rows[i].name) + "\">"; }
+      document.getElementById("catalog-names").innerHTML = opts;
+    })
+    .catch(function (e) { /* каталог — подсказка, не критичный путь */ });
+}
+
+function planAdd() {
+  var input = document.getElementById("plan-add-input");
+  var name = input.value.trim();
+  if (!name) { status("Введите фрагмент названия практики", "err"); return; }
+  api("/miniapp/plan/add", { name: name })
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Добавление: отказ сервера " + res.code + " " + res.body, "err"); return; }
+      var d = JSON.parse(res.body);
+      if (!d.ok) {
+        if (d.reason === "not_found") { status("«" + name + "» в каталоге не найдено — уточните фрагмент", "err"); }
+        else if (d.reason === "consent") { status("«" + d.name + "» — практика класса C: нужна запись согласия (инвариант 5)", "err"); }
+        else if (d.reason === "ambiguous") {
+          var names = (d.candidates || []).map(function (c) { return c.name; }).join("; ");
+          status("Найдено несколько: " + names + " — уточните запрос", "err");
+        } else { status("Отказ: " + d.reason, "err"); }
+        return;
+      }
+      input.value = "";
+      status(d.added ? "Добавлено в план: " + d.name : "Уже в плане: " + d.name, "ok");
+      loadPlan();
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+function planDone(id) {
+  api("/miniapp/plan/done", { id: String(id) })
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Отметка: отказ сервера " + res.code, "err"); return; }
+      var d = JSON.parse(res.body);
+      status(d.ok ? "Сделано — отмечено в плане дня" : "Отметка не изменила план (уже отмечено или пункт чужого дня)", d.ok ? "ok" : "err");
+      loadPlan();
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+
+function journalSave() {
+  var mood = document.getElementById("journal-mood").value;
+  var note = document.getElementById("journal-note").value;
+  var planId = document.getElementById("journal-plan").value || "";
+  var params = { mood: mood, note: note };
+  if (planId) { params.plan_id = planId; }
+  api("/miniapp/journal", params)
+    .then(function (res) {
+      if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
+      if (res.code !== 200) { status("Дневник: отказ сервера " + res.code + " " + res.body, "err"); return; }
+      document.getElementById("journal-note").value = "";
+      status("Записано в дневник: настроение " + mood + (planId ? " (практика плана)" : ""), "ok");
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
