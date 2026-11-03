@@ -313,3 +313,26 @@ CREATE TABLE IF NOT EXISTS free_journal (
     created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_journal_date ON free_journal(journal_date);
+
+-- practice_admission: the admission rules of the MIND-MASTERY systems
+-- (Н4-07) — the level gate of the active set. One row per
+-- (system, level): the minimum completed sessions AND minutes of the
+-- system (both conditions — checkUnlock.ts @ 2a26e75). Level 1 is
+-- always unlocked (no row); a practice whose (system, level) has no
+-- rule is unlocked too (the source semantics). The data rides
+-- seeds/mm/progression.json (mm-convert from progression.ts
+-- @ 2a26e75) into the table via seed_mm_catalog; the gate lives in
+-- activate_arm / rotation_candidate (the declared twins of
+-- mm_admission_locked, src/arms/arms.mlog). The admission unit is the
+-- trial (status 'completed'); the minutes of a session are the
+-- practice's duration (arm.duration_min) — the ADR-0003 addition
+-- carries the definition.
+CREATE TABLE IF NOT EXISTS practice_admission (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    system TEXT DEFAULT '',
+    level INTEGER DEFAULT '0',
+    min_sessions REAL DEFAULT '0.0',
+    min_minutes REAL DEFAULT '0.0',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admission_system_level_unique ON practice_admission(system, level);

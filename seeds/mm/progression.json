@@ -1,0 +1,128 @@
+[
+  {
+    "system": "breath",
+    "level": 2,
+    "sessions": 3,
+    "minutes": 30
+  },
+  {
+    "system": "breath",
+    "level": 3,
+    "sessions": 8,
+    "minutes": 90
+  },
+  {
+    "system": "breath",
+    "level": 4,
+    "sessions": 15,
+    "minutes": 180
+  },
+  {
+    "system": "dispenza",
+    "level": 2,
+    "sessions": 4,
+    "minutes": 50
+  },
+  {
+    "system": "dispenza",
+    "level": 3,
+    "sessions": 12,
+    "minutes": 180
+  },
+  {
+    "system": "dispenza",
+    "level": 4,
+    "sessions": 22,
+    "minutes": 400
+  },
+  {
+    "system": "dispenza",
+    "level": 5,
+    "sessions": 40,
+    "minutes": 750
+  },
+  {
+    "system": "domfreq",
+    "level": 2,
+    "sessions": 3,
+    "minutes": 45
+  },
+  {
+    "system": "domfreq",
+    "level": 3,
+    "sessions": 10,
+    "minutes": 150
+  },
+  {
+    "system": "domfreq",
+    "level": 4,
+    "sessions": 20,
+    "minutes": 300
+  },
+  {
+    "system": "feldenkrais",
+    "level": 2,
+    "sessions": 4,
+    "minutes": 60
+  },
+  {
+    "system": "feldenkrais",
+    "level": 3,
+    "sessions": 10,
+    "minutes": 150
+  },
+  {
+    "system": "feldenkrais",
+    "level": 4,
+    "sessions": 20,
+    "minutes": 300
+  },
+  {
+    "system": "silva",
+    "level": 2,
+    "sessions": 4,
+    "minutes": 40
+  },
+  {
+    "system": "silva",
+    "level": 3,
+    "sessions": 12,
+    "minutes": 150
+  },
+  {
+    "system": "silva",
+    "level": 4,
+    "sessions": 25,
+    "minutes": 350
+  },
+  {
+    "system": "silva",
+    "level": 5,
+    "sessions": 45,
+    "minutes": 700
+  },
+  {
+    "system": "transurfing",
+    "level": 2,
+    "sessions": 3,
+    "minutes": 30
+  },
+  {
+    "system": "transurfing",
+    "level": 3,
+    "sessions": 10,
+    "minutes": 120
+  },
+  {
+    "system": "transurfing",
+    "level": 4,
+    "sessions": 20,
+    "minutes": 300
+  },
+  {
+    "system": "transurfing",
+    "level": 5,
+    "sessions": 40,
+    "minutes": 600
+  }
+]

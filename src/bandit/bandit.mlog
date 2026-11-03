@@ -148,6 +148,27 @@ schema kamerton {
     detail: String default(""),
     created_at: String default(now())
   }
+
+  // Н4-07: the rotation candidate filter reads the MM profile (system,
+  // level) and the admission rules. Declarations byte-identical to the
+  // arms module and ensure_schema; the seed fills the rules
+  // (seeds/mm/progression.json), the tests fixture them directly.
+  table practice_profile {
+    id: Int primary_key auto_increment,
+    arm_id: Int references(arm.id),
+    system: String default(""),
+    level: Int default("0"),
+    declared_min: Float default("0.0"),
+    created_at: String default(now())
+  }
+  table practice_admission {
+    id: Int primary_key auto_increment,
+    system: String default(""),
+    level: Int default("0"),
+    min_sessions: Float default("0.0"),
+    min_minutes: Float default("0.0"),
+    created_at: String default(now())
+  }
 }
 
 // The reward scale is [0,1]; 0.25 is the assumed observation noise of a
@@ -407,7 +428,16 @@ pattern rotation_window_open(slot_name: String) -> Bool {
 // bandit candidates); not in the 90-day rotation cooldown. Returns the
 // arm id, or 0 when no candidate is admissible.
 pattern rotation_candidate(slot_name: String) -> Float {
-  let rows = query("SELECT a.id AS id FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = ? AND a.active = 0 AND (p.requires_consent = 0 OR EXISTS (SELECT 1 FROM consent c WHERE c.scope = 'class:' || p.safety_class AND c.revoked = 0)) AND NOT EXISTS (SELECT 1 FROM arm_journal j WHERE j.action = 'rotate-off' AND j.arm_id = a.id AND j.created_at >= datetime('now', '-90 days')) ORDER BY a.prior_mean DESC, a.id ASC LIMIT 1", [slot_name])
+  // Н4-07: the admission predicate rides the WHERE — a locked hand is
+  // NOT a candidate (the rotation admits by system progress, the same
+  // rule as activate_arm; the bandit canon is self-contained, so the
+  // predicate is the declared twin of mm_admission_locked in
+  // src/arms/arms.mlog — the same literals, both sides pinned by
+  // tests). Level < 2 is always open; no rule for (system, level) is
+  // open (the checkUnlock.ts semantics); admission = sessions AND
+  // minutes of the system's completed trials (minutes = the practice
+  // duration, arm.duration_min).
+  let rows = query("SELECT a.id AS id FROM arm a JOIN practice_protocol p ON p.arm_id = a.id LEFT JOIN practice_profile pp ON pp.arm_id = a.id WHERE p.slot = ? AND a.active = 0 AND (p.requires_consent = 0 OR EXISTS (SELECT 1 FROM consent c WHERE c.scope = 'class:' || p.safety_class AND c.revoked = 0)) AND NOT EXISTS (SELECT 1 FROM arm_journal j WHERE j.action = 'rotate-off' AND j.arm_id = a.id AND j.created_at >= datetime('now', '-90 days')) AND (pp.arm_id IS NULL OR pp.level < 2 OR NOT EXISTS (SELECT 1 FROM practice_admission pa WHERE pa.system = pp.system AND pa.level = pp.level) OR ((SELECT count(*) FROM trial t JOIN arm a2 ON a2.id = t.arm_id JOIN practice_profile pp2 ON pp2.arm_id = a2.id WHERE pp2.system = pp.system AND t.status = 'completed') >= (SELECT pa1.min_sessions FROM practice_admission pa1 WHERE pa1.system = pp.system AND pa1.level = pp.level) AND (SELECT coalesce(sum(a3.duration_min), 0) FROM trial t3 JOIN arm a3 ON a3.id = t3.arm_id JOIN practice_profile pp3 ON pp3.arm_id = a3.id WHERE pp3.system = pp.system AND t3.status = 'completed') >= (SELECT pa2.min_minutes FROM practice_admission pa2 WHERE pa2.system = pp.system AND pa2.level = pp.level))) ORDER BY a.prior_mean DESC, a.id ASC LIMIT 1", [slot_name])
   if len(rows) == 0.0 {
     return 0.0
   }
@@ -913,6 +943,49 @@ test "Н3-06 rot: class C without a live consent is not a candidate; the 90-day 
   let c1 = rotation_candidate("rotc")
   let c1_name = query("SELECT name FROM arm WHERE id = ?", [c1])
   assert_eq(c1_name[0].name, "rotc-1")
+}
+
+test "Н4-07 rot: a locked hand is not a candidate until the system admission is met" {
+  // The admission filter of the rotation, unit-tested directly (the
+  // same direct shape as the consent-cooldown test above). Candidates
+  // of the rota slot: rota-1 (prior 0.9 — the best, level 3 of the
+  // 'rotsys' system — LOCKED) and rota-2 (prior 0.5, no profile —
+  // always admissible). The rule: ('rotsys', 3) = 10 sessions / 120
+  // minutes; the trials ride rota-1 (duration normalized to 10 min).
+  let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('rota', 3)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std, active) VALUES ('rota-1', 'rc', 'morning', 10, 0.9, 0.2, 0)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO arm (name, group_name, day_window, duration_min, prior_mean, prior_std, active) VALUES ('rota-2', 'rc', 'morning', 10, 0.5, 0.2, 0)", [])
+  let _ = db_execute("INSERT OR IGNORE INTO practice_protocol (arm_id, slot, safety_class, requires_consent, session_min, source) SELECT id, 'rota', 'A', 0, 10, 'rot fixture' FROM arm WHERE name IN ('rota-1', 'rota-2')", [])
+  let _ = db_execute("INSERT OR IGNORE INTO practice_profile (arm_id, system, level, declared_min) SELECT id, 'rotsys', 3, 10 FROM arm WHERE name = 'rota-1'", [])
+  let _ = db_execute("INSERT OR IGNORE INTO practice_admission (system, level, min_sessions, min_minutes) VALUES ('rotsys', 3, 10, 120)", [])
+  // The best-prior hand is locked: the candidate is the NEXT admissible
+  // one (the consent-filter semantics: a locked hand is skipped, the
+  // slot is never emptied by a lock).
+  let c1 = rotation_candidate("rota")
+  let n1 = query("SELECT name FROM arm WHERE id = ?", [c1])
+  assert_eq(n1[0].name, "rota-2")
+  // 10 completed sessions = 100 minutes: the SESSIONS rule passes, the
+  // MINUTES rule does not — the AND keeps the hand locked.
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-01', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-02', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-03', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-04', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-05', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-06', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-07', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-08', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-09', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-10', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let c2 = rotation_candidate("rota")
+  let n2 = query("SELECT name FROM arm WHERE id = ?", [c2])
+  assert_eq(n2[0].name, "rota-2")
+  // Two more completed sessions: 12 sessions / 120 minutes — both
+  // thresholds met, the best-prior hand returns as the candidate.
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-11', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-06-12', 'morning', (SELECT id FROM arm WHERE name = 'rota-1'), 'completed')", [])
+  let c3 = rotation_candidate("rota")
+  let n3 = query("SELECT name FROM arm WHERE id = ?", [c3])
+  assert_eq(n3[0].name, "rota-1")
 }
 
 test "Н3-06 rot: an incomplete slot is never rotated; methods waits for the owner's confirm" {

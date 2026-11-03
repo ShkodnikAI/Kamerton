@@ -29,6 +29,11 @@
   input[type="text"] { background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; padding: 10px; font-size: 15px; }
   select { background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; padding: 8px; font-size: 14px; max-width: 100%; }
   textarea { background: #1a1d24; color: var(--fg); border: 1px solid #2a2e37; border-radius: 8px; padding: 10px; font-size: 14px; width: 100%; }
+  .stop-fab { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--err); color: #fff; border: 0; border-radius: 24px; padding: 12px 18px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .overlay { position: fixed; inset: 0; background: rgba(10,12,16,.94); z-index: 70; display: none; overflow: auto; }
+  .overlay.on { display: block; }
+  .overlay .card { max-width: 480px; margin: 8vh auto; }
+  .contra { color: var(--err); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -100,6 +105,18 @@
 </section>
 
 <p id="status"></p>
+
+<button class="stop-fab" onclick="emergencyStop()">■ Стоп</button>
+
+<div class="overlay" id="disclaimer-overlay">
+  <div class="card">
+    <p><b>Прежде чем начать</b></p>
+    <p class="lbl" style="margin-top:8px">Камертон — инструмент самонаблюдения и практики, не медицинская услуга. Практики могут включать управляемое дыхание с задержками, длинные паузы и интенсивные визуализации.</p>
+    <p class="lbl" style="margin-top:8px">Противопоказания каждой практики показываются перед стартом; практики класса C требуют отдельной записи согласия и не назначаются без неё. Открытие практик идёт по числу завершённых сессий и минут системы — уровень не разблокируется вручную.</p>
+    <p class="lbl" style="margin-top:8px">Принимая, ты подтверждаешь, что противопоказаний у тебя нет, и берёшь ответственность за своё состояние на себя. Запись идемпотентна: согласие сохраняется один раз (consent: disclaimer:v1).</p>
+    <div class="row"><button class="act" onclick="acceptConsent()">Принимаю</button></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -329,8 +346,10 @@ function loadPlan() {
         var r = rows[i];
         var done = r.status === "done";
         var src = r.source === "recommendation" ? "рекомендация" : "выбор владельца";
+        // Н4-07: противопоказания видны ДО старта — строкой под практикой.
+        var contra = r.contra ? "<div class='contra'>⚠ Противопоказания: " + esc(r.contra) + " — начинай только если они к тебе не относятся.</div>" : "";
         html += "<div class='plan-row" + (done ? " done" : "") + "'><span>" + esc(r.name) +
-          " <span class='lbl'>(" + src + (done ? ", сделано" : "") + ")</span></span>" +
+          " <span class='lbl'>(" + src + (done ? ", сделано" : "") + ")</span>" + contra + "</span>" +
           (done ? "" : " <button class='act sec' onclick='planDone(" + r.id + ")'>Сделано</button>") + "</div>";
         opts += "<option value=\"" + r.id + "\"" + (String(r.id) === selKeep ? " selected" : "") + ">" + esc(r.name) + "</option>";
       }
@@ -342,13 +361,20 @@ function loadPlan() {
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
 
+var catalogByName = {};
 function loadCatalog() {
   return get("/miniapp/catalog")
     .then(function (res) {
       if (res.code !== 200) { return; }
       var rows = JSON.parse(res.body);
       var opts = "";
-      for (var i = 0; i < rows.length; i++) { opts += "<option value=\"" + esc(rows[i].name) + "\">"; }
+      catalogByName = {};
+      for (var i = 0; i < rows.length; i++) {
+        opts += "<option value=\"" + esc(rows[i].name) + "\">";
+        // Н4-07: поверхность безопасности каталога — противопоказания и
+        // состояние допуска уровня (информация для владельца).
+        catalogByName[rows[i].name] = { contra: rows[i].contra || "", locked: rows[i].locked === 1 };
+      }
       document.getElementById("catalog-names").innerHTML = opts;
     })
     .catch(function (e) { /* каталог — подсказка, не критичный путь */ });
@@ -358,6 +384,12 @@ function planAdd() {
   var input = document.getElementById("plan-add-input");
   var name = input.value.trim();
   if (!name) { status("Введите фрагмент названия практики", "err"); return; }
+  // Н4-07: поверхность безопасности ДО старта — из каталога (contra и
+  // допуск уровня). План остаётся свободным выбором владельца; замок —
+  // информация: в АКТИВНЫЙ набор запертая практика не попадёт.
+  var c = catalogByName[name];
+  if (c && c.locked) { status("Практика ещё не открыта: допуск системы (сессии/минуты) не выполнен — в активный набор она не попадёт. Свободная сессия возможна.", "warn"); }
+  else if (c && c.contra) { status("Противопоказания: " + c.contra + " — начинай только если они к тебе не относятся.", "warn"); }
   api("/miniapp/plan/add", { name: name })
     .then(function (res) {
       if (res.code === 403 && res.body.indexOf("CSRF") >= 0) { location.reload(); return; }
@@ -672,6 +704,51 @@ function ppgSave() {
     })
     .catch(function (e) { status("Ошибка сети: " + e, "err"); });
 }
+// ── Н4-07: дисклеймер и экстренная остановка ─────────────────────────
+function checkDisclaimer() {
+  return get("/miniapp/consent")
+    .then(function (res) {
+      if (res.code !== 200) { return; }
+      var d = JSON.parse(res.body);
+      if (d.disclaimer === 0) {
+        document.getElementById("disclaimer-overlay").className = "overlay on";
+      }
+    })
+    .catch(function (e) { /* отказ сети не открывает и не закрывает оверлей */ });
+}
+function acceptConsent() {
+  api("/miniapp/consent")
+    .then(function (res) {
+      if (res.code !== 200) { status("Дисклеймер: отказ сервера " + res.code, "err"); return; }
+      var d = JSON.parse(res.body);
+      document.getElementById("disclaimer-overlay").className = "overlay";
+      status(d.recorded === 1 ? "Дисклеймер принят и записан (consent: disclaimer:v1)." : "Дисклеймер уже был принят — запись не изменилась (идемпотентно).", "ok");
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+// Экстренная остановка — доступна всегда (кнопка на всех экранах, общая
+// с Н4-04). Локально: стоп пейсерa/шага, камеры и записи PPG; на
+// сервере: проба дня уходит в статус stopped (позже «пропуска» не
+// фабрикуются). Идемпотентно: повторный вызов ничего не останавливает.
+function emergencyStop() {
+  cancelAnimationFrame(rafId);
+  document.getElementById("pacer-timer").textContent = "\u00a0";
+  sweepStopCam();
+  ppgStop();
+  return api("/miniapp/stop")
+    .then(function (res) {
+      if (res.code !== 200) { status("Стоп: отказ сервера " + res.code, "err"); return; }
+      var d = JSON.parse(res.body);
+      show("day");
+      if (d.stopped === 1) {
+        status("Экстренная остановка: проба дня остановлена (статус stopped, окно закрыто). Пейсер, камера и запись остановлены.", "ok");
+      } else {
+        status("Экстренная остановка: открытой пробы не было. Пейсер, камера и запись остановлены.", "ok");
+      }
+    })
+    .catch(function (e) { status("Ошибка сети: " + e, "err"); });
+}
+checkDisclaimer();
 </script>
 </body>
 </html>
