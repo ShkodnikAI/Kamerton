@@ -134,6 +134,7 @@ pins = [
     ("practice_profile", "CREATE TABLE IF NOT EXISTS practice_profile (id INTEGER"),
     ("day_plan",         "CREATE TABLE IF NOT EXISTS day_plan (id INTEGER"),
     ("free_journal",     "CREATE TABLE IF NOT EXISTS free_journal (id INTEGER"),
+    ("practice_admission", "CREATE TABLE IF NOT EXISTS practice_admission (id INTEGER"),
 ]
 for table, pin_a in pins:
     pin_m = "CREATE TABLE IF NOT EXISTS " + table + " ("

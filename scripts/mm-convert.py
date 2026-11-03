@@ -14,6 +14,10 @@
                                  протокола, длительность, класс по данным)
   seeds/mm/scripts.json        — textKey → текст (все тексты сценариев)
   seeds/mm/voice-manifest.json — textKey → {файл, SHA-256, длительность, размер}
+  seeds/mm/progression.json    — Н4-07: правила допуска по системам
+                                 (src/content/systems/*/progression.ts @ 2a26e75):
+                                 плоский список [{system, level, sessions, minutes}];
+                                 уровни ≥ 2 (уровень 1 всегда открыт)
 
 Проверки по образцу validate-content MIND-MASTERY:
   1) все textKey сегментов TS есть в ru.json; нет сиротских ключей JSON;
@@ -435,6 +439,45 @@ def checks(practices, scripts, manifest, ts_text_keys, voice_keys, all_texts):
     return errors
 
 
+# Н4-07: правила допуска MIND-MASTERY — единственный источник правды,
+# src/content/systems/<system>/progression.ts @ 2a26e75. Формат правил
+# стабильный: {levelRequired, minCompletedSessions, minTotalMinutes,
+# description}; допуск по уровню = И сессии И минуты (checkUnlock.ts:
+# "Both conditions must be met (AND logic)"); уровень 1 всегда открыт
+# (правил для него в источнике нет).
+PROG_RE = re.compile(
+    r"levelRequired\s*:\s*(\d+)\s*,\s*minCompletedSessions\s*:\s*(\d+)\s*,\s*minTotalMinutes\s*:\s*(\d+)")
+
+
+def extract_progression(source):
+    """Читает шесть progression.ts и возвращает ПЛОСКИЙ список правил
+    [{system, level, sessions, minutes}] — системы в порядке SYSTEMS,
+    уровни по возрастанию. Плоский список — для сид-цикла seed_mm_catalog
+    (каждая строка = один INSERT). Файл без правил — ошибка (у всех шести
+    систем правила есть)."""
+    rows = []
+    for system in SYSTEMS:
+        path = os.path.join(source, "src", "content", "systems", system, "progression.ts")
+        text = read(path)
+        rules = [
+            {"level": int(m.group(1)), "sessions": int(m.group(2)), "minutes": int(m.group(3))}
+            for m in PROG_RE.finditer(text)
+        ]
+        if not rules:
+            raise SystemExit("FAIL: прогрессия системы %s пуста (%s)" % (system, path))
+        rules.sort(key=lambda r: r["level"])
+        levels = [r["level"] for r in rules]
+        if len(set(levels)) != len(levels):
+            raise SystemExit("FAIL: дубликаты уровней в прогрессии %s" % system)
+        if any(l < 2 or l > 5 for l in levels):
+            raise SystemExit("FAIL: уровень вне 2..5 в прогрессии %s" % system)
+        if any(r["sessions"] <= 0 or r["minutes"] <= 0 for r in rules):
+            raise SystemExit("FAIL: неположительный порог в прогрессии %s" % system)
+        for r in rules:
+            rows.append({"system": system, "level": r["level"], "sessions": r["sessions"], "minutes": r["minutes"]})
+    return rows
+
+
 def dumps(obj):
     return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
 
@@ -450,19 +493,22 @@ def main():
 
     practices, scripts, manifest, ts_text_keys, voice_keys = convert(SOURCE)
     all_texts = load_texts(SOURCE)
+    progression = extract_progression(SOURCE)
     errors = checks(practices, scripts, manifest, ts_text_keys, voice_keys, all_texts)
     if errors:
         print("FAIL: %d ошибок(и):" % len(errors))
         for e in errors:
             print("  ✗ " + e)
         sys.exit(1)
-    print("OK: %d практик, %d voice-сегментов, %d текстов, %d записей манифеста, 0 расхождений"
-          % (len(practices), len(voice_keys), len(scripts), len(manifest)))
+    n_rules = len(progression)
+    print("OK: %d практик, %d voice-сегментов, %d текстов, %d записей манифеста, 0 расхождений; прогрессий: %d правил в 6 системах"
+          % (len(practices), len(voice_keys), len(scripts), len(manifest), n_rules))
 
     blobs = {
         "practices.json": dumps(practices),
         "scripts.json": dumps(scripts),
         "voice-manifest.json": dumps(manifest),
+        "progression.json": dumps(progression),
     }
     if ns.verify:
         bad = []
@@ -475,7 +521,7 @@ def main():
         if bad:
             print("VERIFY FAIL: " + "; ".join(bad))
             sys.exit(1)
-        print("VERIFY OK: все три файла побайтно равны регенерации")
+        print("VERIFY OK: все четыре файла побайтно равны регенерации")
         return
     os.makedirs(ns.out, exist_ok=True)
     for name, content in blobs.items():

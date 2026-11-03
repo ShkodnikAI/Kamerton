@@ -83,6 +83,57 @@ schema kamerton {
     detail: String default(""),
     created_at: String default(now())
   }
+
+  // Н4-07: the admission gate reads trial (the unit of the admission —
+  // completed sessions of the system) and practice_profile (the MM
+  // system/level of the hand). note rides along: trial references it.
+  // Declarations byte-identical to the store module and ensure_schema.
+  table note {
+    id: Int primary_key auto_increment,
+    body: String,
+    active: Int default("1"),
+    created_at: String default(now())
+  }
+  table trial {
+    id: Int primary_key auto_increment,
+    trial_date: String,
+    day_window: String,
+    arm_id: Int references(arm.id),
+    note_id: Int references(note.id),
+    status: String default("proposed"),
+    prediction_depth: Float default("0.0"),
+    prediction_confidence: Float default("0.0"),
+    moment_value: Float default("0.0"),
+    moment_present: Int default("0"),
+    moment_source: String default(""),
+    next_day_value: Float default("0.0"),
+    next_day_present: Int default("0"),
+    action_value: Float default("0.0"),
+    action_present: Int default("0"),
+    reward: Float default("0.0"),
+    free_note: String default(""),
+    closed_at: String default(""),
+    created_at: String default(now())
+  }
+  table practice_profile {
+    id: Int primary_key auto_increment,
+    arm_id: Int references(arm.id),
+    system: String default(""),
+    level: Int default("0"),
+    declared_min: Float default("0.0"),
+    created_at: String default(now())
+  }
+  // practice_admission: the per-system level rules (Н4-07, the source
+  // progression.ts @ 2a26e75 via seeds/mm/progression.json). UNIQUE
+  // (system, level) — the seed and ensure_schema create the index.
+  table practice_admission {
+    id: Int primary_key auto_increment,
+    system: String default(""),
+    level: Int default("0"),
+    min_sessions: Float default("0.0"),
+    min_minutes: Float default("0.0"),
+    created_at: String default(now())
+  }
 }
 
 // ── APP-MIRROR-START: arms-seed (byte-identical to
@@ -368,11 +419,27 @@ pattern protocol_cycles(arm_id: Float) -> Float {
 // 'methods-cap-armed'); until then the slot stays uncapped (the owner
 // explores the set). Every admission and every refusal is JOURNALED
 // with its actor (who, when via created_at, what) — no silent state
-// change. Returns "ok" | "unknown-arm" | "slot-full".
+// change.
+//
+// Н4-07 (правило владельца, Шаг 0 наряда #99, утверждено 2026-11-02):
+// уровни MIND-MASTERY 1–5 — условие входа практики в активный набор ПО
+// ЧИСЛУ ЗАВЕРШЁННЫХ СЕССИЙ И МИНУТ СИСТЕМЫ, а не ручной разблокировкой.
+// Запертая рука НЕ активируется и вручную: громкий отказ "locked" +
+// строка журнала, состояние не меняется. Руки без practice_profile
+// (AERIS breath/methods волны 1) допуску не подчиняются.
+// Returns "ok" | "unknown-arm" | "slot-full" | "locked".
 pattern activate_arm(arm_id: Float, actor: String) -> String {
   let arm = query("SELECT id FROM arm WHERE id = ?", [arm_id])
   if len(arm) == 0.0 {
     return "unknown-arm"
+  }
+  // Н4-07: the admission gate BEFORE everything else — a locked hand
+  // never enters the active set by hand (the rule of the owner: by
+  // system progress, not by manual unlocking). Loud refusal + journal
+  // row, nothing changed.
+  if mm_admission_ok(arm_id) == false {
+    let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action, detail) VALUES (?, ?, 'arm-on-refused', 'admission-locked')", [actor, arm_id])
+    return "locked"
   }
   let prot = query("SELECT slot FROM practice_protocol WHERE arm_id = ?", [arm_id])
   if len(prot) > 0.0 {
@@ -405,6 +472,30 @@ pattern deactivate_arm(arm_id: Float, actor: String) -> Float {
   let _ = db_execute("UPDATE arm SET active = 0 WHERE id = ?", [arm_id])
   let _ = db_execute("INSERT INTO arm_journal (actor, arm_id, action) VALUES (?, ?, 'arm-off')", [actor, arm_id])
   return 1.0
+}
+
+// ── Н4-07: допуск практики — условие входа в активный набор ──────────
+// Правило владельца (наряд #99, Шаг 0, утверждено 2026-11-02): уровни
+// MIND-MASTERY 1–5 открываются ПО ЧИСЛУ ЗАВЕРШЁННЫХ СЕССИЙ И МИНУТ
+// СИСТЕМЫ, а не ручной разблокировкой. Единица допуска — trial (юнит
+// системы): status = 'completed' у рук этой системы; минуты сессии —
+// длительность практики (arm.duration_min, как в MIND-MASTERY).
+// Семантика источника (checkUnlock.ts @ 2a26e75): уровень 1 всегда
+// открыт; нет правила для (system, level) — открыто ("No rule for this
+// level means it's unlocked"); допуск = И сессии И минуты. Руки без
+// practice_profile (AERIS breath/methods волны 1) допуску не
+// подчиняются — их путь не меняется. Предикат живёт и в
+// rotation_candidate (src/bandit/bandit.mlog) теми же SQL-литералами —
+// двойная запись ЗАЯВЛЕНА (bandit-канон самодостаточен), обе стороны
+// пинятся тестами (arms: mm_admission_ok; bandit: пропуск запертого
+// кандидата ротацией).
+pattern mm_admission_locked(arm_id: Float) -> Float {
+  let rows = query("SELECT count(*) AS n FROM arm a JOIN practice_profile pp ON pp.arm_id = a.id WHERE a.id = ? AND pp.level >= 2 AND EXISTS (SELECT 1 FROM practice_admission pa WHERE pa.system = pp.system AND pa.level = pp.level) AND ((SELECT count(*) FROM trial t JOIN arm a2 ON a2.id = t.arm_id JOIN practice_profile pp2 ON pp2.arm_id = a2.id WHERE pp2.system = pp.system AND t.status = 'completed') < (SELECT pa1.min_sessions FROM practice_admission pa1 WHERE pa1.system = pp.system AND pa1.level = pp.level) OR (SELECT coalesce(sum(a3.duration_min), 0) FROM trial t3 JOIN arm a3 ON a3.id = t3.arm_id JOIN practice_profile pp3 ON pp3.arm_id = a3.id WHERE pp3.system = pp.system AND t3.status = 'completed') < (SELECT pa2.min_minutes FROM practice_admission pa2 WHERE pa2.system = pp.system AND pa2.level = pp.level))", [arm_id])
+  return rows[0].n
+}
+
+pattern mm_admission_ok(arm_id: Float) -> Bool {
+  return mm_admission_locked(arm_id) == 0.0
 }
 
 // Н3-05 (задача 4): the OWNER's confirmation of the `methods` active
@@ -616,14 +707,21 @@ pattern seed_mm_catalog() -> Float {
   let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_script_key_unique ON practice_script(text_key)", [])
   let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, arm_id INTEGER REFERENCES arm(id), system TEXT DEFAULT '', level INTEGER DEFAULT '0', declared_min REAL DEFAULT '0.0', created_at TEXT DEFAULT (datetime('now')))", [])
   let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_arm_unique ON practice_profile(arm_id)", [])
+  // Н4-07: the admission rules of the MIND-MASTERY systems — the entry
+  // gate of the active set. Byte-identical to ensure_schema (db-cycle)
+  // and to the operator mirror migrations/0001_init.sql — pinned by
+  // verify-mirrors (the ddl-pin practice_admission).
+  let _ = db_execute("CREATE TABLE IF NOT EXISTS practice_admission (id INTEGER PRIMARY KEY AUTOINCREMENT, system TEXT DEFAULT '', level INTEGER DEFAULT '0', min_sessions REAL DEFAULT '0.0', min_minutes REAL DEFAULT '0.0', created_at TEXT DEFAULT (datetime('now')))", [])
+  let _ = db_execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_admission_system_level_unique ON practice_admission(system, level)", [])
   let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('attention', 3)", [])
   let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('body', 3)", [])
   let _ = db_execute("INSERT OR IGNORE INTO slot (name, max_active) VALUES ('visualization', 3)", [])
   let raw_practices = mm_read_data("practices.json")
   let raw_scripts = mm_read_data("scripts.json")
   let raw_voice = mm_read_data("voice-manifest.json")
-  if raw_practices == "" or raw_scripts == "" or raw_voice == "" {
-    print("seed_mm_catalog: data/mm-seed/ и seeds/mm/ не читаются — каталог сценариев НЕ засеян (громкий отказ, Н4-02; оператор: cp seeds/mm/*.json data/mm-seed/)")
+  let raw_admission = mm_read_data("progression.json")
+  if raw_practices == "" or raw_scripts == "" or raw_voice == "" or raw_admission == "" {
+    print("seed_mm_catalog: data/mm-seed/ и seeds/mm/ не читаются — каталог сценариев и правила допуска НЕ засеяны (громкий отказ, Н4-02/Н4-07; оператор: cp seeds/mm/*.json data/mm-seed/)")
     return 0.0
   }
   let practices = parse_json(raw_practices)
@@ -662,6 +760,15 @@ pattern seed_mm_catalog() -> Float {
     // is NOT in the converted data (mm-convert, Н4-01) — declared in
     // the PR, the description is what the source carries
     let _ = db_execute("INSERT OR IGNORE INTO practice_script (text_key, body) VALUES (?, ?)", [p.id + ".about", p.description])
+  }
+  // Н4-07: the admission rules — practice_admission (UNIQUE(system,
+  // level) + INSERT OR IGNORE: a reseed changes nothing). The source is
+  // progression.json (mm-convert из progression.ts @ 2a26e75); допуск =
+  // И сессии И минуты (checkUnlock.ts). 21 правило / 6 систем / уровни
+  // 2..5 — пинится тестом ниже.
+  let admission = parse_json(raw_admission)
+  each r in admission {
+    let _ = db_execute("INSERT OR IGNORE INTO practice_admission (system, level, min_sessions, min_minutes) VALUES (?, ?, ?, ?)", [r.system, to_float(r.level), to_float(r.sessions), to_float(r.minutes)])
   }
   return n_segments
 }
@@ -1238,4 +1345,95 @@ test "Н4-02: priors stay wide with honest sources; only coherent breath claims 
   assert_eq(wide[0].n, 0.0)
   let generic = query("SELECT count(*) AS n FROM practice_protocol p JOIN practice_profile prof ON prof.arm_id = p.arm_id WHERE p.source LIKE '%нет источника: широкий приор%' AND p.steps_json = '[]'", [])
   assert_eq(generic[0].n, 71.0)
+}
+
+// ── Н4-07 tests: the admission gate (условие входа в активный набор) ───
+
+test "Н4-07: the admission rules seed — 21 rules in 6 systems, levels 2..5, reseed is a no-op" {
+  seed_mm_catalog()
+  let _ = seed_mm_catalog()
+  let total = query("SELECT count(*) AS n FROM practice_admission", [])
+  assert_eq(total[0].n, 21.0)
+  let l1 = query("SELECT count(*) AS n FROM practice_admission WHERE level < 2", [])
+  assert_eq(l1[0].n, 0.0)
+  let breath = query("SELECT count(*) AS n FROM practice_admission WHERE system = 'breath'", [])
+  assert_eq(breath[0].n, 3.0)
+  let dispenza = query("SELECT count(*) AS n FROM practice_admission WHERE system = 'dispenza'", [])
+  assert_eq(dispenza[0].n, 4.0)
+  let domfreq = query("SELECT count(*) AS n FROM practice_admission WHERE system = 'domfreq'", [])
+  assert_eq(domfreq[0].n, 3.0)
+  let feldenkrais = query("SELECT count(*) AS n FROM practice_admission WHERE system = 'feldenkrais'", [])
+  assert_eq(feldenkrais[0].n, 3.0)
+  let silva = query("SELECT count(*) AS n FROM practice_admission WHERE system = 'silva'", [])
+  assert_eq(silva[0].n, 4.0)
+  let trans = query("SELECT count(*) AS n FROM practice_admission WHERE system = 'transurfing'", [])
+  assert_eq(trans[0].n, 4.0)
+  // The source pins (progression.ts @ 2a26e75): transurfing level 5 is
+  // 40 sessions / 600 minutes; breath level 2 is 3 / 30.
+  let t5 = query("SELECT min_sessions AS s, min_minutes AS m FROM practice_admission WHERE system = 'transurfing' AND level = 5", [])
+  assert_eq(t5[0].s, 40.0)
+  assert_eq(t5[0].m, 600.0)
+  let b2 = query("SELECT min_sessions AS s, min_minutes AS m FROM practice_admission WHERE system = 'breath' AND level = 2", [])
+  assert_eq(b2[0].s, 3.0)
+  assert_eq(b2[0].m, 30.0)
+}
+
+test "Н4-07: a level-3 practice stays out of the active set until the system admission is met" {
+  // The naryad test. The fixture: one transurfing hand normalized to a
+  // 10-minute duration, so 12 completed trials = 12 sessions / 120
+  // minutes — exactly the transurfing level-3 rule (10 / 120).
+  seed_mm_catalog()
+  let rows = query("SELECT pp.arm_id AS id FROM practice_profile pp WHERE pp.system = 'transurfing' AND pp.level = 3 ORDER BY pp.arm_id LIMIT 1", [])
+  let aid = rows[0].id
+  let _ = db_execute("UPDATE arm SET duration_min = 10, active = 0 WHERE id = ?", [aid])
+  // Locked: nothing met. The refusal is LOUD (the 'locked' string) and
+  // journaled; the hand stays inactive.
+  assert_eq(activate_arm(aid, "test-н4-07"), "locked")
+  let act1 = query("SELECT active FROM arm WHERE id = ?", [aid])
+  assert_eq(act1[0].active, 0.0)
+  let jrnl = query("SELECT count(*) AS n FROM arm_journal WHERE arm_id = ? AND action = 'arm-on-refused' AND detail = 'admission-locked'", [aid])
+  assert_eq(jrnl[0].n, 1.0)
+  // 9 completed sessions: 90 minutes pass the minutes rule, the session
+  // count does not — the gate stays closed (И сессии И минуты).
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-01', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-02', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-03', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-04', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-05', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-06', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-07', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-08', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-09', 'morning', ?, 'completed')", [aid])
+  assert_eq(mm_admission_ok(aid), false)
+  assert_eq(activate_arm(aid, "test-н4-07"), "locked")
+  // Missed trials are NOT sessions: three misses on top change nothing.
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-10', 'morning', ?, 'missed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-11', 'morning', ?, 'missed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-12', 'morning', ?, 'missed')", [aid])
+  assert_eq(mm_admission_ok(aid), false)
+  // 12 completed sessions / 120 minutes — the rule is met, the hand
+  // enters the active set by hand (the unlocked path).
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-13', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-14', 'morning', ?, 'completed')", [aid])
+  let _ = db_execute("INSERT INTO trial (trial_date, day_window, arm_id, status) VALUES ('2042-05-15', 'morning', ?, 'completed')", [aid])
+  assert_eq(mm_admission_ok(aid), true)
+  assert_eq(activate_arm(aid, "test-н4-07"), "ok")
+  let act2 = query("SELECT active FROM arm WHERE id = ?", [aid])
+  assert_eq(act2[0].active, 1.0)
+}
+
+test "Н4-07: level 1 is always open; a hand without a profile is not gated" {
+  seed_mm_catalog()
+  // A level-1 MM practice: the gate is open with ZERO sessions.
+  let rows = query("SELECT pp.arm_id AS id FROM practice_profile pp WHERE pp.level = 1 ORDER BY pp.arm_id LIMIT 1", [])
+  let l1 = rows[0].id
+  assert_eq(mm_admission_ok(l1), true)
+  // A wave-1 hand (AERIS breath, no practice_profile row): the gate
+  // does not apply — the Н3-01 path is unchanged.
+  let aer = query("SELECT id FROM arm WHERE name = 'breath-diaphragmatic'", [])
+  assert_eq(len(aer), 1.0)
+  assert_eq(mm_admission_ok(aer[0].id), true)
+  // An unknown id: the count-form returns 0 locked rows — the gate is
+  // open; the caller's own unknown-arm refusal handles the miss.
+  assert_eq(mm_admission_ok(999999.0), true)
 }
