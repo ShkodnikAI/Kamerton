@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kamerton M1 wave-2 deploy driver (Н2-08 + Н2-09 + mlog v0.38.1 pin, PR #68/#69/#87/#89).
+# Kamerton M1 wave-2 deploy driver (Н2-08 + Н2-09 + mlog v0.38.2 pin, PR #68/#69/#87/#89/#111).
 #
 # One-shot: stop-crane -> backup -> pull -> install.sh -> env -> restart ->
 # live checks -> backup. Made for the owner running from PowerShell:
@@ -67,10 +67,10 @@ else
 fi
 
 # --- 4/9 install.sh ---------------------------------------------------------
-step "4/9 install.sh (mlog v0.38.1 + свежий app.mlog + юниты)"
+step "4/9 install.sh (mlog v0.38.2 + свежий app.mlog + юниты)"
 sudo bash "$REPO_DIR/deploy/install.sh"
-mlog --version 2>/dev/null | grep -q "0.38.1" || die "mlog --version не показал 0.38.1 после install.sh"
-echo "ok: mlog на 0.38.1"
+mlog --version 2>/dev/null | grep -q "0.38.2" || die "mlog --version не показал 0.38.2 после install.sh"
+echo "ok: mlog на 0.38.2"
 
 # --- 5/9 env ---------------------------------------------------------------
 step "5/9 env: KAMERTON_MINIAPP_TOKEN + allowlist"
