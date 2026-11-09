@@ -325,6 +325,96 @@ entity kamerton_protocols: List = [
    steps: [
      {phase: "forced_exhale", sec: 1.0, intensity: 1.0, cue: "резкий выдох животом"},
      {phase: "inhale", sec: 1.0, intensity: 0.3, cue: "пассивный вдох"}
+   ]},
+  {name: "movement-six-keys", group_name: "Движение: 6 ключей", slot: "methods", day_window: "morning", safety_class: "B", requires_consent: 0.0, max_hold_sec: 5.0, session_min: 12.0, prior_mean: 0.45, prior_std: 0.2,
+   source: "Традиционная гимнастика (цигун/тайцзи-подобная), движения и счёт из видео владельца. Эффекта на теломеры/теломеразу НЕ доказано; источник доказательств для самих движений нет — широкий приор",
+   contraindications: "",
+   instruction: "Встань, ноги на ширине плеч, колени мягкие; рядом стена или опора. 1) Руки вверх: вдох 5 секунд, поднимая руки ладонями вверх, задержка 5, выдох 5 с опусканием рук; 5 раз. 2) Равновесие: колено к животу, 30 секунд на каждой ноге, 3 подхода; качаешься — это нормально. 3) Простукивание: 3 минуты подушечками пальцев от центра груди к плечам и по рукам, в такт дыханию. 4) Скрутка: бёдра на месте, поворот корпуса, один цикл дыхания 5-5-5 в крайней точке, по 5 раз в каждую сторону. 5) Полуприсед: ладони внизу живота, вдох и задержка 5 секунд, на выдохе чуть согни колени, на вдохе вернись; 5 раз. 6) Ладони перед грудью: 3 цикла дыхания, лёгкое нажатие на выдохе. В конце минута свободного дыхания. Закружилась голова — выдохни и сядь; задержку можно убрать (дыши свободно). Это спокойная гимнастика, а не лечение.",
+   series: {reps: 1.0, rest_sec: 0.0},
+   steps: [
+     {phase: "prep", sec: 30.0, intensity: 0.1, cue: "встань, ноги на ширине плеч, колени мягкие; рядом стена или опора"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 1: вдох 5 секунд — руки вверх ладонями вверх"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 1: задержка 5 секунд — руки вверху"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 1: выдох 5 секунд — руки вниз"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 1: вдох 5 секунд — руки вверх ладонями вверх"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 1: задержка 5 секунд — руки вверху"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 1: выдох 5 секунд — руки вниз"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 1: вдох 5 секунд — руки вверх ладонями вверх"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 1: задержка 5 секунд — руки вверху"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 1: выдох 5 секунд — руки вниз"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 1: вдох 5 секунд — руки вверх ладонями вверх"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 1: задержка 5 секунд — руки вверху"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 1: выдох 5 секунд — руки вниз"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 1: вдох 5 секунд — руки вверх ладонями вверх"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 1: задержка 5 секунд — руки вверху"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 1: выдох 5 секунд — руки вниз"},
+     {phase: "move", sec: 30.0, intensity: 0.4, cue: "ключ 2: равновесие — колено к животу, левая нога, дышать ровно"},
+     {phase: "rest", sec: 5.0, intensity: 0.1, cue: "отдых 5 секунд — спокойно поменяй ногу"},
+     {phase: "move", sec: 30.0, intensity: 0.4, cue: "ключ 2: равновесие — колено к животу, правая нога, дышать ровно"},
+     {phase: "rest", sec: 5.0, intensity: 0.1, cue: "отдых 5 секунд — спокойно поменяй ногу"},
+     {phase: "move", sec: 30.0, intensity: 0.4, cue: "ключ 2: равновесие — колено к животу, левая нога, дышать ровно"},
+     {phase: "rest", sec: 5.0, intensity: 0.1, cue: "отдых 5 секунд — спокойно поменяй ногу"},
+     {phase: "move", sec: 30.0, intensity: 0.4, cue: "ключ 2: равновесие — колено к животу, правая нога, дышать ровно"},
+     {phase: "rest", sec: 5.0, intensity: 0.1, cue: "отдых 5 секунд — спокойно поменяй ногу"},
+     {phase: "move", sec: 30.0, intensity: 0.4, cue: "ключ 2: равновесие — колено к животу, левая нога, дышать ровно"},
+     {phase: "rest", sec: 5.0, intensity: 0.1, cue: "отдых 5 секунд — спокойно поменяй ногу"},
+     {phase: "move", sec: 30.0, intensity: 0.4, cue: "ключ 2: равновесие — колено к животу, правая нога, дышать ровно"},
+     {phase: "move", sec: 180.0, intensity: 0.3, cue: "ключ 3: простукивание 3 минуты — подушечки пальцев, ключицы от центра к плечам, по рукам вниз и вверх, в такт дыханию"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса вправо на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса вправо на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса вправо на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса вправо на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса вправо на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса влево на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса влево на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса влево на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса влево на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: поворот корпуса влево на вдохе"},
+     {phase: "hold", sec: 5.0, intensity: 0.3, cue: "ключ 4: крайняя точка — цикл 5-5-5, бёдра неподвижны"},
+     {phase: "exhale", sec: 5.0, intensity: 0.3, cue: "ключ 4: возврат на выдохе"},
+     {phase: "inhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: вдох 5 секунд — ладони внизу живота"},
+     {phase: "hold", sec: 5.0, intensity: 0.4, cue: "ключ 5: задержка 5 секунд — колени чуть согнуты"},
+     {phase: "exhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: выдох 5 секунд — подъём"},
+     {phase: "inhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: вдох 5 секунд — ладони внизу живота"},
+     {phase: "hold", sec: 5.0, intensity: 0.4, cue: "ключ 5: задержка 5 секунд — колени чуть согнуты"},
+     {phase: "exhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: выдох 5 секунд — подъём"},
+     {phase: "inhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: вдох 5 секунд — ладони внизу живота"},
+     {phase: "hold", sec: 5.0, intensity: 0.4, cue: "ключ 5: задержка 5 секунд — колени чуть согнуты"},
+     {phase: "exhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: выдох 5 секунд — подъём"},
+     {phase: "inhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: вдох 5 секунд — ладони внизу живота"},
+     {phase: "hold", sec: 5.0, intensity: 0.4, cue: "ключ 5: задержка 5 секунд — колени чуть согнуты"},
+     {phase: "exhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: выдох 5 секунд — подъём"},
+     {phase: "inhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: вдох 5 секунд — ладони внизу живота"},
+     {phase: "hold", sec: 5.0, intensity: 0.4, cue: "ключ 5: задержка 5 секунд — колени чуть согнуты"},
+     {phase: "exhale", sec: 5.0, intensity: 0.4, cue: "ключ 5: выдох 5 секунд — подъём"},
+     {phase: "inhale", sec: 5.0, intensity: 0.2, cue: "ключ 6: ладони перед грудью — вдох 5 секунд"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 6: задержка 5 секунд"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 6: выдох 5 секунд — лёгкое нажатие ладонями"},
+     {phase: "inhale", sec: 5.0, intensity: 0.2, cue: "ключ 6: ладони перед грудью — вдох 5 секунд"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 6: задержка 5 секунд"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 6: выдох 5 секунд — лёгкое нажатие ладонями"},
+     {phase: "inhale", sec: 5.0, intensity: 0.2, cue: "ключ 6: ладони перед грудью — вдох 5 секунд"},
+     {phase: "hold", sec: 5.0, intensity: 0.2, cue: "ключ 6: задержка 5 секунд"},
+     {phase: "exhale", sec: 5.0, intensity: 0.2, cue: "ключ 6: выдох 5 секунд — лёгкое нажатие ладонями"},
+     {phase: "finish", sec: 60.0, intensity: 0.1, cue: "минута свободного дыхания — заметь ощущения"}
    ]}
 ]
 
@@ -863,18 +953,20 @@ test "unrolled seed matches the kamerton_arms list per arm" {
 //    the shared test database must still count exactly ten wave-1 arms
 //    while those run) ───────────────────────────────────────────────────
 
-test "Н3-01 catalog: eight practices, a replay is a no-op, every source is non-empty" {
+test "Н3-01 catalog: nine practices (8 AERIS breath + Н3-07 movement), a replay is a no-op, every source is non-empty" {
   seed_arms()
   let first = seed_catalog()
-  // Н3-05: the full protocol count is 18 — 8 breath + 10 methods rows
-  assert_eq(first, 18.0)
+  // Н3-05 + Н3-07: the full protocol count is 19 — 8 breath + 10 wave-1
+  // methods rows + 1 movement row (slot methods, with steps)
+  assert_eq(first, 19.0)
   let _ = seed_catalog()
   let n = query("SELECT count(*) AS n FROM practice_protocol", [])
-  assert_eq(n[0].n, 18.0)
+  assert_eq(n[0].n, 19.0)
   let arms = query("SELECT count(*) AS n FROM arm WHERE name LIKE 'breath-%' AND name NOT LIKE 'breath-resonance-%'", [])
   assert_eq(arms[0].n, 8.0)
   let methods = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods'", [])
-  assert_eq(methods[0].n, 10.0)
+  // Н3-07: the movement practice joins the methods slot (+1 row)
+  assert_eq(methods[0].n, 11.0)
   let empty = query("SELECT count(*) AS n FROM practice_protocol WHERE source = '' OR source IS NULL", [])
   assert_eq(empty[0].n, 0.0)
   // every BREATH catalog hand starts INACTIVE; the wave-1 methods hands
@@ -884,14 +976,16 @@ test "Н3-01 catalog: eight practices, a replay is a no-op, every source is non-
   let active_methods = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'methods' AND a.active = 1", [])
   assert_eq(active_methods[0].n, 10.0)
   let texts = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id JOIN practice_text t ON t.group_name = a.group_name WHERE t.body != ''", [])
-  assert_eq(texts[0].n, 18.0)
+  assert_eq(texts[0].n, 19.0)
 }
 
 test "Н3-01 catalog: cycles are DERIVED from session_min and fit it, for every breath practice" {
   seed_catalog()
-  // the `methods` rows carry EMPTY steps by design (instruction methods,
-  // not breath phases) — the cycle arithmetic applies to breath only
-  let rows = query("SELECT arm_id, session_min FROM practice_protocol WHERE steps_json != '[]' ORDER BY arm_id", [])
+  // the wave-1 `methods` rows carry EMPTY steps by design (instruction
+  // methods, not breath phases); the Н3-07 movement row is the ONE
+  // methods protocol WITH steps — a guided one-pass sequence, pinned
+  // separately below. The whole-units arithmetic applies to breath only.
+  let rows = query("SELECT arm_id, session_min FROM practice_protocol WHERE steps_json != '[]' AND slot = 'breath' ORDER BY arm_id", [])
   assert_eq(len(rows), 8.0)
   let mut bad = 0.0
   each r in rows {
@@ -911,6 +1005,17 @@ test "Н3-01 catalog: cycles are DERIVED from session_min and fit it, for every 
   let k = query("SELECT arm_id FROM practice_protocol WHERE steps_json LIKE '%forced_exhale%'", [])
   assert_eq(protocol_unit_sec(k[0].arm_id), 90.0)
   assert_eq(protocol_cycles(k[0].arm_id), 3.0)
+  // Н3-07: the movement protocol — ONE unfolded guided pass, 820 s =
+  // 30 + 75 (5x 5-5-5) + 205 (6x30 balance + 5x5 rest) + 180 + 150
+  // (10x 5-5-5 twist) + 75 (5x 5-5-5 half-squat) + 45 (3x 5-5-5) + 60.
+  // Declared 12 min; the whole pass (820 s) exceeds the budget (720 s,
+  // ratio 1.14 — inside the declared "около 12-13 мин" honesty), so
+  // WHOLE units fitting = 0 — the honest derived zero, never a
+  // fabricated cycle count.
+  let mv = query("SELECT p.arm_id AS arm_id FROM practice_protocol p JOIN arm a ON a.id = p.arm_id WHERE a.name = 'movement-six-keys'", [])
+  assert_eq(len(mv), 1.0)
+  assert_eq(protocol_unit_sec(mv[0].arm_id), 820.0)
+  assert_eq(protocol_cycles(mv[0].arm_id), 0.0)
   // Н3-05: an empty-steps `methods` protocol yields ZERO — never a
   // fabricated cycle count
   let m = query("SELECT arm_id FROM practice_protocol WHERE slot = 'methods' ORDER BY arm_id LIMIT 1", [])
@@ -1034,16 +1139,20 @@ test "Н3-05 methods slot: ten wave-1 hands join the slot with empty steps and t
   seed_catalog()
   let slot_rows = query("SELECT count(*) AS n FROM slot WHERE name = 'methods' AND max_active = 3", [])
   assert_eq(slot_rows[0].n, 1.0)
-  // every methods protocol: empty steps, no series, class A, no consent
-  // needed, its own literature source, one-to-one with its arm row
-  let empty_steps = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods' AND (steps_json != '[]' OR series_json != '')", [])
+  // every WAVE-1 methods protocol: empty steps, no series, class A, no
+  // consent needed, its own literature source, one-to-one with its arm
+  // row. Н3-07: the movement row is the ONE methods protocol WITH
+  // steps — excluded here, pinned by its own tests below.
+  let empty_steps = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods' AND (steps_json != '[]' OR series_json != '') AND arm_id NOT IN (SELECT id FROM arm WHERE name = 'movement-six-keys')", [])
   assert_eq(empty_steps[0].n, 0.0)
   let class_a = query("SELECT count(*) AS n FROM practice_protocol WHERE slot = 'methods' AND safety_class = 'A' AND requires_consent = 0 AND max_hold_sec = 0", [])
   assert_eq(class_a[0].n, 10.0)
   let src = query("SELECT count(*) AS n FROM practice_protocol p JOIN arm a ON a.id = p.arm_id WHERE p.slot = 'methods' AND p.source != ''", [])
-  assert_eq(src[0].n, 10.0)
+  // Н3-07: +1 — the movement row carries its own honest source
+  assert_eq(src[0].n, 11.0)
   let joined = query("SELECT count(*) AS n FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE p.slot = 'methods'", [])
-  assert_eq(joined[0].n, 10.0)
+  // Н3-07: 10 wave-1 + 1 movement = 11
+  assert_eq(joined[0].n, 11.0)
 }
 
 test "Н3-05: the catalog listing carries slot, state and class for every hand" {
@@ -1074,8 +1183,10 @@ test "Н3-05: the catalog listing carries slot, state and class for every hand" 
     }
   }
   assert_eq(breath_active, 0.0)
+  // Н3-07: the movement hand is INACTIVE — the ten wave-1 hands keep
+  // their seeded ACTIVE state; the slot now carries 11 protocols
   assert_eq(methods_active, 10.0)
-  assert_eq(methods_count, 10.0)
+  assert_eq(methods_count, 11.0)
 }
 
 test "Н3-05: BEFORE the owner's confirm the methods cap is recorded but not enforced" {
@@ -1158,6 +1269,102 @@ test "Н3-05: the journal records who, when and what — readable by a plain sql
   assert_eq(len(refused), 1.0)
   assert_eq(refused[0].action, "arm-on-refused")
   assert_eq(refused[0].detail, "slot-full")
+}
+
+// ── Н3-07: «6 ключей» — одна строка каталога (movement, slot methods) ───
+// Решение владельца 2026-11-08 (#113): одна практика, все данные сидом,
+// рука НЕактивна; недоказанные утверждения исходника (теломераза,
+// «активирует», обещания лечения) в каталог не переносятся. Фазы
+// движения (prep/move/rest/finish) — НЕ дыхательные hold/pause: класс
+// B считается по дыхательным задержкам 5-5-5 (ключи 1, 4, 5, 6).
+
+test "Н3-07: the six-keys row — exactly one, inactive, methods slot, declared fields" {
+  seed_catalog()
+  let rows = query("SELECT count(*) AS n FROM arm WHERE name = 'movement-six-keys'", [])
+  assert_eq(rows[0].n, 1.0)
+  let _ = seed_catalog()
+  let again = query("SELECT count(*) AS n FROM arm WHERE name = 'movement-six-keys'", [])
+  assert_eq(again[0].n, 1.0)
+  let r = query("SELECT a.id AS id, a.active AS active, a.day_window AS dw, a.duration_min AS dur, a.prior_mean AS pm, a.prior_std AS ps, p.slot AS slot, p.safety_class AS cls, p.requires_consent AS rc, p.max_hold_sec AS hold, p.session_min AS smin, p.contraindications AS contra, p.series_json AS series FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE a.name = 'movement-six-keys'", [])
+  assert_eq(len(r), 1.0)
+  assert_eq(r[0].active, 0.0)
+  assert_eq(r[0].slot, "methods")
+  assert_eq(r[0].cls, "B")
+  assert_eq(r[0].rc, 0.0)
+  assert_eq(r[0].hold, 5.0)
+  assert_eq(r[0].smin, 12.0)
+  assert_eq(r[0].dur, 12.0)
+  assert_eq(r[0].pm, 0.45)
+  assert_eq(r[0].ps, 0.2)
+  assert_eq(r[0].dw, "morning")
+  assert_eq(r[0].contra, "")
+  let sr = parse_json(r[0].series)
+  assert_eq(sr.reps, 1.0)
+  // the group carries its instruction text (the practice_text body)
+  let t = query("SELECT count(*) AS n FROM practice_text WHERE group_name = 'Движение: 6 ключей' AND body != ''", [])
+  assert_eq(t[0].n, 1.0)
+  // never in the active set behind the owner's back: no 'arm-on' rows,
+  // the listing shows the hand inactive (eligible_arms reads active
+  // arms only — an inactive hand cannot enter the rotation)
+  let on = query("SELECT count(*) AS n FROM arm_journal WHERE arm_id = ? AND action = 'arm-on'", [r[0].id])
+  assert_eq(on[0].n, 0.0)
+  let listing = query("SELECT count(*) AS n FROM arm a LEFT JOIN practice_protocol p ON p.arm_id = a.id WHERE a.name = 'movement-six-keys' AND a.active = 0 AND p.slot = 'methods'", [])
+  assert_eq(listing[0].n, 1.0)
+}
+
+test "Н3-07: class B follows the DATA — the longest computed hold is the declared 5 s; one guided pass 820 s" {
+  seed_catalog()
+  let r = query("SELECT p.arm_id AS arm_id, p.steps_json AS steps, p.safety_class AS cls, p.max_hold_sec AS hold, p.requires_consent AS rc FROM arm a JOIN practice_protocol p ON p.arm_id = a.id WHERE a.name = 'movement-six-keys'", [])
+  let steps = parse_json(r[0].steps)
+  let mut count = 0.0
+  let mut longest = 0.0
+  let mut forced = false
+  let mut bad_intensity = false
+  let mut bad_class = false
+  each s in steps {
+    count = count + 1.0
+    if s.phase == "hold" or s.phase == "pause" {
+      if s.sec > longest {
+        longest = s.sec
+      }
+    }
+    if s.phase == "forced_exhale" {
+      forced = true
+    }
+    if s.intensity < 0.0 or s.intensity > 1.0 {
+      bad_intensity = true
+    }
+  }
+  // 83 unfolded steps: prep + 15 + 11 + 1 + 30 + 15 + 9 + finish
+  assert_eq(count, 83.0)
+  // the breath holds (keys 1, 4, 5, 6 — cycles 5-5-5) are exactly 5 s;
+  // the movement phases (prep/move/rest/finish) are NOT breath holds
+  assert_eq(longest, 5.0)
+  assert_eq(r[0].hold, 5.0)
+  assert_eq(forced, false)
+  assert_eq(bad_intensity, false)
+  // class B: holds present, ceiling 8 s, no forced breathing, consent 0
+  if longest <= 0.0 or longest > 8.0 or r[0].rc != 0.0 or forced == true or r[0].cls != "B" {
+    bad_class = true
+  }
+  assert_eq(bad_class, false)
+  // the one-pass arithmetic: 820 s, 0 whole units in the 12-min budget
+  assert_eq(protocol_unit_sec(r[0].arm_id), 820.0)
+  assert_eq(protocol_cycles(r[0].arm_id), 0.0)
+}
+
+test "Н3-07: no forbidden promises — the honest replacement text and the honest source" {
+  seed_catalog()
+  let t = query("SELECT body AS b FROM practice_text WHERE group_name = 'Движение: 6 ключей'", [])
+  assert_eq(len(t), 1.0)
+  // the banned claims of the source video are NOT in the catalog text
+  assert_eq(contains(t[0].b, "теломераза"), false)
+  assert_eq(contains(t[0].b, "активирует"), false)
+  assert_eq(contains(t[0].b, "лечит"), false)
+  // the honest disclaimer IS in, and the source carries the no-claim
+  assert_eq(contains(t[0].b, "не лечение"), true)
+  let p = query("SELECT source AS src FROM practice_protocol WHERE arm_id = (SELECT id FROM arm WHERE name = 'movement-six-keys')", [])
+  assert_eq(contains(p[0].src, "НЕ доказано"), true)
 }
 
 // ── Н4-02: the MIND-MASTERY script catalog (tests run after everything
