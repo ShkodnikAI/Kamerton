@@ -309,10 +309,14 @@ pattern m0_row(ln: String<public, trusted>) -> Float {
   if len(cols) < 5.0 {
     return -1.0
   }
-  let depth = to_float(trim(cols[2]))
-  let sleep_quality = to_float(trim(cols[3]))
+  // №950 (0.40.0): the read_file CSV is untrusted — the strings cross
+  // the escape bridge at the row build (byte-exact for the owner's
+  // non-HTML csv; the M0-import test pins the values), the numerics
+  // parse through the escaped projection.
+  let depth = to_float(escape_html(trim(cols[2])))
+  let sleep_quality = to_float(escape_html(trim(cols[3])))
   let free_note = trim(join(slice(cols, 4, len(cols)), ","))
-  let trow = {trial_date: trim(cols[0]), day_window: trim(cols[1]), status: "imported", free_note: free_note}
+  let trow = {trial_date: escape_html(trim(cols[0])), day_window: escape_html(trim(cols[1])), status: "imported", free_note: escape_html(free_note)}
   let tid = db_insert("trial", trow)
   let rrow = {trial_id: tid, kind: "moment", depth: depth, details: "M0 import"}
   db_insert("response", rrow)

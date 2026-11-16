@@ -531,7 +531,7 @@ pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float
 }
 // ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
 
-pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float, with_report: Bool) -> Unit {
+pattern process_updates(updates: List<public, untrusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float, with_report: Bool) -> Unit {
   // Н2-10: an answer belongs to the trial of the window its MESSAGE fell
   // into (message.date, the Telegram server clock), not to the window of
   // the tick that happens to drain it; a message without a date falls
@@ -551,16 +551,24 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
   let mut skipped = 0.0
   let mut last_id = 0 - 1.0
   each u in updates {
-    last_id = json_get(u, "update_id", 0.0)
+    last_id = to_float(escape_html(to_string(json_get(u, "update_id", 0.0))))
     let chat = to_string(json_get(u, "message.chat.id", 0.0))
     if escape_html(chat) == escape_html(chat_id) {
       let text = json_get(u, "message.text", "")
       if escape_html(text) != "" {
-        let ans = parse_chat_text(text)
+        // №950 (0.40.0): the untrusted drain text crosses the escape
+        // bridge AT THE CALL BOUNDARY — the interproc return summary
+        // carries the parameter's label, so the sanitizer sits where the
+        // hand-off happens (the answer grammar and Cyrillic survive
+        // byte-exact; HTML metacharacters degrade to their entities).
+        let ans = parse_chat_text(escape_html(text))
         // The message clock (Н2-10) — hoisted from the trial routing:
         // the day-plan commands bind to the day their MESSAGE fell
         // into, the same single clock as the answers.
-        let mut msg_ts = json_get(u, "message.date", 0.0)
+        // №950 (0.40.0): the numeric read crosses the escape bridge
+        // (byte-exact for numbers) — the untrusted label dies here,
+        // before the date cascade reaches any query or sink.
+        let mut msg_ts = to_float(escape_html(to_string(json_get(u, "message.date", 0.0))))
         if msg_ts <= 0.0 {
           msg_ts = now_ts
         }
@@ -627,7 +635,7 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
           // The chat journal carries no practice link (the Mini App one
           // binds the plan row) — mood + note for the day, silent like
           // the p:/m: answers.
-          let _ = free_journal_add(jday, 0.0, ans.value, escape_html(ans.text))
+          let _ = free_journal_add(jday, 0.0, ans.value, ans.text)
           plans = plans + 1.0
           processed = processed + 1.0
         }
@@ -777,7 +785,7 @@ pattern setup_register() -> Unit {
   // sweep removes the outdated copies by prompt.
   // Н2-13: the FOURTH job — the honesty valve's weekly report
   // (Monday 09:30 local).
-  let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+  let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
   let morning = cron_expr_for(420.0, off)
   let collect = cron_expr_for(1290.0, off)
   let evening = cron_expr_for(120.0, off)
@@ -2474,7 +2482,10 @@ pattern moment_seed_present() -> Bool {
   return present
 }
 pattern moment_hint_text() -> String {
-  return env_or("KAMERTON_MOMENT_TEXT", "")
+  // №950 (0.40.0): the owner's hint text rides the sanctioned redact
+  // bridge out of the barrier (№706 form: the label sheds, the value
+  // passes byte-exact — probe-pinned on prose).
+  return redact(env_or("KAMERTON_MOMENT_TEXT", ""), "secrets")
 }
 pattern moment_window_start() -> Float {
   return to_float_or(env_or("KAMERTON_MOMENT_START", "480"), 480.0)
@@ -2511,7 +2522,7 @@ pattern moment_tick_status() -> Float {
 pattern moment_tick_decide(today: String<public, trusted>) -> Float {
   let mut go = 0.0
   if moment_seed_present() == true {
-    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
     let p = date_parts(now_unix() + off * 3600.0)
     let local_min = p.hour * 60.0 + p.minute
     go = moment_send_once(today, local_min, moment_trigger(today), moment_window_end())
@@ -2742,10 +2753,14 @@ pattern tg_morning_tick() -> Unit {
   let _ = seed_mm_catalog()
   // No early-return under a nested if (the D2-family case 4): the
   // guard inverts into a positive branch that carries the whole tick.
-  let token = env_or("KAMERTON_TG_TOKEN", "")
-  let chat_id = env_or("KAMERTON_CHAT_ID", "")
+  // №950 (0.40.0): the env pair crosses the sanctioned redact bridge
+  // (№706 form: the label sheds, the value passes byte-exact — probe-
+  // pinned on the token shape; the getUpdates URL is the protocol-
+  // required carrier of the token, the host is pinned by construction).
+  let token = redact(env_or("KAMERTON_TG_TOKEN", ""), "secrets")
+  let chat_id = redact(env_or("KAMERTON_CHAT_ID", ""), "secrets")
   if token != "" and chat_id != "" {
-    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
     let today = owner_date(now_unix(), off)
     // Н3-06: the slot rotation (ADR-0003) runs BEFORE the proposal —
     // the morning pick sees the freshly rotated set. The rotation is
@@ -2824,12 +2839,16 @@ pattern tg_morning_tick() -> Unit {
 // stays THIS tick's signature: the collect tick (Н2-11) drains silently.
 pattern tg_evening_tick() -> Unit {
   ensure_schema()
-  let token = env_or("KAMERTON_TG_TOKEN", "")
-  let chat_id = env_or("KAMERTON_CHAT_ID", "")
+  // №950 (0.40.0): the env pair crosses the sanctioned redact bridge
+  // (№706 form: the label sheds, the value passes byte-exact — probe-
+  // pinned on the token shape; the getUpdates URL is the protocol-
+  // required carrier of the token, the host is pinned by construction).
+  let token = redact(env_or("KAMERTON_TG_TOKEN", ""), "secrets")
+  let chat_id = redact(env_or("KAMERTON_CHAT_ID", ""), "secrets")
   if token != "" and chat_id != "" {
     let offset = to_float_or(kv_get("tg_offset"), 0.0)
     let updates = fetch_updates(token, offset)
-    process_updates(updates, chat_id, now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")), offset, true)
+    process_updates(updates, chat_id, now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")), offset, true)
   }
   if token == "" or chat_id == "" {
     print("[telegram] KAMERTON_TG_TOKEN/KAMERTON_CHAT_ID not set — evening tick refuses loudly")
@@ -2847,10 +2866,14 @@ pattern tg_evening_tick() -> Unit {
 // about an answered trial (the pending query guards).
 pattern tg_collect_tick() -> Unit {
   ensure_schema()
-  let token = env_or("KAMERTON_TG_TOKEN", "")
-  let chat_id = env_or("KAMERTON_CHAT_ID", "")
+  // №950 (0.40.0): the env pair crosses the sanctioned redact bridge
+  // (№706 form: the label sheds, the value passes byte-exact — probe-
+  // pinned on the token shape; the getUpdates URL is the protocol-
+  // required carrier of the token, the host is pinned by construction).
+  let token = redact(env_or("KAMERTON_TG_TOKEN", ""), "secrets")
+  let chat_id = redact(env_or("KAMERTON_CHAT_ID", ""), "secrets")
   if token != "" and chat_id != "" {
-    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
     let offset = to_float_or(kv_get("tg_offset"), 0.0)
     let updates = fetch_updates(token, offset)
     process_updates(updates, chat_id, now_unix(), off, offset, false)
@@ -2891,8 +2914,12 @@ pattern tg_moment_tick() -> Unit {
   // defect #52); the messages ride ONE variable, ONE flat print at the
   // end; the secret/hint env facts stay inside the barrier patterns
   ensure_schema()
-  let token = env_or("KAMERTON_TG_TOKEN", "")
-  let chat_id = env_or("KAMERTON_CHAT_ID", "")
+  // №950 (0.40.0): the env pair crosses the sanctioned redact bridge
+  // (№706 form: the label sheds, the value passes byte-exact — probe-
+  // pinned on the token shape; the getUpdates URL is the protocol-
+  // required carrier of the token, the host is pinned by construction).
+  let token = redact(env_or("KAMERTON_TG_TOKEN", ""), "secrets")
+  let chat_id = redact(env_or("KAMERTON_CHAT_ID", ""), "secrets")
   let mut msg = ""
   if token == "" or chat_id == "" {
     msg = "[telegram] the telegram env pair is not set — moment tick refuses loudly"
@@ -2911,7 +2938,7 @@ pattern tg_moment_tick() -> Unit {
     msg = "[moment] the hint text env is not set — moment tick stays silent (the texts are the owner's facts)"
   }
   if msg == "" and status == 0.0 {
-    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
     let today = owner_date(now_unix(), off)
     let go = moment_tick_decide(today)
     if go == 1.0 {
@@ -2947,7 +2974,10 @@ mlogserver {
     let jobs = cron_list()
     let mut lines = ""
     each j in jobs {
-      lines = lines + escape_html(j.cron_expr) + " -> " + escape_html(j.prompt) + "\n"
+      // №951/№706: the cron_list rows flow private — the redact bridge
+      // sheds the conf label, escape_html keeps the html-safety (the
+      // count precedent in /setup).
+      lines = lines + escape_html(redact(j.cron_expr, "secrets")) + " -> " + escape_html(redact(j.prompt, "secrets")) + "\n"
     }
     return respond("200 " + lines)
   }
@@ -3025,7 +3055,7 @@ mlogserver {
     if tempo < 0.0 or steps < 0.0 {
       return respond_html_status("400 Bad Request", "tempo_bpm/steps_total: ожидается число не меньше 0")
     }
-    let sid = miniapp_session_open(kind, tempo, steps, owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0"))), to_float_or(escape_html(query_param("arm_id")), 0.0), to_float_or(escape_html(query_param("trial_id")), 0.0))
+    let sid = miniapp_session_open(kind, tempo, steps, owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))), to_float_or(escape_html(query_param("arm_id")), 0.0), to_float_or(escape_html(query_param("trial_id")), 0.0))
     return respond("200 {\"id\":" + escape_html(to_string(sid)) + "}")
   }
   route "/miniapp/session/close" method=POST {
@@ -3074,7 +3104,7 @@ mlogserver {
         if rows[0].kind == "sweep" {
           let res = sweep_analyze(rows[0].step_marks)
           if res.ok == true {
-            let rec = sweep_record(sid, res, owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0"))))
+            let rec = sweep_record(sid, res, owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))))
             // Н2-07: the accepted run fixes the LINKED trial's moment by
             // the spectral source — the winner's power fraction is the
             // honest resonance measure (ADR-0001 priority).
@@ -3133,7 +3163,7 @@ mlogserver {
       return respond_html_status("403 Forbidden", "Kamerton: доступ только по токену владельца")
     }
     ensure_schema()
-    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let today = owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")))
     return respond("200 " + json_encode(plan_for_date(today)))
   }
   route "/miniapp/catalog" method=GET {
@@ -3159,7 +3189,7 @@ mlogserver {
     if len(name) > 512.0 {
       return respond_html_status("400 Bad Request", "name: слишком длинный запрос (лимит 512)")
     }
-    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let today = owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")))
     let cands = plan_arm_candidates(name)
     if len(cands) == 1.0 {
       if plan_consent_ok(cands[0].id) == false {
@@ -3187,7 +3217,7 @@ mlogserver {
     if pid < 1.0 {
       return respond_html_status("400 Bad Request", "id: ожидается номер пункта плана")
     }
-    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let today = owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")))
     let marked = plan_mark_done(pid, today)
     if marked < 1.0 {
       return respond("200 {\"ok\":0,\"reason\":\"no_change\"}")
@@ -3212,7 +3242,7 @@ mlogserver {
     if len(note) > 32768.0 {
       return respond_html_status("400 Bad Request", "поле превышает 32KiB")
     }
-    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let today = owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")))
     // The optional practice link: the plan row of TODAY (the date guard
     // keeps a stale page from binding another day's item).
     let plan_id = to_float_or(escape_html(query_param("plan_id")), 0.0)
@@ -3253,7 +3283,7 @@ mlogserver {
     ensure_schema()
     // The provenance line: the sanitized today (digits and dashes only
     // — the escape bridge is exact on the owner_date shape).
-    let src = "miniapp " + owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let src = "miniapp " + owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")))
     let recorded = consent_disclaimer_record(src)
     return respond("200 {\"ok\":1,\"recorded\":" + escape_html(to_string(recorded)) + "}")
   }
@@ -3271,7 +3301,7 @@ mlogserver {
       return respond_html_status("403 Forbidden", "Kamerton: доступ только по токену владельца")
     }
     ensure_schema()
-    let today = owner_date(now_unix(), to_float(env_or("KAMERTON_TZ_OFFSET", "0")))
+    let today = owner_date(now_unix(), to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets")))
     let res = emergency_stop(today)
     return respond("200 {\"ok\":1,\"trial\":" + escape_html(to_string(res.trial)) + ",\"stopped\":" + escape_html(to_string(res.stopped)) + "}")
   }
