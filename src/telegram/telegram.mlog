@@ -531,7 +531,7 @@ pattern moment_spectral_write(tid: Float, share: Float, peak_hz: Float) -> Float
 }
 // ── H2-07-SPECTRAL-END ───────────────────────────────────────────────────
 
-pattern process_updates(updates: List<public, trusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float, with_report: Bool) -> Unit {
+pattern process_updates(updates: List<public, untrusted>, chat_id: String<public, trusted>, now_ts: Float, tz_offset_hours: Float, offset: Float, with_report: Bool) -> Unit {
   // Н2-10: an answer belongs to the trial of the window its MESSAGE fell
   // into (message.date, the Telegram server clock), not to the window of
   // the tick that happens to drain it; a message without a date falls
@@ -551,16 +551,24 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
   let mut skipped = 0.0
   let mut last_id = 0 - 1.0
   each u in updates {
-    last_id = json_get(u, "update_id", 0.0)
+    last_id = to_float(escape_html(to_string(json_get(u, "update_id", 0.0))))
     let chat = to_string(json_get(u, "message.chat.id", 0.0))
     if escape_html(chat) == escape_html(chat_id) {
       let text = json_get(u, "message.text", "")
       if escape_html(text) != "" {
-        let ans = parse_chat_text(text)
+        // №950 (0.40.0): the untrusted drain text crosses the escape
+        // bridge AT THE CALL BOUNDARY — the interproc return summary
+        // carries the parameter's label, so the sanitizer sits where the
+        // hand-off happens (the answer grammar and Cyrillic survive
+        // byte-exact; HTML metacharacters degrade to their entities).
+        let ans = parse_chat_text(escape_html(text))
         // The message clock (Н2-10) — hoisted from the trial routing:
         // the day-plan commands bind to the day their MESSAGE fell
         // into, the same single clock as the answers.
-        let mut msg_ts = json_get(u, "message.date", 0.0)
+        // №950 (0.40.0): the numeric read crosses the escape bridge
+        // (byte-exact for numbers) — the untrusted label dies here,
+        // before the date cascade reaches any query or sink.
+        let mut msg_ts = to_float(escape_html(to_string(json_get(u, "message.date", 0.0))))
         if msg_ts <= 0.0 {
           msg_ts = now_ts
         }
@@ -627,7 +635,7 @@ pattern process_updates(updates: List<public, trusted>, chat_id: String<public, 
           // The chat journal carries no practice link (the Mini App one
           // binds the plan row) — mood + note for the day, silent like
           // the p:/m: answers.
-          let _ = free_journal_add(jday, 0.0, ans.value, escape_html(ans.text))
+          let _ = free_journal_add(jday, 0.0, ans.value, ans.text)
           plans = plans + 1.0
           processed = processed + 1.0
         }
@@ -777,7 +785,7 @@ pattern setup_register() -> Unit {
   // sweep removes the outdated copies by prompt.
   // Н2-13: the FOURTH job — the honesty valve's weekly report
   // (Monday 09:30 local).
-  let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+  let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
   let morning = cron_expr_for(420.0, off)
   let collect = cron_expr_for(1290.0, off)
   let evening = cron_expr_for(120.0, off)
@@ -2474,7 +2482,10 @@ pattern moment_seed_present() -> Bool {
   return present
 }
 pattern moment_hint_text() -> String {
-  return env_or("KAMERTON_MOMENT_TEXT", "")
+  // №950 (0.40.0): the owner's hint text rides the sanctioned redact
+  // bridge out of the barrier (№706 form: the label sheds, the value
+  // passes byte-exact — probe-pinned on prose).
+  return redact(env_or("KAMERTON_MOMENT_TEXT", ""), "secrets")
 }
 pattern moment_window_start() -> Float {
   return to_float_or(env_or("KAMERTON_MOMENT_START", "480"), 480.0)
@@ -2511,7 +2522,7 @@ pattern moment_tick_status() -> Float {
 pattern moment_tick_decide(today: String<public, trusted>) -> Float {
   let mut go = 0.0
   if moment_seed_present() == true {
-    let off = to_float(env_or("KAMERTON_TZ_OFFSET", "0"))
+    let off = to_float(redact(env_or("KAMERTON_TZ_OFFSET", "0"), "secrets"))
     let p = date_parts(now_unix() + off * 3600.0)
     let local_min = p.hour * 60.0 + p.minute
     go = moment_send_once(today, local_min, moment_trigger(today), moment_window_end())

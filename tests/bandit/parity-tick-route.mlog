@@ -82,7 +82,12 @@ pattern fire_job(raw: String<public, trusted>) -> String {
   if contains(id, ";") {
     return "rejected"
   }
-  let fired = cron_run(id)
+  // №950 B2 (0.40.0): the call site re-decides the parameter clearance
+  // with the ACTUAL argument label — the shape gate validates but does
+  // not repair the integrity axis. The id crosses the №716 escape
+  // bridge at the callee's sink; real ids ("cron_<ts>_<n>") pass
+  // byte-exact, a tampered id degrades to a no-op fire.
+  let fired = cron_run(escape_html(id))
   // 0.38.0: cron_run returns CronRunResult {executed, id, status} — the
   // 0.34 numeric failure probe (fired < 0.0) is a runtime TYPE_MISMATCH
   // against the struct (probed 01.11). The bridge keeps the same
